@@ -1,6 +1,4 @@
 
-
-
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
     pub x: f64,
@@ -14,6 +12,31 @@ pub struct Vector {
     pub y: f64,
     pub z: f64,
 }
+
+#[derive(Debug)]
+pub struct Ray {
+    pub orig: Point,
+    pub dir: Vector
+}
+
+#[derive(Debug)]
+pub struct Sphere {
+    pub name: String,
+    pub center: Point,
+    pub radius: f64,
+}
+
+#[derive(Debug)]
+pub struct Camera {
+    pub pos: Point,
+    pub dir: Vector,
+}
+
+pub trait Object {
+    fn display(&self);
+    fn intercept(&self, ray: &Ray, t : &mut f64) -> Option<Vector>;
+}
+
 
 impl Point {
     fn add(&self, v: &Vector) -> Self {
@@ -42,53 +65,51 @@ impl Vector {
     }
 }
 
-#[derive(Debug)]
-pub struct Camera {
-    pub pos: Point,
-    pub dir: Vector,
-}
-
 impl Camera {
     pub fn new(pos: Point, dir: Vector) -> Self {
         Self { pos: pos, dir: dir }
     }
 }
 
-#[derive(Debug)]
-pub struct Ray {
-    pub orig: Point,
-    pub dir: Vector
-}
-
-#[derive(Debug)]
-pub struct Sphere {
-    pub center: Point,
-    pub radius: f64,
-}
 
 impl Sphere {
-    pub fn new(center: Point, radius: f64) -> Self {
-        Self { center: center, radius: radius }
+    pub fn new(name: String, center: Point, radius: f64) -> Self {
+        Self { name: name, center: center, radius: radius }
     }
-    pub fn intercept(&mut self, ray: &Ray) -> Option<Vector> {
+}
+
+impl Object for Sphere {
+    fn display(&self) {
+        println!("{}: {:?} radius={:?}", self.name, self.center, self.radius);
+    }
+    fn intercept(&self, ray: &Ray, t: &mut f64) -> Option<Vector> {
         let a = ray.dir.scalar(&ray.dir);
         let v0 = Vector::create(&self.center, &ray.orig);
         let b = 2.0 * ray.dir.scalar(&v0);
         let v1 = Vector::create(&ray.orig, &self.center);
-        let c = v1.scalar(&v1) - self.radius.powi(2);
+        let c = v1.scalar(&v1) - self.radius * self.radius;
 
         let delta = b * b - 4.0 * a * c;
 
         if delta < 0.0 {
             return None
         }
-        let t1 = (-b + delta.sqrt()) / (2.0 * a);
-        let t2 = (-b - delta.sqrt()) / (2.0 * a);
-        if t1 < 0.0 && t2 < 0.0 {
+        let delta_sqrt = delta.sqrt();
+        let t1 = (-b + delta_sqrt) / (2.0 * a);
+        let t2 = (-b - delta_sqrt) / (2.0 * a);
+        if t1 < 0.0 {
             return None
         }
-        let scaled_dir = ray.dir.scale(t2);
+        let t0 : f64;
+        if t2 < 0.0 {
+            t0 = t1;
+        } else {
+            t0 = t2;
+        }
+        let scaled_dir = ray.dir.scale(t0);
         let p = ray.orig.add(&scaled_dir);
+
+        *t = t0;
 
         let mut normal = Vector::create(&self.center, &p);
         normal.normalize();

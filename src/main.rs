@@ -8,6 +8,7 @@ use serde_json;
 
 mod image;
 mod three_d;
+use three_d::Object;
 use three_d::Vector;
 use three_d::Point;
 use three_d::Ray;
@@ -16,11 +17,11 @@ use three_d::Camera;
 
 
 #[derive(StructOpt, Debug)]
-#[structopt(name="rtest", about="Maxime's playground")]
+#[structopt(name="rtest", about="minimal raytracer")]
 struct Options {
-    #[structopt(long, default_value = "")]
+    #[structopt(long, default_value = "pic.ppm")]
     ppm_file: PathBuf,
-    #[structopt(long, default_value = "")]
+    #[structopt(long, default_value = "scene.json")]
     scene_file: PathBuf,
      #[structopt(long, default_value = "320")]
     res_x: u32,
@@ -32,25 +33,26 @@ struct Options {
 struct RenderJob {
     opt: Options,
     start_time: Instant,
-    camera: Camera,
-    sphere: Sphere,
+    camera: Option<Camera>,
+    objects: Vec<Box<dyn Object + 'static>>,
     image: image::Image,
     light: Vector,
 }
 
-impl RenderJob {
+impl RenderJob { // ??
     pub fn new(opt: Options) -> Self {
         Self {
             start_time : Instant::now(),
-            camera: Camera::new(Point  { x: 0.0, y: 0.0, z: 0.0 },
-                                Vector { x: 1.0, y: 0.0, z: 0.0 }),
-            sphere: Sphere::new(Point  { x: 3.0, y: 0.0, z: 0.0 }, 0.6 ),
+            camera: None,
             image: image::Image::new(opt.res_x, opt.res_y),
             light: Vector{ x: 0.5, y: -0.5, z: -0.5 },
+            objects: vec![],
             opt : opt,
         }
     }
     pub fn render_scene(&mut self) {
+        assert!(self.camera.is_some());
+        let camera_pos = self.camera.as_ref().unwrap().pos;
         let mut n = 0;
         for i in 0..self.opt.res_y {
             for j in 0..self.opt.res_x {
@@ -60,25 +62,34 @@ impl RenderJob {
                 let sz = v / 2.0 - i as f64 * v / self.opt.res_y as f64;
                 let pixel = Point{ x: 1.0, y: sy, z: sz };
 
-                let vec = Vector::create(&self.camera.pos, &pixel);
-                let ray = Ray{ orig: self.camera.pos, dir: vec };
+                let vec = Vector::create(&camera_pos, &pixel);
+                let ray = Ray{ orig: camera_pos, dir: vec };
 
                 let mut c = image::RGB{ r: 0, g: 0, b: 0 };
-                if let Some(normal) = self.sphere.intercept(&ray) {
-                    let v : f64 = 200.0 * normal.scalar(&self.light).powi(2);
-                    let v8 : u8 = v as u8;
-                    c = image::RGB{ r: v8, g: v8, b: v8 };
-                    n += 1;
-                } 
+                let mut tmin = f64::MAX;
+                for obj in &self.objects {
+                    let mut t : f64 = 0.0;
+                    if let Some(normal) = obj.intercept(&ray, &mut t) {
+                        if t < tmin {
+                            let v : f64 = 200.0 * normal.scalar(&self.light).powi(2);
+                            let v8 : u8 = v as u8;
+                            c = image::RGB{ r: v8, g: v8, b: v8 };
+                            tmin = t;
+                        }
+                        n += 1;
+                    }
+                }
 
                 self.image.push_pixel(c);
             }
         }
-        println!("{} intercept", n);
+        println!("{} intercepts", n);
     }
     pub fn parse_input_scene(&mut self) -> std::io::Result<()> {
-        assert!(self.opt.scene_file.is_file());
-        println!("output file: {:?}", self.opt.scene_file);
+        if ! self.opt.scene_file.is_file() {
+            panic!("scene file {} not present.", self.opt.scene_file.display());
+        }
+        println!("Loading scene file: {:?}", self.opt.scene_file);
 
         let data = fs::read_to_string(&self.opt.scene_file)?;
         let json: serde_json::Value = serde_json::from_str(&data)?;
@@ -94,18 +105,31 @@ impl RenderJob {
             z: json["camera.direction"][2].as_f64().unwrap()
         };
         v.normalize();
-        self.camera.pos = p;
-        self.camera.dir = v;
-        let p = Point {
-            x: json["sphere.0"][0].as_f64().unwrap(),
-            y: json["sphere.0"][1].as_f64().unwrap(),
-            z: json["sphere.0"][2].as_f64().unwrap()
+        self.camera = Some(Camera::new(p, v));
+        let num_spheres = json["num_spheres"].as_u64().unwrap();
+        for i in 0..num_spheres {
+            let name = format!("sphere.{}", i);
+            let p = Point {
+                x: json[&name][0].as_f64().unwrap(),
+                y: json[&name][1].as_f64().unwrap(),
+                z: json[&name][2].as_f64().unwrap()
+            };
+            let r = json[&name][3].as_f64().unwrap();
+            self.objects.push(Box::new(Sphere::new(name, p, r)));
+        }
+        let mut v = Vector {
+            x: json["light.0"][0].as_f64().unwrap(),
+            y: json["light.0"][1].as_f64().unwrap(),
+            z: json["light.0"][2].as_f64().unwrap()
         };
-        let r = json["sphere.0"][3].as_f64().unwrap();
-        self.sphere = Sphere::new(p, r);
-        println!("camera: {:?}", self.camera.dir);
-        println!("camera: {:?}", self.camera.pos);
-        println!("sphere: {:?} r={:?}", self.sphere.center, self.sphere.radius);
+        v.normalize(); // how about intensity?
+        self.light = v;
+        println!("camera: {:?}", self.camera.as_ref().unwrap().pos);
+        println!("camera: {:?}", self.camera.as_ref().unwrap().dir);
+        for obj in &self.objects {
+            obj.display();
+        }
+        println!("light: {:?}", self.light);
         Ok(())
     }
 
@@ -127,5 +151,6 @@ fn main() -> std::io::Result<()> {
     job.parse_input_scene()?;
     job.render_scene();
     job.save_image()?;
+
     Ok(())
 }

@@ -29,11 +29,11 @@ impl Image {
 	let mut content = format!("P3\n{} {}\n255\n", self.res_x, self.res_y);
 	f.write_all(content.as_bytes())?;
 	let len = self.content.len();
+        assert!(len > 0);
 	if len == 0 {
 	    return Ok(())
 	}
 
-	println!("vec has len {:?}", len);
 	println!("res: {}x{}", self.res_x, self.res_y);
 
 	for i in 0..self.res_y {
