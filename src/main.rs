@@ -3,8 +3,8 @@
 use structopt::StructOpt;
 use std::path::PathBuf;
 use std::time::Instant;
-use std::fs::File;
-use std::io::Write;
+
+mod image;
 
 #[derive(Debug, Clone, Copy)]
 struct Point {
@@ -90,12 +90,6 @@ impl Sphere {
     }
 }
 
-#[derive(Debug)]
-struct RGB {
-    r: u8,
-    g: u8,
-    b: u8,
-}
 
 #[derive(Debug)]
 struct Camera {
@@ -122,45 +116,13 @@ struct Options {
     res_y: u32,
 }
 
-struct Image {
-    res_x: u32,
-    res_y: u32,
-    content: Vec::<RGB>,
-}
-
-impl Image {
-    fn new(res_x: u32, res_y: u32) -> Self {
-        Self {  res_x: res_x, res_y: res_y,
-            content: Vec::<RGB>::with_capacity((res_x * res_y) as usize) }
-    }
-    fn save_image(&mut self, file: PathBuf) {
-        let mut f = File::create(file).expect("File create error");
-        let mut content = format!("P3\n{} {}\n255\n", self.res_x, self.res_y);
-        f.write_all(content.as_bytes()).expect("Unable to write data");
-        let len = self.content.len();
-        if len == 0 {
-            return;
-        }
-
-        println!("vec has len {:?}", len);
-        println!("res: {}x{}", self.res_x, self.res_y);
-
-        for i in 0..self.res_y {
-            for j in 0..self.res_x {
-                let c = &self.content[(i * self.res_x + j) as usize];
-                content = format!(" {0} {1} {2} \n", c.r, c.g, c.b);
-                f.write_all(content.as_bytes()).expect("Unable to write data");
-            }
-        }
-    }
-}
 
 struct RenderJob {
     opt: Options,
     start_time: Instant,
     camera: Camera,
     sphere: Sphere,
-    image: Image,
+    image: image::Image,
     light: Vector,
 }
 
@@ -171,7 +133,7 @@ impl RenderJob {
             camera: Camera::new(Point  { x: 0.0, y: 0.0, z: 0.0 },
                                 Vector { x: 1.0, y: 0.0, z: 0.0 }),
             sphere: Sphere::new(Point  { x: 3.0, y: 0.0, z: 0.0 }, 0.6 ),
-            image: Image::new(opt.res_x, opt.res_y),
+            image: image::Image::new(opt.res_x, opt.res_y),
             light: Vector{ x: 0.5, y: -0.5, z: -0.5 },
             opt : opt,
         }
@@ -190,15 +152,15 @@ impl RenderJob {
                 let vec = Vector::create(&self.camera.pos, &pixel);
                 let ray = Ray{ orig: self.camera.pos, dir: vec };
 
-                let mut c = RGB{ r: 0, g: 0, b: 0 };
+                let mut c = image::RGB{ r: 0, g: 0, b: 0 };
                 if let Some(normal) = self.sphere.intercept(&ray) {
                     let v : f64 = 200.0 * normal.scalar(&self.light).powi(2);
                     let v8 : u8 = v as u8;
-                    c = RGB{ r: v8, g: v8, b: v8 };
+                    c = image::RGB{ r: v8, g: v8, b: v8 };
                     n += 1;
                 } 
 
-                self.image.content.push(c);
+                self.image.push_pixel(c);
             }
         }
         println!("{} intercept", n);
