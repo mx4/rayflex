@@ -23,13 +23,14 @@ impl Image {
     pub fn push_pixel(&mut self, c: RGB) {
         self.content.push(c);
     }
-    pub fn save_image(&mut self, file: PathBuf) {
-	let mut f = File::create(file).expect("File create error");
+    pub fn save_image(&mut self, file: PathBuf) -> std::io::Result<()> {
+        println!("saving result to {:?}", file);
+	let mut f = File::create(file)?;
 	let mut content = format!("P3\n{} {}\n255\n", self.res_x, self.res_y);
-	f.write_all(content.as_bytes()).expect("Unable to write data");
+	f.write_all(content.as_bytes())?;
 	let len = self.content.len();
 	if len == 0 {
-	    return;
+	    return Ok(())
 	}
 
 	println!("vec has len {:?}", len);
@@ -42,6 +43,7 @@ impl Image {
 		f.write_all(content.as_bytes()).expect("Unable to write data");
 	    }
 	}
+        Ok(())
     }
 }
 

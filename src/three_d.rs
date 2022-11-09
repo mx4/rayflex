@@ -31,7 +31,7 @@ impl Vector {
     fn scale(&self, r: f64) -> Self {
         Vector { x: self.x * r, y: self.y * r, z: self.z * r }
     }
-    fn normalize(&mut self) {
+    pub fn normalize(&mut self) {
         let norm = self.norm();
         self.x /= norm;
         self.y /= norm;
