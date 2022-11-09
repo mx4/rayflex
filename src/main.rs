@@ -5,6 +5,7 @@ use structopt::StructOpt;
 use std::path::PathBuf;
 use std::time::Instant;
 use serde_json;
+use rand::Rng;
 
 mod image;
 mod three_d;
@@ -23,10 +24,12 @@ struct Options {
     ppm_file: PathBuf,
     #[structopt(long, default_value = "scene.json")]
     scene_file: PathBuf,
-     #[structopt(long, default_value = "320")]
+     #[structopt(long, default_value = "640")]
     res_x: u32,
-     #[structopt(long, default_value = "320")]
+     #[structopt(long, default_value = "640")]
     res_y: u32,
+     #[structopt(long, default_value = "0")]
+    num_spheres_to_generate: u32,
 }
 
 
@@ -69,9 +72,16 @@ impl RenderJob { // ??
                 let mut tmin = f64::MAX;
                 for obj in &self.objects {
                     let mut t : f64 = 0.0;
-                    if let Some(normal) = obj.intercept(&ray, &mut t) {
+                    if obj.intercept(&ray, &mut t) {
                         if t < tmin {
-                            let v : f64 = 200.0 * normal.scalar(&self.light).powi(2);
+                            let scaled_dir = ray.dir.scale(t);
+                            let point = ray.orig.add(&scaled_dir);
+                            let normal = obj.get_normal(&point);
+                            let mut v_prod = normal.scalar(&self.light);
+                            if v_prod > 0.0 {
+                                v_prod = 0.0;
+                            }
+                            let v : f64 = 200.0 * v_prod * v_prod;
                             let v8 : u8 = v as u8;
                             c = image::RGB{ r: v8, g: v8, b: v8 };
                             tmin = t;
@@ -106,16 +116,29 @@ impl RenderJob { // ??
         };
         v.normalize();
         self.camera = Some(Camera::new(p, v));
-        let num_spheres = json["num_spheres"].as_u64().unwrap();
-        for i in 0..num_spheres {
-            let name = format!("sphere.{}", i);
-            let p = Point {
-                x: json[&name][0].as_f64().unwrap(),
-                y: json[&name][1].as_f64().unwrap(),
-                z: json[&name][2].as_f64().unwrap()
-            };
-            let r = json[&name][3].as_f64().unwrap();
-            self.objects.push(Box::new(Sphere::new(name, p, r)));
+        if self.opt.num_spheres_to_generate > 0 {
+            let mut rng = rand::thread_rng();
+            for i in 0..self.opt.num_spheres_to_generate {
+                let x = rng.gen_range(2.0..5.0);
+                let y = rng.gen_range(-2.0..2.0);
+                let z = rng.gen_range(-2.0..2.0);
+                let r = rng.gen_range(0.05..0.3);
+                let p = Point { x: x, y: y, z: z };
+                let name = format!("sphere.{}", i);
+                self.objects.push(Box::new(Sphere::new(name, p, r)));
+            }
+        } else {
+            let num_spheres = json["num_spheres"].as_u64().unwrap();
+            for i in 0..num_spheres {
+                let name = format!("sphere.{}", i);
+                let p = Point {
+                    x: json[&name][0].as_f64().unwrap(),
+                    y: json[&name][1].as_f64().unwrap(),
+                    z: json[&name][2].as_f64().unwrap()
+                };
+                let r = json[&name][3].as_f64().unwrap();
+                self.objects.push(Box::new(Sphere::new(name, p, r)));
+            }
         }
         let mut v = Vector {
             x: json["light.0"][0].as_f64().unwrap(),
