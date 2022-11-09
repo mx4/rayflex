@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 use serde_json;
 use rand::Rng;
+use raymax::color::RGB;
 
 mod image;
 mod three_d;
@@ -24,9 +25,9 @@ struct Options {
     ppm_file: PathBuf,
     #[structopt(long, default_value = "scene.json")]
     scene_file: PathBuf,
-     #[structopt(long, default_value = "640")]
+     #[structopt(long, default_value = "400")]
     res_x: u32,
-     #[structopt(long, default_value = "640")]
+     #[structopt(long, default_value = "400")]
     res_y: u32,
      #[structopt(long, default_value = "0")]
     num_spheres_to_generate: u32,
@@ -68,7 +69,7 @@ impl RenderJob { // ??
                 let vec = Vector::create(&camera_pos, &pixel);
                 let ray = Ray{ orig: camera_pos, dir: vec };
 
-                let mut c = image::RGB{ r: 0, g: 0, b: 0 };
+                let mut c = RGB{ r: 0.0, g: 0.0, b: 0.0 };
                 let mut tmin = f64::MAX;
                 for obj in &self.objects {
                     let mut t : f64 = 0.0;
@@ -81,9 +82,9 @@ impl RenderJob { // ??
                             if v_prod > 0.0 {
                                 v_prod = 0.0;
                             }
-                            let v : f64 = 200.0 * v_prod * v_prod;
-                            let v8 : u8 = v as u8;
-                            c = image::RGB{ r: v8, g: v8, b: v8 };
+                            let rgb = obj.get_color(&point);
+                            let v = v_prod * v_prod;
+                            c = RGB{ r: v * rgb.r, g: v * rgb.g, b: v * rgb.b };
                             tmin = t;
                         }
                         n += 1;
@@ -123,9 +124,13 @@ impl RenderJob { // ??
                 let y = rng.gen_range(-2.0..2.0);
                 let z = rng.gen_range(-2.0..2.0);
                 let r = rng.gen_range(0.05..0.3);
+                let cr = rng.gen_range(0.3..1.0);
+                let cg = rng.gen_range(0.3..1.0);
+                let cb = rng.gen_range(0.3..1.0);
                 let p = Point { x: x, y: y, z: z };
+                let rgb = RGB{ r: cr, g: cg, b: cb };
                 let name = format!("sphere.{}", i);
-                self.objects.push(Box::new(Sphere::new(name, p, r)));
+                self.objects.push(Box::new(Sphere::new(name, p, r, rgb)));
             }
         } else {
             let num_spheres = json["num_spheres"].as_u64().unwrap();
@@ -137,7 +142,9 @@ impl RenderJob { // ??
                     z: json[&name][2].as_f64().unwrap()
                 };
                 let r = json[&name][3].as_f64().unwrap();
-                self.objects.push(Box::new(Sphere::new(name, p, r)));
+                let v = 0.8;
+                let rgb = RGB{ r: v, g: v, b: v };
+                self.objects.push(Box::new(Sphere::new(name, p, r, rgb)));
             }
         }
         let mut v = Vector {

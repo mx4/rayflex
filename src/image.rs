@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
+use raymax::color::RGB;
 
 pub struct Image {
       res_x: u32,
@@ -8,12 +9,6 @@ pub struct Image {
       content: Vec::<RGB>,
 }
 
-#[derive(Debug)]
-pub struct RGB {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-}
 
 impl Image {
     pub fn new(res_x: u32, res_y: u32) -> Self {
@@ -39,7 +34,10 @@ impl Image {
 	for i in 0..self.res_y {
 	    for j in 0..self.res_x {
 		let c = &self.content[(i * self.res_x + j) as usize];
-		content = format!(" {0} {1} {2} \n", c.r, c.g, c.b);
+                let r = (255.0 * c.r) as u8;
+                let g = (255.0 * c.g) as u8;
+                let b = (255.0 * c.b) as u8;
+		content = format!(" {0} {1} {2} \n", r, g, b);
 		f.write_all(content.as_bytes()).expect("Unable to write data");
 	    }
 	}

@@ -1,3 +1,4 @@
+use raymax::color::RGB;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
@@ -24,6 +25,7 @@ pub struct Sphere {
     pub name: String,
     pub center: Point,
     pub radius: f64,
+    pub rgb: RGB,
 }
 
 #[derive(Debug)]
@@ -36,6 +38,7 @@ pub trait Object {
     fn display(&self);
     fn intercept(&self, ray: &Ray, t : &mut f64) -> bool;
     fn get_normal(&self, point: &Point) -> Vector;
+    fn get_color(&self, point: &Point) -> RGB;
 }
 
 
@@ -74,8 +77,8 @@ impl Camera {
 
 
 impl Sphere {
-    pub fn new(name: String, center: Point, radius: f64) -> Self {
-        Self { name: name, center: center, radius: radius }
+    pub fn new(name: String, center: Point, radius: f64, rgb: RGB) -> Self {
+        Self { name: name, center: center, radius: radius, rgb: rgb }
     }
 }
 
@@ -88,6 +91,10 @@ impl Object for Sphere {
         normal.normalize();
         normal
     }
+    fn get_color(&self, _point: &Point) -> RGB {
+        self.rgb
+    }
+
     fn intercept(&self, ray: &Ray, t: &mut f64) -> bool {
         let a = ray.dir.scalar(&ray.dir);
         let v0 = Vector::create(&self.center, &ray.orig);
