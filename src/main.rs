@@ -17,7 +17,6 @@ use three_d::Ray;
 use three_d::Sphere;
 use three_d::Camera;
 
-
 #[derive(StructOpt, Debug)]
 #[structopt(name="rtest", about="minimal raytracer")]
 struct Options {
@@ -79,11 +78,16 @@ impl RenderJob { // ??
                             let point = ray.orig.add(&scaled_dir);
                             let normal = obj.get_normal(&point);
                             let mut v_prod = normal.scalar(&self.light);
-                            if v_prod > 0.0 {
+                            if v_prod > 0.0 { // only show visible side
                                 v_prod = 0.0;
                             }
+                            let (x, y) = obj.get_texture_2d(&point);
                             let rgb = obj.get_color(&point);
-                            let v = v_prod * v_prod;
+                            let mut v = v_prod * v_prod;
+                            let pattern = ((x * 4.0).fract() > 0.5) ^ ((y * 4.0).fract() > 0.5);
+                            if pattern {
+                                v /= 1.4;
+                            }
                             c = RGB{ r: v * rgb.r, g: v * rgb.g, b: v * rgb.b };
                             tmin = t;
                         }
@@ -117,6 +121,14 @@ impl RenderJob { // ??
         };
         v.normalize();
         self.camera = Some(Camera::new(p, v));
+        let mut v = Vector {
+            x: json["light.0"][0].as_f64().unwrap(),
+            y: json["light.0"][1].as_f64().unwrap(),
+            z: json["light.0"][2].as_f64().unwrap()
+        };
+        v.normalize(); // how about intensity?
+        self.light = v;
+
         let num_spheres = json["num_spheres"].as_u64().unwrap();
         for i in 0..num_spheres {
             let name = format!("sphere.{}", i);
@@ -133,13 +145,6 @@ impl RenderJob { // ??
             let rgb = RGB{ r: cr, g: cg, b: cb };
             self.objects.push(Box::new(Sphere::new(name, p, r, rgb)));
         }
-        let mut v = Vector {
-            x: json["light.0"][0].as_f64().unwrap(),
-            y: json["light.0"][1].as_f64().unwrap(),
-            z: json["light.0"][2].as_f64().unwrap()
-        };
-        v.normalize(); // how about intensity?
-        self.light = v;
         println!("camera: {:?}", self.camera.as_ref().unwrap().pos);
         println!("camera: {:?}", self.camera.as_ref().unwrap().dir);
         println!("light: {:?}", self.light);

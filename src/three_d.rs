@@ -39,6 +39,7 @@ pub trait Object {
     fn intercept(&self, ray: &Ray, t : &mut f64) -> bool;
     fn get_normal(&self, point: &Point) -> Vector;
     fn get_color(&self, point: &Point) -> RGB;
+    fn get_texture_2d(&self, point: &Point) -> (f64, f64);
 }
 
 
@@ -93,6 +94,14 @@ impl Object for Sphere {
     }
     fn get_color(&self, _point: &Point) -> RGB {
         self.rgb
+    }
+
+    fn get_texture_2d(&self, point: &Point) -> (f64, f64) {
+        let mut v = Vector::create(&self.center, point);
+        v.normalize();
+        let x = (1.0 + v.y.atan2(v.x) / std::f64::consts::PI) * 0.5;
+        let y = v.z.acos() / std::f64::consts::PI;
+        ( x, y )
     }
 
     fn intercept(&self, ray: &Ray, t: &mut f64) -> bool {
