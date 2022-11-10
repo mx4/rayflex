@@ -16,6 +16,10 @@ use three_d::Point;
 use three_d::Ray;
 use three_d::Sphere;
 use three_d::Camera;
+use three_d::Light;
+use three_d::VectorLight;
+//use three_d::PointLight;
+use three_d::AmbientLight;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name="rtest", about="minimal raytracer")]
@@ -38,8 +42,8 @@ struct RenderJob {
     start_time: Instant,
     camera: Option<Camera>,
     objects: Vec<Box<dyn Object + 'static>>,
+    lights: Vec<Box<dyn Light + 'static>>,
     image: image::Image,
-    light: Vector,
 }
 
 impl RenderJob { // ??
@@ -48,8 +52,8 @@ impl RenderJob { // ??
             start_time : Instant::now(),
             camera: None,
             image: image::Image::new(opt.res_x, opt.res_y),
-            light: Vector{ x: 0.5, y: -0.5, z: -0.5 },
             objects: vec![],
+            lights: vec![],
             opt : opt,
         }
     }
@@ -74,21 +78,29 @@ impl RenderJob { // ??
                     let mut t : f64 = 0.0;
                     if obj.intercept(&ray, &mut t) {
                         if t < tmin {
-                            let scaled_dir = ray.dir.scale(t);
-                            let point = ray.orig.add(&scaled_dir);
+                            let point = ray.orig.add(&ray.dir.scale(t));
                             let normal = obj.get_normal(&point);
-                            let mut v_prod = normal.scalar(&self.light);
-                            if v_prod > 0.0 { // only show visible side
-                                v_prod = 0.0;
-                            }
                             let (x, y) = obj.get_texture_2d(&point);
-                            let rgb = obj.get_color(&point);
-                            let mut v = v_prod * v_prod;
+                            let obj_rgb = obj.get_color(&point);
                             let pattern = ((x * 4.0).fract() > 0.5) ^ ((y * 4.0).fract() > 0.5);
-                            if pattern {
-                                v /= 1.4;
+
+                            c = RGB{ r: 0.0, g: 0.0, b: 0.0 };
+                            for light in &self.lights {
+                                let intensity = light.get_intensity();
+                                let light_rgb = light.get_color();
+                                let light_vec = light.get_vector(&point);
+
+                                let mut v_prod = normal.scalar(&light_vec);
+                                if v_prod > 0.0 { // only show visible side
+                                    v_prod = 0.0;
+                                }
+                                let mut v = v_prod.powi(4);
+                                if pattern {
+                                    v /= 1.4;
+                                }
+                                c.add(&obj_rgb.scale(v));
+                                c.add(&light_rgb.scale(intensity * v));
                             }
-                            c = RGB{ r: v * rgb.r, g: v * rgb.g, b: v * rgb.b };
                             tmin = t;
                         }
                         n += 1;
@@ -109,45 +121,75 @@ impl RenderJob { // ??
         let data = fs::read_to_string(&self.opt.scene_file)?;
         let json: serde_json::Value = serde_json::from_str(&data)?;
 
-        let p = Point {
-            x: json["camera.position"][0].as_f64().unwrap(),
-            y: json["camera.position"][1].as_f64().unwrap(),
-            z: json["camera.position"][2].as_f64().unwrap()
-        };
-        let mut v = Vector {
-            x: json["camera.direction"][0].as_f64().unwrap(),
-            y: json["camera.direction"][1].as_f64().unwrap(),
-            z: json["camera.direction"][2].as_f64().unwrap()
-        };
-        v.normalize();
-        self.camera = Some(Camera::new(p, v));
-        let mut v = Vector {
-            x: json["light.0"][0].as_f64().unwrap(),
-            y: json["light.0"][1].as_f64().unwrap(),
-            z: json["light.0"][2].as_f64().unwrap()
-        };
-        v.normalize(); // how about intensity?
-        self.light = v;
-
-        let num_spheres = json["num_spheres"].as_u64().unwrap();
-        for i in 0..num_spheres {
-            let name = format!("sphere.{}", i);
+        {
             let p = Point {
-                x: json[&name][0].as_f64().unwrap(),
-                y: json[&name][1].as_f64().unwrap(),
-                z: json[&name][2].as_f64().unwrap()
+                x: json["camera.position"][0].as_f64().unwrap(),
+                y: json["camera.position"][1].as_f64().unwrap(),
+                z: json["camera.position"][2].as_f64().unwrap()
+            };
+            let mut v = Vector {
+                x: json["camera.direction"][0].as_f64().unwrap(),
+                y: json["camera.direction"][1].as_f64().unwrap(),
+                z: json["camera.direction"][2].as_f64().unwrap()
+            };
+            v.normalize();
+            self.camera = Some(Camera::new(p, v));
+        }
+        {
+            let name = "ambient.light";
+            let v = RGB {
+                r: json[&name][0].as_f64().unwrap(),
+                g: json[&name][1].as_f64().unwrap(),
+                b: json[&name][2].as_f64().unwrap()
             };
             let r = json[&name][3].as_f64().unwrap();
-            let cname = format!("sphere.{}.color", i);
-            let cr = json[&cname][0].as_f64().unwrap();
-            let cg = json[&cname][1].as_f64().unwrap();
-            let cb = json[&cname][2].as_f64().unwrap();
-            let rgb = RGB{ r: cr, g: cg, b: cb };
-            self.objects.push(Box::new(Sphere::new(name, p, r, rgb)));
+            self.lights.push(Box::new(AmbientLight{ name: name.to_string(), rgb: v, intensity: r }));
+        }
+        {
+            let num_vec_lights = json["num_vec_lights"].as_u64().unwrap();
+            for i in 0..num_vec_lights {
+                let name = format!("vec-light.{}.vector", i);
+                let mut v = Vector {
+                    x: json[&name][0].as_f64().unwrap(),
+                    y: json[&name][1].as_f64().unwrap(),
+                    z: json[&name][2].as_f64().unwrap()
+                };
+                v.normalize(); // how about intensity?
+                let iname = format!("vec-light.{}.intensity", i);
+                let r = json[&iname].as_f64().unwrap();
+                let cname = format!("vec-light.{}.color", i);
+                let c = RGB {
+                    r: json[&cname][0].as_f64().unwrap(),
+                    g: json[&cname][1].as_f64().unwrap(),
+                    b: json[&cname][2].as_f64().unwrap()
+                };
+                self.lights.push(Box::new(VectorLight{ name: name, dir: v, rgb: c, intensity: r }));
+            }
+        }
+
+        {
+            let num_spheres = json["num_spheres"].as_u64().unwrap();
+            for i in 0..num_spheres {
+                let name = format!("sphere.{}", i);
+                let p = Point {
+                    x: json[&name][0].as_f64().unwrap(),
+                    y: json[&name][1].as_f64().unwrap(),
+                    z: json[&name][2].as_f64().unwrap()
+                };
+                let r = json[&name][3].as_f64().unwrap();
+                let cname = format!("sphere.{}.color", i);
+                let cr = json[&cname][0].as_f64().unwrap();
+                let cg = json[&cname][1].as_f64().unwrap();
+                let cb = json[&cname][2].as_f64().unwrap();
+                let rgb = RGB{ r: cr, g: cg, b: cb };
+                self.objects.push(Box::new(Sphere::new(name, p, r, rgb)));
+            }
         }
         println!("camera: {:?}", self.camera.as_ref().unwrap().pos);
         println!("camera: {:?}", self.camera.as_ref().unwrap().dir);
-        println!("light: {:?}", self.light);
+        for light in &self.lights {
+            light.display();
+        }
         println!("Scene has {} objects", self.objects.len());
         Ok(())
     }
@@ -167,7 +209,14 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
     json = serde_json::json!({
         "camera.position": [ 0.0, 0.0, 0.0 ],
         "camera.direction": [ 1, 0, 0 ],
-        "light.0": [ 0.5, -0.5, -0.5]
+        "num_vec_lights": 2,
+        "vec-light.0.vector": [ 0.5, -0.5, -0.5],
+        "vec-light.0.intensity": 0.2,
+        "vec-light.0.color": [ 1, 1, 1],
+        "vec-light.1.vector": [ 0.5, 0.5, -0.5],
+        "vec-light.1.intensity": 0.05,
+        "vec-light.1.color": [ 1, 1, 0.1],
+        "ambient.light": [ 0.1, 0.1, 0.1, 0.5]
     });
     json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
 

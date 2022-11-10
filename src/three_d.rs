@@ -7,7 +7,7 @@ pub struct Point {
     pub z: f64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Vector {
     pub x: f64,
     pub y: f64,
@@ -32,6 +32,63 @@ pub struct Sphere {
 pub struct Camera {
     pub pos: Point,
     pub dir: Vector,
+}
+
+pub struct AmbientLight {
+    pub name: String,
+    pub rgb: RGB,
+    pub intensity: f64,
+}
+
+pub struct PointLight {
+    pub name: String,
+    pub pos: Point,
+    pub rgb: RGB,
+    pub intensity: f64,
+}
+
+pub struct VectorLight {
+    pub name: String,
+    pub rgb: RGB,
+    pub dir: Vector,
+    pub intensity: f64, // ??
+}
+
+pub trait Light {
+    fn display(&self);
+    fn get_vector(&self, point: &Point) -> Vector;
+    fn get_intensity(&self) -> f64;
+    fn get_color(&self) -> RGB;
+}
+
+impl Light for AmbientLight {
+    fn display(&self) {
+        println!("ambient vector light {}: {} {:?}", self.name, self.intensity, self.rgb);
+    }
+    fn get_vector(&self, _point: &Point) -> Vector {
+        Vector { x: 0.0, y: 0.0, z: 0.0 }
+    }
+    fn get_intensity(&self) -> f64 {
+        self.intensity
+    }
+    fn get_color(&self) -> RGB {
+        self.rgb
+    }
+}
+
+impl Light for VectorLight {
+    fn display(&self) {
+        println!("vector light {}: {} {:?} {:?}", self.name, self.intensity, self.dir, self.rgb);
+    }
+    fn get_vector(&self, _point: &Point) -> Vector {
+        self.dir
+    }
+    fn get_intensity(&self) -> f64 {
+        self.intensity
+    }
+    fn get_color(&self) -> RGB {
+        self.rgb
+    }
 }
 
 pub trait Object {
