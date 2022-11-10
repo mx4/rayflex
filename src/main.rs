@@ -117,35 +117,21 @@ impl RenderJob { // ??
         };
         v.normalize();
         self.camera = Some(Camera::new(p, v));
-        if self.opt.num_spheres_to_generate > 0 {
-            let mut rng = rand::thread_rng();
-            for i in 0..self.opt.num_spheres_to_generate {
-                let x = rng.gen_range(2.0..5.0);
-                let y = rng.gen_range(-2.0..2.0);
-                let z = rng.gen_range(-2.0..2.0);
-                let r = rng.gen_range(0.05..0.3);
-                let cr = rng.gen_range(0.3..1.0);
-                let cg = rng.gen_range(0.3..1.0);
-                let cb = rng.gen_range(0.3..1.0);
-                let p = Point { x: x, y: y, z: z };
-                let rgb = RGB{ r: cr, g: cg, b: cb };
-                let name = format!("sphere.{}", i);
-                self.objects.push(Box::new(Sphere::new(name, p, r, rgb)));
-            }
-        } else {
-            let num_spheres = json["num_spheres"].as_u64().unwrap();
-            for i in 0..num_spheres {
-                let name = format!("sphere.{}", i);
-                let p = Point {
-                    x: json[&name][0].as_f64().unwrap(),
-                    y: json[&name][1].as_f64().unwrap(),
-                    z: json[&name][2].as_f64().unwrap()
-                };
-                let r = json[&name][3].as_f64().unwrap();
-                let v = 0.8;
-                let rgb = RGB{ r: v, g: v, b: v };
-                self.objects.push(Box::new(Sphere::new(name, p, r, rgb)));
-            }
+        let num_spheres = json["num_spheres"].as_u64().unwrap();
+        for i in 0..num_spheres {
+            let name = format!("sphere.{}", i);
+            let p = Point {
+                x: json[&name][0].as_f64().unwrap(),
+                y: json[&name][1].as_f64().unwrap(),
+                z: json[&name][2].as_f64().unwrap()
+            };
+            let r = json[&name][3].as_f64().unwrap();
+            let cname = format!("sphere.{}.color", i);
+            let cr = json[&cname][0].as_f64().unwrap();
+            let cg = json[&cname][1].as_f64().unwrap();
+            let cb = json[&cname][2].as_f64().unwrap();
+            let rgb = RGB{ r: cr, g: cg, b: cb };
+            self.objects.push(Box::new(Sphere::new(name, p, r, rgb)));
         }
         let mut v = Vector {
             x: json["light.0"][0].as_f64().unwrap(),
@@ -156,19 +142,46 @@ impl RenderJob { // ??
         self.light = v;
         println!("camera: {:?}", self.camera.as_ref().unwrap().pos);
         println!("camera: {:?}", self.camera.as_ref().unwrap().dir);
-        for obj in &self.objects {
-            obj.display();
-        }
         println!("light: {:?}", self.light);
+        println!("Scene has {} objects", self.objects.len());
         Ok(())
     }
 
     pub fn save_image(&mut self) -> std::io::Result<()> {
         let time_elapsed = self.start_time.elapsed();
         println!("duration: {:?}", time_elapsed);
-        self.image.save_image(PathBuf::from(&self.opt.ppm_file))?;
-        Ok(())
+        return self.image.save_image(PathBuf::from(&self.opt.ppm_file));
     }
+}
+
+fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io::Result<()> {
+    let mut rng = rand::thread_rng();
+    let mut json: serde_json::Value;
+
+    println!("Generating scene w/ {} spheres", num_spheres_to_generate);
+    json = serde_json::json!({
+        "camera.position": [ 0.0, 0.0, 0.0 ],
+        "camera.direction": [ 1, 0, 0 ],
+        "light.0": [ 0.5, -0.5, -0.5]
+    });
+    json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
+
+    for i in 0..num_spheres_to_generate {
+        let x = rng.gen_range(2.0..5.0);
+        let y = rng.gen_range(-2.0..2.0);
+        let z = rng.gen_range(-2.0..2.0);
+        let r = rng.gen_range(0.05..0.3);
+        let cr = rng.gen_range(0.3..1.0);
+        let cg = rng.gen_range(0.3..1.0);
+        let cb = rng.gen_range(0.3..1.0);
+        let name  = format!("sphere.{}", i);
+        let cname = format!("sphere.{}.color", i);
+        json[name]  = serde_json::json!([x, y, z, r ]);
+        json[cname] = serde_json::json!([cr, cg, cb]);
+    }
+    let s0 = serde_json::to_string_pretty(&json)?;
+    println!("Writing scene file {}", scene_file.display());
+    return fs::write(&scene_file, s0);
 }
 
 fn main() -> std::io::Result<()> {
@@ -178,6 +191,9 @@ fn main() -> std::io::Result<()> {
 
     let mut job = RenderJob::new(opt);
 
+    if job.opt.num_spheres_to_generate != 0 {
+        return generate_scene(job.opt.num_spheres_to_generate, job.opt.scene_file);
+    }
     job.parse_input_scene()?;
     job.render_scene();
     job.save_image()?;
