@@ -88,18 +88,23 @@ impl RenderJob { // ??
                             for light in &self.lights {
                                 let intensity = light.get_intensity();
                                 let light_rgb = light.get_color();
-                                let light_vec = light.get_vector(&point);
 
-                                let mut v_prod = normal.scalar(&light_vec);
-                                if v_prod > 0.0 { // only show visible side
-                                    v_prod = 0.0;
+                                if light.is_ambient() {
+                                    c.add(&light_rgb.scale(intensity));
+                                    c.add(&obj_rgb.scale(intensity));
+                                } else {
+                                    let light_vec = light.get_vector(&point);
+                                    let mut v_prod = normal.scalar(&light_vec);
+                                    if v_prod > 0.0 { // only show visible side
+                                        v_prod = 0.0;
+                                    }
+                                    let mut v = v_prod.powi(4);
+                                    if pattern {
+                                        v /= 1.4;
+                                    }
+                                    c.add(&obj_rgb.scale(v));
+                                    c.add(&light_rgb.scale(intensity * v));
                                 }
-                                let mut v = v_prod.powi(4);
-                                if pattern {
-                                    v /= 1.4;
-                                }
-                                c.add(&obj_rgb.scale(v));
-                                c.add(&light_rgb.scale(intensity * v));
                             }
                             tmin = t;
                         }
@@ -163,7 +168,8 @@ impl RenderJob { // ??
                     g: json[&cname][1].as_f64().unwrap(),
                     b: json[&cname][2].as_f64().unwrap()
                 };
-                self.lights.push(Box::new(VectorLight{ name: name, dir: v, rgb: c, intensity: r }));
+                let sname = format!("vec-light.{}", i);
+                self.lights.push(Box::new(VectorLight{ name: sname, dir: v, rgb: c, intensity: r }));
             }
         }
 
@@ -216,7 +222,7 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
         "vec-light.1.vector": [ 0.5, 0.5, -0.5],
         "vec-light.1.intensity": 0.05,
         "vec-light.1.color": [ 1, 1, 0.1],
-        "ambient.light": [ 0.1, 0.1, 0.1, 0.5]
+        "ambient.light": [ 0.1, 0.1, 0.1, 0.05]
     });
     json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
 

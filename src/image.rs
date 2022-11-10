@@ -37,6 +37,9 @@ impl Image {
                 let r = (255.0 * c.r) as u8;
                 let g = (255.0 * c.g) as u8;
                 let b = (255.0 * c.b) as u8;
+                assert!(r <= 255);
+                assert!(g <= 255);
+                assert!(b <= 255);
 		content = format!(" {0} {1} {2} \n", r, g, b);
 		f.write_all(content.as_bytes()).expect("Unable to write data");
 	    }

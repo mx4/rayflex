@@ -59,11 +59,12 @@ pub trait Light {
     fn get_vector(&self, point: &Point) -> Vector;
     fn get_intensity(&self) -> f64;
     fn get_color(&self) -> RGB;
+    fn is_ambient(&self) -> bool;
 }
 
 impl Light for AmbientLight {
     fn display(&self) {
-        println!("ambient vector light {}: {} {:?}", self.name, self.intensity, self.rgb);
+        println!("{}: {} {:?}", self.name, self.intensity, self.rgb);
     }
     fn get_vector(&self, _point: &Point) -> Vector {
         Vector { x: 0.0, y: 0.0, z: 0.0 }
@@ -74,11 +75,17 @@ impl Light for AmbientLight {
     fn get_color(&self) -> RGB {
         self.rgb
     }
+    fn is_ambient(&self) -> bool {
+        true
+    }
 }
 
 impl Light for VectorLight {
+    fn is_ambient(&self) -> bool {
+        false
+    }
     fn display(&self) {
-        println!("vector light {}: {} {:?} {:?}", self.name, self.intensity, self.dir, self.rgb);
+        println!("{}: {} {:?} {:?}", self.name, self.intensity, self.dir, self.rgb);
     }
     fn get_vector(&self, _point: &Point) -> Vector {
         self.dir
