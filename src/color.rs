@@ -7,6 +7,9 @@ pub struct RGB {
 
 
 impl RGB {
+    pub fn distance(&self, rhs: RGB) -> f64 {
+        ((self.r - rhs.r).powi(2) + (self.g - rhs.g).powi(2) + (self.b - rhs.b).powi(2)).sqrt()
+    }
     pub fn scale(&self, f: f64) -> RGB {
         RGB { r: self.r * f, g: self.g * f, b: self.b * f }
     }

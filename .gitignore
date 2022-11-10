@@ -1,4 +1,5 @@
 /target
+scene.json
 Cargo.lock
 pic.ppm
 *swp

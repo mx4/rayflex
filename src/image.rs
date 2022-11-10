@@ -34,12 +34,15 @@ impl Image {
 	for i in 0..self.res_y {
 	    for j in 0..self.res_x {
 		let c = &self.content[(i * self.res_x + j) as usize];
-                let r = (255.0 * c.r) as u8;
-                let g = (255.0 * c.g) as u8;
-                let b = (255.0 * c.b) as u8;
-                assert!(r <= 255);
-                assert!(g <= 255);
-                assert!(b <= 255);
+                let rf = 255.0 * c.r;
+                let gf = 255.0 * c.g;
+                let bf = 255.0 * c.b;
+                //assert!(rf <= 255.0);
+                //assert!(gf <= 255.0);
+                //assert!(bf <= 255.0);
+                let r = rf as u8;
+                let g = gf as u8;
+                let b = bf as u8;
 		content = format!(" {0} {1} {2} \n", r, g, b);
 		f.write_all(content.as_bytes()).expect("Unable to write data");
 	    }

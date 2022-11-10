@@ -7,6 +7,7 @@ use std::time::Instant;
 use serde_json;
 use rand::Rng;
 use raymax::color::RGB;
+use std::collections::HashMap;
 
 mod image;
 mod three_d;
@@ -34,6 +35,10 @@ struct Options {
     res_y: u32,
      #[structopt(long, default_value = "0")]
     num_spheres_to_generate: u32,
+     #[structopt(long, default_value = "1")]
+    adaptive_sampling: u8,
+     #[structopt(long, default_value = "3")]
+    adaptive_max_depth: u32,
 }
 
 
@@ -44,7 +49,11 @@ struct RenderJob {
     objects: Vec<Box<dyn Object + 'static>>,
     lights: Vec<Box<dyn Light + 'static>>,
     image: image::Image,
+    pmap: HashMap<String,RGB>,
+    num_rays: u64,
+    hit_max_level: u64,
 }
+
 
 impl RenderJob { // ??
     pub fn new(opt: Options) -> Self {
@@ -54,68 +63,130 @@ impl RenderJob { // ??
             image: image::Image::new(opt.res_x, opt.res_y),
             objects: vec![],
             lights: vec![],
+            pmap: HashMap::new(),
             opt : opt,
+            num_rays: 0,
+            hit_max_level: 0,
         }
+    }
+    fn calc_ray_color(&mut self, ray: Ray, n: &mut u32) -> RGB {
+        self.num_rays += 1;
+        let mut c = RGB{ r: 0.0, g: 0.0, b: 0.0 };
+        let mut tmin = f64::MAX;
+        for obj in &self.objects {
+            let mut t : f64 = 0.0;
+            if obj.intercept(&ray, &mut t) {
+                if t < tmin {
+                    let point = ray.orig.add(&ray.dir.scale(t));
+                    let normal = obj.get_normal(&point);
+                    let (x, y) = obj.get_texture_2d(&point);
+                    let obj_rgb = obj.get_color(&point);
+                    let pattern = ((x * 4.0).fract() > 0.5) ^ ((y * 4.0).fract() > 0.5);
+
+                    c = RGB{ r: 0.0, g: 0.0, b: 0.0 };
+                    for light in &self.lights {
+                        let intensity = light.get_intensity();
+                        let light_rgb = light.get_color();
+
+                        if light.is_ambient() {
+                            c.add(&light_rgb.scale(intensity));
+                            c.add(&obj_rgb.scale(intensity));
+                        } else {
+                            let light_vec = light.get_vector(&point);
+                            let mut v_prod = normal.scalar(&light_vec);
+                            if v_prod > 0.0 { // only show visible side
+                                v_prod = 0.0;
+                            }
+                            let mut v = v_prod.powi(4);
+                            if pattern {
+                                v /= 1.4;
+                            }
+                            c.add(&obj_rgb.scale(v));
+                            c.add(&light_rgb.scale(intensity * v));
+                        }
+                    }
+                    tmin = t;
+                }
+                *n += 1;
+            }
+        }
+        c
+    }
+
+    pub fn corner_difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> bool {
+        let mut avg = c00;
+        avg.add(&c01);
+        avg.add(&c10);
+        avg.add(&c11);
+        avg = avg.scale(0.25);
+        let d = avg.distance(c00) + avg.distance(c01) + avg.distance(c10) + avg.distance(c11);
+        d > 0.5
+    }
+
+    pub fn calc_ray_box(&mut self, sy: f64, sz: f64, dy: f64, dz: f64, n: &mut u32, lvl: u32) -> RGB {
+        let camera_pos = self.camera.as_ref().unwrap().pos;
+
+        let mut calc_one_corner = |y0, z0| -> RGB {
+            let key = format!("{}-{}", y0, z0);
+            match self.pmap.get(&key) {
+                Some(c) => return *c,
+                _ =>  {
+                    let pixel = Point{ x: 1.0, y: y0, z: z0 };
+                    let vec = Vector::create(&camera_pos, &pixel);
+                    let ray = Ray{ orig: camera_pos, dir: vec };
+                    let c = self.calc_ray_color(ray, n);
+                    self.pmap.insert(key, c);
+                    c
+                }
+            }
+        };
+        let mut c00 = calc_one_corner(sy,      sz);
+        let mut c01 = calc_one_corner(sy,      sz - dz);
+        let mut c10 = calc_one_corner(sy - dy, sz);
+        let mut c11 = calc_one_corner(sy - dy, sz - dz);
+
+        let color_diff = Self::corner_difference(c00, c01, c10, c11);
+        if self.opt.adaptive_sampling > 0 && color_diff && lvl >= self.opt.adaptive_max_depth {
+            self.hit_max_level += 1;
+        }
+        if self.opt.adaptive_sampling > 0 && lvl < self.opt.adaptive_max_depth && color_diff {
+            let dy2 = dy / 2.0;
+            let dz2 = dz / 2.0;
+            c00 = self.calc_ray_box(sy,       sz,       dy2, dz2, n, lvl + 1);
+            c01 = self.calc_ray_box(sy,       sz - dz2, dy2, dz2, n, lvl + 1);
+            c10 = self.calc_ray_box(sy - dy2, sz,       dy2, dz2, n, lvl + 1);
+            c11 = self.calc_ray_box(sy - dy2, sz - dz2, dy2, dz2, n, lvl + 1);
+        }
+        let mut c = c00;
+        c.add(&c01);
+        c.add(&c10);
+        c.add(&c11);
+        c.scale(0.25)
     }
     pub fn render_scene(&mut self) {
         assert!(self.camera.is_some());
-        let camera_pos = self.camera.as_ref().unwrap().pos;
-        let mut n = 0;
-        for i in 0..self.opt.res_y {
-            for j in 0..self.opt.res_x {
-                let u = 1.0;
-                let v = 1.0;
-                let sy = u / 2.0 - j as f64 * u / self.opt.res_x as f64;
-                let sz = v / 2.0 - i as f64 * v / self.opt.res_y as f64;
-                let pixel = Point{ x: 1.0, y: sy, z: sz };
+        let mut n : u32 = 0;
+        let u = 1.0;
+        let v = 1.0;
+        let ny = self.opt.res_y + 0;
+        let nx = self.opt.res_x + 0;
+        let dy = u / self.opt.res_x as f64;
+        let dz = v / self.opt.res_y as f64;
+        let mut sz = v / 2.0;
 
-                let vec = Vector::create(&camera_pos, &pixel);
-                let ray = Ray{ orig: camera_pos, dir: vec };
-
-                let mut c = RGB{ r: 0.0, g: 0.0, b: 0.0 };
-                let mut tmin = f64::MAX;
-                for obj in &self.objects {
-                    let mut t : f64 = 0.0;
-                    if obj.intercept(&ray, &mut t) {
-                        if t < tmin {
-                            let point = ray.orig.add(&ray.dir.scale(t));
-                            let normal = obj.get_normal(&point);
-                            let (x, y) = obj.get_texture_2d(&point);
-                            let obj_rgb = obj.get_color(&point);
-                            let pattern = ((x * 4.0).fract() > 0.5) ^ ((y * 4.0).fract() > 0.5);
-
-                            c = RGB{ r: 0.0, g: 0.0, b: 0.0 };
-                            for light in &self.lights {
-                                let intensity = light.get_intensity();
-                                let light_rgb = light.get_color();
-
-                                if light.is_ambient() {
-                                    c.add(&light_rgb.scale(intensity));
-                                    c.add(&obj_rgb.scale(intensity));
-                                } else {
-                                    let light_vec = light.get_vector(&point);
-                                    let mut v_prod = normal.scalar(&light_vec);
-                                    if v_prod > 0.0 { // only show visible side
-                                        v_prod = 0.0;
-                                    }
-                                    let mut v = v_prod.powi(4);
-                                    if pattern {
-                                        v /= 1.4;
-                                    }
-                                    c.add(&obj_rgb.scale(v));
-                                    c.add(&light_rgb.scale(intensity * v));
-                                }
-                            }
-                            tmin = t;
-                        }
-                        n += 1;
-                    }
-                }
+        for _i in 0..ny {
+            let mut sy = u / 2.0;
+            for _j in 0..nx {
+                let c = self.calc_ray_box(sy, sz, dy, dz, &mut n, 0);
 
                 self.image.push_pixel(c);
+                sy -= dy;
             }
+            sz -= dz;
         }
         println!("{} intercepts", n);
+        println!("{} rays traced, {}%", self.num_rays, 100 * self.num_rays / (self.opt.res_x * self.opt.res_y) as u64);
+        println!("{} hit max-depth", self.hit_max_level);
     }
     pub fn parse_input_scene(&mut self) -> std::io::Result<()> {
         if ! self.opt.scene_file.is_file() {
@@ -230,7 +301,7 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
         let x = rng.gen_range(2.0..5.0);
         let y = rng.gen_range(-2.0..2.0);
         let z = rng.gen_range(-2.0..2.0);
-        let r = rng.gen_range(0.05..0.3);
+        let r = rng.gen_range(0.05..0.5);
         let cr = rng.gen_range(0.3..1.0);
         let cg = rng.gen_range(0.3..1.0);
         let cb = rng.gen_range(0.3..1.0);

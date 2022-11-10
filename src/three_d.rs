@@ -183,11 +183,11 @@ impl Object for Sphere {
         let delta_sqrt = delta.sqrt();
         let t1 = (-b + delta_sqrt) / (2.0 * a);
         let t2 = (-b - delta_sqrt) / (2.0 * a);
-        if t1 < 0.0 {
+        if t1 < 1.0 {
             return false
         }
         let t0 : f64;
-        if t2 < 0.0 {
+        if t2 < 1.0 {
             t0 = t1;
         } else {
             t0 = t2;
