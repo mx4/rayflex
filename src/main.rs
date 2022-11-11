@@ -1,12 +1,12 @@
 //#![allow(unused)]
 
-use std::fs;
 use structopt::StructOpt;
+use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
+use std::collections::HashMap;
 use serde_json;
 use rand::Rng;
-use std::collections::HashMap;
 
 use raymax::color::RGB;
 use raymax::vec3::Vec3;
@@ -15,6 +15,7 @@ use raymax::light::Light;
 use raymax::light::VectorLight;
 use raymax::light::SpotLight;
 use raymax::light::AmbientLight;
+use raymax::camera::Camera;
 
 mod image;
 mod three_d;
@@ -22,7 +23,6 @@ mod three_d;
 use three_d::Object;
 use three_d::Ray;
 use three_d::Sphere;
-use three_d::Camera;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name="rtest", about="minimal raytracer")]

@@ -16,12 +16,6 @@ pub struct Sphere {
     pub rgb: RGB,
 }
 
-#[derive(Debug)]
-pub struct Camera {
-    pub pos: Point,
-    pub dir: Vec3,
-}
-
 pub trait Object {
     fn display(&self);
     fn intercept(&self, ray: &Ray, t : &mut f64) -> bool;
@@ -29,14 +23,6 @@ pub trait Object {
     fn get_color(&self, point: &Point) -> RGB;
     fn get_texture_2d(&self, point: &Point) -> (f64, f64);
 }
-
-
-impl Camera {
-    pub fn new(pos: Point, dir: Vec3) -> Self {
-        Self { pos: pos, dir: dir }
-    }
-}
-
 
 impl Sphere {
     pub fn new(name: String, center: Point, radius: f64, rgb: RGB) -> Self {
