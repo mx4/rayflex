@@ -11,6 +11,10 @@ use std::collections::HashMap;
 use raymax::color::RGB;
 use raymax::vec3::Vec3;
 use raymax::vec3::Point;
+use raymax::light::Light;
+use raymax::light::VectorLight;
+use raymax::light::AmbientLight;
+//use three_d::PointLight;
 
 mod image;
 mod three_d;
@@ -19,10 +23,6 @@ use three_d::Object;
 use three_d::Ray;
 use three_d::Sphere;
 use three_d::Camera;
-use three_d::Light;
-use three_d::VectorLight;
-//use three_d::PointLight;
-use three_d::AmbientLight;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name="rtest", about="minimal raytracer")]
