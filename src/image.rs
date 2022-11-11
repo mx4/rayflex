@@ -21,16 +21,14 @@ impl Image {
     }
     pub fn save_image(&mut self, file: PathBuf) -> std::io::Result<()> {
         println!("saving result to {:?}", file);
-	let mut f = File::create(file)?;
-	let mut content = format!("P3\n{} {}\n255\n", self.res_x, self.res_y);
-	f.write_all(content.as_bytes())?;
 	let len = self.content.len();
         assert!(len > 0);
 	if len == 0 {
 	    return Ok(())
 	}
-
-	println!("res: {}x{}", self.res_x, self.res_y);
+	let mut f = File::create(file)?;
+	let mut content = format!("P3\n{} {}\n255\n", self.res_x, self.res_y);
+	f.write_all(content.as_bytes())?;
 
 	for i in 0..self.res_y {
 	    for j in 0..self.res_x {

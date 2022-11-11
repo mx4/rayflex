@@ -31,9 +31,9 @@ struct Options {
     ppm_file: PathBuf,
     #[structopt(long, default_value = "scene.json")]
     scene_file: PathBuf,
-     #[structopt(long, default_value = "400")]
+     #[structopt(short="x", long, default_value = "400")]
     res_x: u32,
-     #[structopt(long, default_value = "400")]
+     #[structopt(short="y", long, default_value = "400")]
     res_y: u32,
      #[structopt(long, default_value = "0")]
     num_spheres_to_generate: u32,
@@ -312,8 +312,8 @@ impl RenderJob { // ??
     }
 
     pub fn save_image(&mut self) -> std::io::Result<()> {
-        let time_elapsed = self.start_time.elapsed();
-        println!("duration: {:?}", time_elapsed);
+        let elapsed = self.start_time.elapsed();
+        println!("duration: {} sec", elapsed.as_millis() as f64 / 1000.0);
         return self.image.save_image(PathBuf::from(&self.opt.ppm_file));
     }
 }
@@ -335,7 +335,7 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
         "spot-light.0.intensity": 0.2,
         "spot-light.0.color": [ 0.5, 0.5, 0.1],
         "ambient.light": [ 0.1, 0.1, 0.1, 0.05],
-        "sphere.0": [ 5, 0, -11, 10],
+        "sphere.0": [ 5, 0, -101, 100],
         "sphere.0.color": [ 1, 1, 1],
         "sphere.1": [ 5, 0, 0, 1],
         "sphere.1.color": [ 1, 1, 0],
