@@ -1,12 +1,13 @@
 use std::path::PathBuf;
 use std::fs::File;
 use std::io::Write;
-use raymax::color::RGB;
+
+use crate::color::RGB;
 
 pub struct Image {
-      res_x: u32,
-      res_y: u32,
-      content: Vec::<RGB>,
+    res_x: u32,
+    res_y: u32,
+    content: Vec::<RGB>,
 }
 
 

@@ -16,8 +16,8 @@ use raymax::light::VectorLight;
 use raymax::light::SpotLight;
 use raymax::light::AmbientLight;
 use raymax::camera::Camera;
+use raymax::image::Image;
 
-mod image;
 mod three_d;
 
 use three_d::Object;
@@ -50,7 +50,7 @@ struct RenderJob {
     camera: Option<Camera>,
     objects: Vec<Box<dyn Object + 'static>>,
     lights: Vec<Box<dyn Light + 'static>>,
-    image: image::Image,
+    image: Image,
     pmap: HashMap<String,RGB>,
     num_rays: u64,
     hit_max_level: u64,
@@ -62,7 +62,7 @@ impl RenderJob { // ??
         Self {
             start_time : Instant::now(),
             camera: None,
-            image: image::Image::new(opt.res_x, opt.res_y),
+            image: Image::new(opt.res_x, opt.res_y),
             objects: vec![],
             lights: vec![],
             pmap: HashMap::new(),
