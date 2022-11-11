@@ -13,7 +13,7 @@ pub struct Sphere {
 
 pub trait Object {
     fn display(&self);
-    fn intercept(&self, ray: &Ray, t : &mut f64) -> bool;
+    fn intercept(&self, ray: &Ray, tmin: f64, tmax: f64, t : &mut f64) -> bool;
     fn get_normal(&self, point: Point) -> Vec3;
     fn get_color(&self, point: Point) -> RGB;
     fn get_texture_2d(&self, point: Point) -> (f64, f64);
@@ -44,7 +44,7 @@ impl Object for Sphere {
         ( x, y )
     }
 
-    fn intercept(&self, ray: &Ray, t: &mut f64) -> bool {
+    fn intercept(&self, ray: &Ray, tmin: f64, tmax: f64, t: &mut f64) -> bool {
         let a = ray.dir * ray.dir;
         let v0 = ray.orig - self.center;
         let b = ray.dir * 2.0 * v0;
@@ -59,17 +59,17 @@ impl Object for Sphere {
         let delta_sqrt = delta.sqrt();
         let t1 = (-b + delta_sqrt) / (2.0 * a);
         let t2 = (-b - delta_sqrt) / (2.0 * a);
-        if t1 < 1.0 {
+        if t1 < tmin {
             return false
         }
         let t0 : f64;
-        if t2 < 1.0 {
+        if t2 < tmin {
             t0 = t1;
         } else {
             t0 = t2;
         }
         *t = t0;
 
-        return true
+        t0 < tmax
     }
 }

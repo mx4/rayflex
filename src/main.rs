@@ -37,13 +37,13 @@ struct Options {
     res_y: u32,
      #[structopt(long, default_value = "0")]
     num_spheres_to_generate: u32,
-     #[structopt(long, default_value = "0")]
+     #[structopt(short="a", long, default_value = "0")]
     adaptive_sampling: u8,
-     #[structopt(long, default_value = "3")]
+     #[structopt(long, default_value = "2")]
     adaptive_max_depth: u32,
-     #[structopt(long, default_value = "3")]
+     #[structopt(long, default_value = "4")]
     reflection_max_depth: u32,
-     #[structopt(long, default_value = "0")]
+     #[structopt(short="r", long, default_value = "1")]
     use_reflection: u32,
 }
 
@@ -56,7 +56,8 @@ struct RenderJob {
     lights: Vec<Box<dyn Light + 'static>>,
     image: Image,
     pmap: HashMap<String,RGB>,
-    num_rays: u64,
+    num_rays_sampling: u64,
+    num_rays_reflection: u64,
     hit_max_level: u64,
 }
 
@@ -71,12 +72,12 @@ impl RenderJob { // ??
             lights: vec![],
             pmap: HashMap::new(),
             opt : opt,
-            num_rays: 0,
+            num_rays_sampling: 0,
+            num_rays_reflection: 0,
             hit_max_level: 0,
         }
     }
     fn calc_ray_color(&mut self, ray: Ray, depth: u32) -> RGB {
-        self.num_rays += 1;
         let mut c = RGB::new();
         let mut tmin = f64::MAX;
         if depth > self.opt.reflection_max_depth {
@@ -86,17 +87,17 @@ impl RenderJob { // ??
         let mut hit_normal = Vec3::new();
         let mut hit_rgb = RGB::new();
         let (mut hitx, mut hity) : (f64,f64) = (0.0, 0.0);
+        let raylen = ray.dir.norm();
 
         for obj in &self.objects {
             let mut t : f64 = 0.0;
-            if obj.intercept(&ray, &mut t) {
-                if t < tmin {
-                    hit_point = ray.orig + ray.dir * t;
-                    hit_normal = obj.get_normal(hit_point);
-                    (hitx, hity) = obj.get_texture_2d(hit_point);
-                    hit_rgb = obj.get_color(hit_point);
-                    tmin = t;
-                }
+            if obj.intercept(&ray, raylen, tmin, &mut t) {
+                assert!(t < tmin);
+                hit_point = ray.orig + ray.dir * t;
+                hit_normal = obj.get_normal(hit_point);
+                (hitx, hity) = obj.get_texture_2d(hit_point);
+                hit_rgb = obj.get_color(hit_point);
+                tmin = t;
             }
         }
         if tmin < f64::MAX {
@@ -124,6 +125,7 @@ impl RenderJob { // ??
                 }
             }
             if self.opt.use_reflection > 0 {
+                self.num_rays_reflection += 1;
                 let reflected_vec = ray.dir.reflect(hit_normal);
                 let reflected_ray = Ray{orig: hit_point, dir: reflected_vec};
                 c = c + self.calc_ray_color(reflected_ray, depth + 1) * 0.5;
@@ -154,6 +156,7 @@ impl RenderJob { // ??
                     let pixel = Point{ x: 1.0, y: y0, z: z0 };
                     let vec = pixel - camera_pos;
                     let ray = Ray{ orig: camera_pos, dir: vec };
+                    self.num_rays_sampling += 1;
                     let c = self.calc_ray_color(ray, 0);
                     self.pmap.insert(key, c);
                     c
@@ -199,8 +202,10 @@ impl RenderJob { // ??
             }
             sz -= dz;
         }
-        println!("{} rays traced, {}%", self.num_rays, 100 * self.num_rays / (self.opt.res_x * self.opt.res_y) as u64);
-        println!("{} hit max-depth", self.hit_max_level);
+        let num_pixels = self.opt.res_x * self.opt.res_y;
+        println!("sampling: {} rays {}%", self.num_rays_sampling, 100 * self.num_rays_sampling / num_pixels as u64);
+        println!("reflection: {} rays {}%", self.num_rays_reflection, 100 * self.num_rays_reflection / self.num_rays_sampling as u64);
+        println!("{} sample rays hit max-depth {}%", self.hit_max_level, 100 * self.hit_max_level / self.num_rays_sampling);
     }
     pub fn load_scene(&mut self) -> std::io::Result<()> {
         if ! self.opt.scene_file.is_file() {
@@ -297,8 +302,8 @@ impl RenderJob { // ??
                 self.objects.push(Box::new(Sphere::new(name, p, r, rgb)));
             }
         }
-        println!("camera: {:?}", self.camera.as_ref().unwrap().pos);
-        println!("camera: {:?}", self.camera.as_ref().unwrap().dir);
+        println!("camera: pos: {:?}", self.camera.as_ref().unwrap().pos);
+        println!("camera: dir: {:?}", self.camera.as_ref().unwrap().dir);
         for light in &self.lights {
             light.display();
         }
@@ -355,16 +360,25 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
     return fs::write(&scene_file, s0);
 }
 
+fn print_opt(opt: &Options) {
+    println!("scene-file: {}", opt.scene_file.display());
+    println!("image-file: {}", opt.ppm_file.display());
+    println!("resolution: {}x{}", opt.res_x, opt.res_y);
+    println!("adaptive-sampling: {} max-depth={}", opt.adaptive_sampling, opt.adaptive_max_depth);
+    println!("reflection: {} max-depth={}", opt.use_reflection, opt.reflection_max_depth);
+}
+
 fn main() -> std::io::Result<()> {
     let opt = Options::from_args();
-
-    println!("all opt {:?}", opt);
 
     let mut job = RenderJob::new(opt);
 
     if job.opt.num_spheres_to_generate != 0 {
         return generate_scene(job.opt.num_spheres_to_generate, job.opt.scene_file);
     }
+
+    print_opt(&job.opt);
+
     job.load_scene()?;
     job.render_scene();
     job.save_image()?;
