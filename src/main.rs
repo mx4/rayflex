@@ -75,9 +75,11 @@ impl RenderJob { // ??
         self.num_rays += 1;
         let mut c = RGB{ r: 0.0, g: 0.0, b: 0.0 };
         let mut tmin = f64::MAX;
+        let mut nointercept = true;
         for obj in &self.objects {
             let mut t : f64 = 0.0;
             if obj.intercept(&ray, &mut t) {
+                nointercept = false;
                 if t < tmin {
                     let point = ray.orig + ray.dir * t;
                     let normal = obj.get_normal(point);
@@ -91,8 +93,8 @@ impl RenderJob { // ??
                         let light_rgb = light.get_color();
 
                         if light.is_ambient() {
-                            c.add(&light_rgb.scale(intensity));
-                            c.add(&obj_rgb.scale(intensity));
+                            c = c + light_rgb * intensity;
+                            c = c + obj_rgb * intensity;
                         } else {
                             let light_vec = light.get_vector(point);
                             let mut v_prod = normal * light_vec;
@@ -103,8 +105,8 @@ impl RenderJob { // ??
                             if pattern {
                                 v /= 1.4;
                             }
-                            c.add(&obj_rgb.scale(v));
-                            c.add(&light_rgb.scale(intensity * v));
+                            c = c + obj_rgb * v;
+                            c = c + light_rgb * v * intensity;
                         }
                     }
                     tmin = t;
@@ -112,15 +114,17 @@ impl RenderJob { // ??
                 *n += 1;
             }
         }
+        if nointercept {
+	    let z =  ray.dir.z + 1.0;
+	    let cmax = RGB{ r: 1.0, g: 1.0, b: 1.0 };
+	    let cyan = RGB{ r: 0.4, g: 0.6, b: 0.9 };
+            c = cmax * (1.0 - z) + cyan * z;
+        }
         c
     }
 
     pub fn corner_difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> bool {
-        let mut avg = c00;
-        avg.add(&c01);
-        avg.add(&c10);
-        avg.add(&c11);
-        avg = avg.scale(0.25);
+        let avg = (c00 + c01 + c10 + c11) * 0.25;
         let d = avg.distance(c00) + avg.distance(c01) + avg.distance(c10) + avg.distance(c11);
         d > 0.5
     }
@@ -159,11 +163,7 @@ impl RenderJob { // ??
             c10 = self.calc_ray_box(sy - dy2, sz,       dy2, dz2, n, lvl + 1);
             c11 = self.calc_ray_box(sy - dy2, sz - dz2, dy2, dz2, n, lvl + 1);
         }
-        let mut c = c00;
-        c.add(&c01);
-        c.add(&c10);
-        c.add(&c11);
-        c.scale(0.25)
+        (c00 + c01 + c10 + c11) * 0.25
     }
     pub fn render_scene(&mut self) {
         assert!(self.camera.is_some());

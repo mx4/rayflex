@@ -38,8 +38,7 @@ impl Object for Sphere {
     }
 
     fn get_texture_2d(&self, point: Point) -> (f64, f64) {
-        let mut v = point - self.center;
-        v = v * (1.0 / self.radius);
+        let v = (point - self.center) * (1.0 / self.radius);
         let x = (1.0 + v.y.atan2(v.x) / std::f64::consts::PI) * 0.5;
         let y = v.z.acos() / std::f64::consts::PI;
         ( x, y )
