@@ -17,11 +17,11 @@ use raymax::light::SpotLight;
 use raymax::light::AmbientLight;
 use raymax::camera::Camera;
 use raymax::image::Image;
+use raymax::Ray;
 
 mod three_d;
 
 use three_d::Object;
-use three_d::Ray;
 use three_d::Sphere;
 
 #[derive(StructOpt, Debug)]

@@ -1,12 +1,7 @@
 use raymax::color::RGB;
 use raymax::vec3::Vec3;
 use raymax::vec3::Point;
-
-#[derive(Debug)]
-pub struct Ray {
-    pub orig: Point,
-    pub dir: Vec3
-}
+use raymax::Ray;
 
 #[derive(Debug)]
 pub struct Sphere {
