@@ -8,7 +8,7 @@ pub struct AmbientLight {
     pub intensity: f64,
 }
 
-pub struct PointLight {
+pub struct SpotLight {
     pub name: String,
     pub pos: Point,
     pub rgb: RGB,
@@ -28,6 +28,26 @@ pub trait Light {
     fn get_intensity(&self) -> f64;
     fn get_color(&self) -> RGB;
     fn is_ambient(&self) -> bool;
+}
+
+impl Light for SpotLight {
+    fn display(&self) {
+        println!("{}: {} {:?} {:?}", self.name, self.intensity, self.pos, self.rgb);
+    }
+    fn get_vector(&self, point: &Point) -> Vec3 {
+        let mut v = Vec3::create(&self.pos, point);
+        v.normalize();
+        v
+    }
+    fn get_intensity(&self) -> f64 {
+        self.intensity
+    }
+    fn get_color(&self) -> RGB {
+        self.rgb
+    }
+    fn is_ambient(&self) -> bool {
+        false
+    }
 }
 
 impl Light for AmbientLight {

@@ -13,8 +13,8 @@ use raymax::vec3::Vec3;
 use raymax::vec3::Point;
 use raymax::light::Light;
 use raymax::light::VectorLight;
+use raymax::light::SpotLight;
 use raymax::light::AmbientLight;
-//use three_d::PointLight;
 
 mod image;
 mod three_d;
@@ -224,6 +224,27 @@ impl RenderJob { // ??
             self.lights.push(Box::new(AmbientLight{ name: name.to_string(), rgb: v, intensity: r }));
         }
         {
+            let num_vec_lights = json["num_spot_lights"].as_u64().unwrap();
+            for i in 0..num_vec_lights {
+                let name = format!("spot-light.{}.position", i);
+                let p = Point {
+                    x: json[&name][0].as_f64().unwrap(),
+                    y: json[&name][1].as_f64().unwrap(),
+                    z: json[&name][2].as_f64().unwrap()
+                };
+                let iname = format!("vec-light.{}.intensity", i);
+                let r = json[&iname].as_f64().unwrap();
+                let cname = format!("vec-light.{}.color", i);
+                let c = RGB {
+                    r: json[&cname][0].as_f64().unwrap(),
+                    g: json[&cname][1].as_f64().unwrap(),
+                    b: json[&cname][2].as_f64().unwrap()
+                };
+                let sname = format!("spot-light.{}", i);
+                self.lights.push(Box::new(SpotLight{ name: sname, pos: p, rgb: c, intensity: r }));
+            }
+        }
+        {
             let num_vec_lights = json["num_vec_lights"].as_u64().unwrap();
             for i in 0..num_vec_lights {
                 let name = format!("vec-light.{}.vector", i);
@@ -288,13 +309,14 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
     json = serde_json::json!({
         "camera.position": [ 0.0, 0.0, 0.0 ],
         "camera.direction": [ 1, 0, 0 ],
-        "num_vec_lights": 2,
+        "num_vec_lights": 1,
         "vec-light.0.vector": [ 0.5, -0.5, -0.5],
         "vec-light.0.intensity": 0.2,
         "vec-light.0.color": [ 1, 1, 1],
-        "vec-light.1.vector": [ 0.5, 0.5, -0.5],
-        "vec-light.1.intensity": 0.05,
-        "vec-light.1.color": [ 1, 1, 0.1],
+        "num_spot_lights": 1,
+        "spot-light.0.position": [ 0, -1, -1],
+        "spot-light.0.intensity": 0.2,
+        "spot-light.0.color": [ 1, 1, 0.1],
         "ambient.light": [ 0.1, 0.1, 0.1, 0.05]
     });
     json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
