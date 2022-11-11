@@ -35,12 +35,9 @@ impl Image {
 	for i in 0..self.res_y {
 	    for j in 0..self.res_x {
 		let c = &self.content[(i * self.res_x + j) as usize];
-                let rf = 255.0 * c.r;
-                let gf = 255.0 * c.g;
-                let bf = 255.0 * c.b;
-                //assert!(rf <= 255.0);
-                //assert!(gf <= 255.0);
-                //assert!(bf <= 255.0);
+                let rf = (255.0 * c.r).clamp(0.0, 255.0);
+                let gf = (255.0 * c.g).clamp(0.0, 255.0);
+                let bf = (255.0 * c.b).clamp(0.0, 255.0);
                 let r = rf as u8;
                 let g = gf as u8;
                 let b = bf as u8;

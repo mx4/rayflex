@@ -24,7 +24,7 @@ pub struct VectorLight {
 
 pub trait Light {
     fn display(&self);
-    fn get_vector(&self, point: &Point) -> Vec3;
+    fn get_vector(&self, point: Point) -> Vec3;
     fn get_intensity(&self) -> f64;
     fn get_color(&self) -> RGB;
     fn is_ambient(&self) -> bool;
@@ -34,8 +34,8 @@ impl Light for SpotLight {
     fn display(&self) {
         println!("{}: {} {:?} {:?}", self.name, self.intensity, self.pos, self.rgb);
     }
-    fn get_vector(&self, point: &Point) -> Vec3 {
-        let mut v = Vec3::create(&self.pos, point);
+    fn get_vector(&self, point: Point) -> Vec3 {
+        let mut v = point - self.pos;
         v.normalize();
         v
     }
@@ -54,7 +54,7 @@ impl Light for AmbientLight {
     fn display(&self) {
         println!("{}: {} {:?}", self.name, self.intensity, self.rgb);
     }
-    fn get_vector(&self, _point: &Point) -> Vec3 {
+    fn get_vector(&self, _point: Point) -> Vec3 {
         Vec3 { x: 0.0, y: 0.0, z: 0.0 }
     }
     fn get_intensity(&self) -> f64 {
@@ -75,7 +75,7 @@ impl Light for VectorLight {
     fn display(&self) {
         println!("{}: {} {:?} {:?}", self.name, self.intensity, self.dir, self.rgb);
     }
-    fn get_vector(&self, _point: &Point) -> Vec3 {
+    fn get_vector(&self, _point: Point) -> Vec3 {
         self.dir
     }
     fn get_intensity(&self) -> f64 {

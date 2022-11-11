@@ -1,3 +1,5 @@
+use std::ops::{Add, Sub, Mul};
+
 
 #[derive(Debug, Clone, Copy)]
 pub struct Vec3 {
@@ -8,27 +10,46 @@ pub struct Vec3 {
 
 pub type Point = Vec3;
 
+impl Add for Vec3 {
+    type Output = Vec3;
+
+    fn add(self, other: Vec3) -> Vec3 {
+        Vec3 { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z }
+    }
+}
+
+impl Sub for Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, other: Vec3) -> Vec3 {
+        Vec3 { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
+    }
+}
+
+impl Mul<f64> for Vec3 {
+    type Output = Vec3;
+    fn mul(self, rhs: f64) -> Vec3 {
+        Vec3 { x: self.x * rhs, y: self.y * rhs, z: self.z * rhs }
+    }
+}
+
+impl Mul<Vec3> for Vec3 {
+    type Output = f64;
+    fn mul(self, rhs: Vec3) -> f64 {
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
+    }
+}
+
+
 impl Vec3 {
-    fn norm(&self) -> f64 {
-        self.scalar(&self).sqrt()
-    }
-    pub fn scalar(&self, v: &Vec3) -> f64 {
-        self.x * v.x + self.y * v.y + self.z * v.z
-    }
-    pub fn scale(&self, r: f64) -> Self {
-        Vec3 { x: self.x * r, y: self.y * r, z: self.z * r }
+    fn norm(self) -> f64 {
+        (self * self).sqrt()
     }
     pub fn normalize(&mut self) {
         let norm = self.norm();
         self.x /= norm;
         self.y /= norm;
         self.z /= norm;
-    }
-    pub fn create(src: &Point, dst: &Point) -> Self {
-        Vec3{ x: dst.x - src.x, y: dst.y - src.y, z: dst.z - src.z }
-    }
-    pub fn add(&self, v: &Vec3) -> Self {
-        Vec3 { x: self.x + v.x, y: self.y + v.y, z: self.z + v.z }
     }
 }
 

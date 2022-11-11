@@ -14,9 +14,9 @@ pub struct Sphere {
 pub trait Object {
     fn display(&self);
     fn intercept(&self, ray: &Ray, t : &mut f64) -> bool;
-    fn get_normal(&self, point: &Point) -> Vec3;
-    fn get_color(&self, point: &Point) -> RGB;
-    fn get_texture_2d(&self, point: &Point) -> (f64, f64);
+    fn get_normal(&self, point: Point) -> Vec3;
+    fn get_color(&self, point: Point) -> RGB;
+    fn get_texture_2d(&self, point: Point) -> (f64, f64);
 }
 
 impl Sphere {
@@ -29,29 +29,28 @@ impl Object for Sphere {
     fn display(&self) {
         println!("{}: {:?} radius={:?}", self.name, self.center, self.radius);
     }
-    fn get_normal(&self, point: &Point) -> Vec3 {
-        let mut normal = Vec3::create(&self.center, point);
-        normal.normalize();
-        normal
+    fn get_normal(&self, point: Point) -> Vec3 {
+        let normal = point - self.center;
+        normal * (1.0 / self.radius)
     }
-    fn get_color(&self, _point: &Point) -> RGB {
+    fn get_color(&self, _point: Point) -> RGB {
         self.rgb
     }
 
-    fn get_texture_2d(&self, point: &Point) -> (f64, f64) {
-        let mut v = Vec3::create(&self.center, point);
-        v.normalize();
+    fn get_texture_2d(&self, point: Point) -> (f64, f64) {
+        let mut v = point - self.center;
+        v = v * (1.0 / self.radius);
         let x = (1.0 + v.y.atan2(v.x) / std::f64::consts::PI) * 0.5;
         let y = v.z.acos() / std::f64::consts::PI;
         ( x, y )
     }
 
     fn intercept(&self, ray: &Ray, t: &mut f64) -> bool {
-        let a = ray.dir.scalar(&ray.dir);
-        let v0 = Vec3::create(&self.center, &ray.orig);
-        let b = 2.0 * ray.dir.scalar(&v0);
-        let v1 = Vec3::create(&ray.orig, &self.center);
-        let c = v1.scalar(&v1) - self.radius * self.radius;
+        let a = ray.dir * ray.dir;
+        let v0 = ray.orig - self.center;
+        let b = ray.dir * 2.0 * v0;
+        let v1 = self.center - ray.orig;
+        let c = v1 * v1 - self.radius * self.radius;
 
         let delta = b * b - 4.0 * a * c;
 

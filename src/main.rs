@@ -79,10 +79,10 @@ impl RenderJob { // ??
             let mut t : f64 = 0.0;
             if obj.intercept(&ray, &mut t) {
                 if t < tmin {
-                    let point = ray.orig.add(&ray.dir.scale(t));
-                    let normal = obj.get_normal(&point);
-                    let (x, y) = obj.get_texture_2d(&point);
-                    let obj_rgb = obj.get_color(&point);
+                    let point = ray.orig + ray.dir * t;
+                    let normal = obj.get_normal(point);
+                    let (x, y) = obj.get_texture_2d(point);
+                    let obj_rgb = obj.get_color(point);
                     let pattern = ((x * 4.0).fract() > 0.5) ^ ((y * 4.0).fract() > 0.5);
 
                     c = RGB{ r: 0.0, g: 0.0, b: 0.0 };
@@ -94,8 +94,8 @@ impl RenderJob { // ??
                             c.add(&light_rgb.scale(intensity));
                             c.add(&obj_rgb.scale(intensity));
                         } else {
-                            let light_vec = light.get_vector(&point);
-                            let mut v_prod = normal.scalar(&light_vec);
+                            let light_vec = light.get_vector(point);
+                            let mut v_prod = normal * light_vec;
                             if v_prod > 0.0 { // only show visible side
                                 v_prod = 0.0;
                             }
@@ -134,7 +134,7 @@ impl RenderJob { // ??
                 Some(c) => return *c,
                 _ =>  {
                     let pixel = Point{ x: 1.0, y: y0, z: z0 };
-                    let vec = Vec3::create(&camera_pos, &pixel);
+                    let vec = pixel - camera_pos;
                     let ray = Ray{ orig: camera_pos, dir: vec };
                     let c = self.calc_ray_color(ray, n);
                     self.pmap.insert(key, c);
@@ -190,7 +190,7 @@ impl RenderJob { // ??
         println!("{} rays traced, {}%", self.num_rays, 100 * self.num_rays / (self.opt.res_x * self.opt.res_y) as u64);
         println!("{} hit max-depth", self.hit_max_level);
     }
-    pub fn parse_input_scene(&mut self) -> std::io::Result<()> {
+    pub fn load_scene(&mut self) -> std::io::Result<()> {
         if ! self.opt.scene_file.is_file() {
             panic!("scene file {} not present.", self.opt.scene_file.display());
         }
@@ -349,7 +349,7 @@ fn main() -> std::io::Result<()> {
     if job.opt.num_spheres_to_generate != 0 {
         return generate_scene(job.opt.num_spheres_to_generate, job.opt.scene_file);
     }
-    job.parse_input_scene()?;
+    job.load_scene()?;
     job.render_scene();
     job.save_image()?;
 
