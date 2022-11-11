@@ -1,23 +1,11 @@
 use raymax::color::RGB;
-
-#[derive(Debug, Clone, Copy)]
-pub struct Point {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Vector {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
-}
+use raymax::vec3::Vec3;
+use raymax::vec3::Point;
 
 #[derive(Debug)]
 pub struct Ray {
     pub orig: Point,
-    pub dir: Vector
+    pub dir: Vec3
 }
 
 #[derive(Debug)]
@@ -31,7 +19,7 @@ pub struct Sphere {
 #[derive(Debug)]
 pub struct Camera {
     pub pos: Point,
-    pub dir: Vector,
+    pub dir: Vec3,
 }
 
 pub struct AmbientLight {
@@ -50,13 +38,13 @@ pub struct PointLight {
 pub struct VectorLight {
     pub name: String,
     pub rgb: RGB,
-    pub dir: Vector,
+    pub dir: Vec3,
     pub intensity: f64, // ??
 }
 
 pub trait Light {
     fn display(&self);
-    fn get_vector(&self, point: &Point) -> Vector;
+    fn get_vector(&self, point: &Point) -> Vec3;
     fn get_intensity(&self) -> f64;
     fn get_color(&self) -> RGB;
     fn is_ambient(&self) -> bool;
@@ -66,8 +54,8 @@ impl Light for AmbientLight {
     fn display(&self) {
         println!("{}: {} {:?}", self.name, self.intensity, self.rgb);
     }
-    fn get_vector(&self, _point: &Point) -> Vector {
-        Vector { x: 0.0, y: 0.0, z: 0.0 }
+    fn get_vector(&self, _point: &Point) -> Vec3 {
+        Vec3 { x: 0.0, y: 0.0, z: 0.0 }
     }
     fn get_intensity(&self) -> f64 {
         self.intensity
@@ -87,7 +75,7 @@ impl Light for VectorLight {
     fn display(&self) {
         println!("{}: {} {:?} {:?}", self.name, self.intensity, self.dir, self.rgb);
     }
-    fn get_vector(&self, _point: &Point) -> Vector {
+    fn get_vector(&self, _point: &Point) -> Vec3 {
         self.dir
     }
     fn get_intensity(&self) -> f64 {
@@ -101,41 +89,14 @@ impl Light for VectorLight {
 pub trait Object {
     fn display(&self);
     fn intercept(&self, ray: &Ray, t : &mut f64) -> bool;
-    fn get_normal(&self, point: &Point) -> Vector;
+    fn get_normal(&self, point: &Point) -> Vec3;
     fn get_color(&self, point: &Point) -> RGB;
     fn get_texture_2d(&self, point: &Point) -> (f64, f64);
 }
 
 
-impl Point {
-    pub fn add(&self, v: &Vector) -> Self {
-        Point { x: self.x + v.x, y: self.y + v.y, z: self.z + v.z }
-    }
-}
-
-impl Vector {
-    fn norm(&self) -> f64 {
-        self.scalar(&self).sqrt()
-    }
-    pub fn scalar(&self, v: &Vector) -> f64 {
-        self.x * v.x + self.y * v.y + self.z * v.z
-    }
-    pub fn scale(&self, r: f64) -> Self {
-        Vector { x: self.x * r, y: self.y * r, z: self.z * r }
-    }
-    pub fn normalize(&mut self) {
-        let norm = self.norm();
-        self.x /= norm;
-        self.y /= norm;
-        self.z /= norm;
-    }
-    pub fn create(src: &Point, dst: &Point) -> Self {
-        Vector{ x: dst.x - src.x, y: dst.y - src.y, z: dst.z - src.z }
-    }
-}
-
 impl Camera {
-    pub fn new(pos: Point, dir: Vector) -> Self {
+    pub fn new(pos: Point, dir: Vec3) -> Self {
         Self { pos: pos, dir: dir }
     }
 }
@@ -151,8 +112,8 @@ impl Object for Sphere {
     fn display(&self) {
         println!("{}: {:?} radius={:?}", self.name, self.center, self.radius);
     }
-    fn get_normal(&self, point: &Point) -> Vector {
-        let mut normal = Vector::create(&self.center, point);
+    fn get_normal(&self, point: &Point) -> Vec3 {
+        let mut normal = Vec3::create(&self.center, point);
         normal.normalize();
         normal
     }
@@ -161,7 +122,7 @@ impl Object for Sphere {
     }
 
     fn get_texture_2d(&self, point: &Point) -> (f64, f64) {
-        let mut v = Vector::create(&self.center, point);
+        let mut v = Vec3::create(&self.center, point);
         v.normalize();
         let x = (1.0 + v.y.atan2(v.x) / std::f64::consts::PI) * 0.5;
         let y = v.z.acos() / std::f64::consts::PI;
@@ -170,9 +131,9 @@ impl Object for Sphere {
 
     fn intercept(&self, ray: &Ray, t: &mut f64) -> bool {
         let a = ray.dir.scalar(&ray.dir);
-        let v0 = Vector::create(&self.center, &ray.orig);
+        let v0 = Vec3::create(&self.center, &ray.orig);
         let b = 2.0 * ray.dir.scalar(&v0);
-        let v1 = Vector::create(&ray.orig, &self.center);
+        let v1 = Vec3::create(&ray.orig, &self.center);
         let c = v1.scalar(&v1) - self.radius * self.radius;
 
         let delta = b * b - 4.0 * a * c;

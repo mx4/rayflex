@@ -6,14 +6,16 @@ use std::path::PathBuf;
 use std::time::Instant;
 use serde_json;
 use rand::Rng;
-use raymax::color::RGB;
 use std::collections::HashMap;
+
+use raymax::color::RGB;
+use raymax::vec3::Vec3;
+use raymax::vec3::Point;
 
 mod image;
 mod three_d;
+
 use three_d::Object;
-use three_d::Vector;
-use three_d::Point;
 use three_d::Ray;
 use three_d::Sphere;
 use three_d::Camera;
@@ -132,7 +134,7 @@ impl RenderJob { // ??
                 Some(c) => return *c,
                 _ =>  {
                     let pixel = Point{ x: 1.0, y: y0, z: z0 };
-                    let vec = Vector::create(&camera_pos, &pixel);
+                    let vec = Vec3::create(&camera_pos, &pixel);
                     let ray = Ray{ orig: camera_pos, dir: vec };
                     let c = self.calc_ray_color(ray, n);
                     self.pmap.insert(key, c);
@@ -203,7 +205,7 @@ impl RenderJob { // ??
                 y: json["camera.position"][1].as_f64().unwrap(),
                 z: json["camera.position"][2].as_f64().unwrap()
             };
-            let mut v = Vector {
+            let mut v = Vec3 {
                 x: json["camera.direction"][0].as_f64().unwrap(),
                 y: json["camera.direction"][1].as_f64().unwrap(),
                 z: json["camera.direction"][2].as_f64().unwrap()
@@ -225,7 +227,7 @@ impl RenderJob { // ??
             let num_vec_lights = json["num_vec_lights"].as_u64().unwrap();
             for i in 0..num_vec_lights {
                 let name = format!("vec-light.{}.vector", i);
-                let mut v = Vector {
+                let mut v = Vec3 {
                     x: json[&name][0].as_f64().unwrap(),
                     y: json[&name][1].as_f64().unwrap(),
                     z: json[&name][2].as_f64().unwrap()
