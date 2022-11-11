@@ -23,6 +23,9 @@ impl Mul<f64> for RGB {
 }
 
 impl RGB {
+    pub fn new() -> RGB {
+	RGB{ r: 0.0, g: 0.0, b: 0.0 }
+    }
     pub fn distance(&self, rhs: RGB) -> f64 {
         ((self.r - rhs.r).powi(2) + (self.g - rhs.g).powi(2) + (self.b - rhs.b).powi(2)).sqrt()
     }

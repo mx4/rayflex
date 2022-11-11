@@ -42,6 +42,9 @@ impl Mul<Vec3> for Vec3 {
 
 
 impl Vec3 {
+    pub fn new() -> Vec3 {
+       Vec3{ x: 0.0, y: 0.0, z: 0.0 }
+    }
     fn norm(self) -> f64 {
         (self * self).sqrt()
     }
@@ -51,6 +54,7 @@ impl Vec3 {
         self.y /= norm;
         self.z /= norm;
     }
+    pub fn reflect(self, normal: Vec3) -> Vec3 {
+	self - normal * (self * normal) * 2.0
+    }
 }
-
-
