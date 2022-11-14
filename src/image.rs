@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Instant;
 use std::fs::File;
 use std::io::Write;
 
@@ -20,6 +21,7 @@ impl Image {
         self.content.push(c);
     }
     pub fn save_image(&mut self, file: PathBuf) -> std::io::Result<()> {
+        let start_time = Instant::now();
         println!("saving result to {:?}", file);
 	let len = self.content.len();
         assert!(len > 0);
@@ -33,16 +35,15 @@ impl Image {
 	for i in 0..self.res_y {
 	    for j in 0..self.res_x {
 		let c = &self.content[(i * self.res_x + j) as usize];
-                let rf = (255.0 * c.r).clamp(0.0, 255.0);
-                let gf = (255.0 * c.g).clamp(0.0, 255.0);
-                let bf = (255.0 * c.b).clamp(0.0, 255.0);
-                let r = rf as u8;
-                let g = gf as u8;
-                let b = bf as u8;
-		content = format!(" {0} {1} {2} \n", r, g, b);
+                let rf = (255.0 * c.r).clamp(0.0, 255.0) as u8;
+                let gf = (255.0 * c.g).clamp(0.0, 255.0) as u8;
+                let bf = (255.0 * c.b).clamp(0.0, 255.0) as u8;
+		content = format!(" {0} {1} {2} \n", rf, gf, bf);
 		f.write_all(content.as_bytes()).expect("Unable to write data");
 	    }
 	}
+        let elapsed = start_time.elapsed();
+        println!("writing ppm file took {} sec", elapsed.as_millis() as f64 / 1000.0);
         Ok(())
     }
 }

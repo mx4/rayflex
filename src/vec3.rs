@@ -57,4 +57,13 @@ impl Vec3 {
     pub fn reflect(self, normal: Vec3) -> Vec3 {
 	self - normal * (self * normal) * 2.0
     }
+    pub fn vector_product(self, rhs: Vec3) -> Vec3 {
+        let mut v = Vec3{
+            x : self.y * rhs.z - self.z * rhs.y,
+            y : self.z * rhs.x - self.x * rhs.z,
+            z : self.x * rhs.y - self.y * rhs.x,
+        };
+        v.normalize();
+        v
+    }
 }

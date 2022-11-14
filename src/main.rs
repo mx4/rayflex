@@ -131,13 +131,13 @@ impl RenderJob { // ??
                     c_light = c_res * v;
                 } else {
                     assert!(light.is_spot());
-                    let light_vec = light.get_vector(hit_point);
+                    let light_vec = light.get_vector(hit_point) * -1.0;
                     let mut light_vec_norm = light_vec.clone();
                     light_vec_norm.normalize();
                     let mut shadow = false;
                     let light_ray = Ray{orig: hit_point, dir: light_vec};
+                    let mut t : f64 = 0.0;
                     for obj in &self.objects {
-                        let mut t : f64 = 0.0;
                         if obj.intercept(&light_ray, 0.001, 1.0, &mut t) {
                             shadow = true;
                             break;
@@ -146,7 +146,7 @@ impl RenderJob { // ??
                     if !shadow {
                         let dist_sq = (light_vec * light_vec) as f32;
                         let mut v_prod = (hit_normal * light_vec_norm) as f32;
-                        if v_prod > 0.0 { // only show visible side
+                        if v_prod < 0.0 { // only show visible side
                             v_prod = 0.0;
                         }
                         let v = v_prod.powi(4) / (4.0 * std::f32::consts::PI * dist_sq);
@@ -191,13 +191,16 @@ impl RenderJob { // ??
 
     pub fn calc_ray_box(&mut self, sy: f64, sz: f64, dy: f64, dz: f64, lvl: u32) -> RGB {
         let camera_pos = self.camera.as_ref().unwrap().pos;
+        let camera_dir = self.camera.as_ref().unwrap().dir;
+        let camera_u = self.camera.as_ref().unwrap().screen_u;
+        let camera_v = self.camera.as_ref().unwrap().screen_v;
 
         let mut calc_one_corner = |y0, z0| -> RGB {
             let key = format!("{}-{}", y0, z0);
             match self.pmap.get(&key) {
                 Some(c) => return *c,
                 _ =>  {
-                    let pixel = Point{ x: 1.0, y: y0, z: z0 };
+                    let pixel = camera_pos + camera_dir + camera_u * y0 + camera_v * z0;
                     let vec = pixel - camera_pos;
                     let ray = Ray{ orig: camera_pos, dir: vec };
                     self.num_rays_sampling += 1;
@@ -227,18 +230,17 @@ impl RenderJob { // ??
         (c00 + c01 + c10 + c11) * 0.25
     }
     pub fn render_scene(&mut self) {
+        self.start_time = Instant::now();
         assert!(self.camera.is_some());
         let u = 1.0;
         let v = 1.0;
-        let ny = self.opt.res_y + 0;
-        let nx = self.opt.res_x + 0;
         let dy = u / self.opt.res_x as f64;
         let dz = v / self.opt.res_y as f64;
-        let mut sz = v / 2.0;
 
-        for _i in 0..ny {
+        let mut sz = v / 2.0;
+        for _i in 0..self.opt.res_y {
             let mut sy = u / 2.0;
-            for _j in 0..nx {
+            for _j in 0..self.opt.res_x {
                 let c = self.calc_ray_box(sy, sz, dy, dz, 0);
 
                 self.image.push_pixel(c);
@@ -266,12 +268,11 @@ impl RenderJob { // ??
                 y: json["camera.position"][1].as_f64().unwrap(),
                 z: json["camera.position"][2].as_f64().unwrap()
             };
-            let mut v = Vec3 {
+            let v = Vec3 {
                 x: json["camera.direction"][0].as_f64().unwrap(),
                 y: json["camera.direction"][1].as_f64().unwrap(),
                 z: json["camera.direction"][2].as_f64().unwrap()
             };
-            v.normalize();
             self.camera = Some(Camera::new(p, v));
         }
         {
@@ -421,15 +422,15 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
 
     println!("Generating scene w/ {} spheres", num_spheres_to_generate);
     json = serde_json::json!({
-        "camera.position": [ 0.0, 0.0, 0.0 ],
-        "camera.direction": [ 1, 0, 0 ],
+        "camera.position": [ -4, 0.0, 1.5 ],
+        "camera.direction": [ 1, 0, -0.2 ],
         "num_vec_lights": 1,
-        "num_spot_lights": 0,
+        "num_spot_lights": 1,
         "vec-light.0.vector": [ 0.5, -0.5, 0.5],
         "vec-light.0.intensity": 2.0,
         "vec-light.0.color": [ 1, 1, 1],
-        "spot-light.0.position": [ 2, 2, 2],
-        "spot-light.0.intensity": 2000,
+        "spot-light.0.position": [ 3, 3, 3],
+        "spot-light.0.intensity": 600,
         "spot-light.0.color": [ 0.4, 0.5, 0.7],
         "ambient.light": [ 0.1, 0.1, 0.1, 0.5],
         "num_planes": 1,
