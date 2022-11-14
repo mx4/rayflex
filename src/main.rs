@@ -422,15 +422,15 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
 
     println!("Generating scene w/ {} spheres", num_spheres_to_generate);
     json = serde_json::json!({
-        "camera.position": [ -4, 0.0, 1.5 ],
-        "camera.direction": [ 1, 0, -0.2 ],
+        "camera.position": [ -3, 0.0, 1.2 ],
+        "camera.direction": [ 1, 0, -0.25 ],
         "num_vec_lights": 1,
         "num_spot_lights": 1,
         "vec-light.0.vector": [ 0.5, -0.5, 0.5],
         "vec-light.0.intensity": 2.0,
         "vec-light.0.color": [ 1, 1, 1],
         "spot-light.0.position": [ 3, 3, 3],
-        "spot-light.0.intensity": 600,
+        "spot-light.0.intensity": 400,
         "spot-light.0.color": [ 0.4, 0.5, 0.7],
         "ambient.light": [ 0.1, 0.1, 0.1, 0.5],
         "num_planes": 1,
