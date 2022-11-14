@@ -59,7 +59,7 @@ impl Object for Plane {
         }
         let v = self.point - ray.orig;
         let t0 = (v * self.normal) / d;
-        if t0 < tmin || t0 > tmax {
+        if t0 <= tmin || t0 >= tmax {
             return false
         }
         *t = t0;
