@@ -27,8 +27,8 @@ use three_d::Plane;
 #[derive(StructOpt, Debug)]
 #[structopt(name="rtest", about="minimal raytracer")]
 struct Options {
-    #[structopt(long, default_value = "pic.ppm")]
-    ppm_file: PathBuf,
+    #[structopt(long, default_value = "pic.png")]
+    img_file: PathBuf,
     #[structopt(long, default_value = "scene.json")]
     scene_file: PathBuf,
      #[structopt(short="x", long, default_value = "400")]
@@ -45,6 +45,8 @@ struct Options {
     reflection_max_depth: u32,
      #[structopt(short="r", long, default_value = "1")]
     use_reflection: u32,
+     #[structopt(short="g", long, default_value = "0")]
+    use_gamma: u32,
 }
 
 
@@ -149,7 +151,7 @@ impl RenderJob { // ??
                         if v_prod < 0.0 { // only show visible side
                             v_prod = 0.0;
                         }
-                        let v = v_prod.powi(4) / (4.0 * std::f32::consts::PI * dist_sq);
+                        let v = v_prod.powi(4) / (1.0 + 4.0 * std::f32::consts::PI * dist_sq);
                         assert!(v >= 0.0);
                         c_light = c_res * v ;
                     }
@@ -238,12 +240,12 @@ impl RenderJob { // ??
         let dz = v / self.opt.res_y as f64;
 
         let mut sz = v / 2.0;
-        for _i in 0..self.opt.res_y {
+        for i in 0..self.opt.res_y {
             let mut sy = u / 2.0;
-            for _j in 0..self.opt.res_x {
+            for j in 0..self.opt.res_x {
                 let c = self.calc_ray_box(sy, sz, dy, dz, 0);
 
-                self.image.push_pixel(c);
+                self.image.push_pixel(j, i, c);
                 sy -= dy;
             }
             sz -= dz;
@@ -412,7 +414,7 @@ impl RenderJob { // ??
     pub fn save_image(&mut self) -> std::io::Result<()> {
         let elapsed = self.start_time.elapsed();
         println!("duration: {} sec", elapsed.as_millis() as f64 / 1000.0);
-        return self.image.save_image(PathBuf::from(&self.opt.ppm_file));
+        return self.image.save_image(PathBuf::from(&self.opt.img_file), self.opt.use_gamma > 0);
     }
 }
 
@@ -483,8 +485,9 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
 
 fn print_opt(opt: &Options) {
     println!("scene-file: {}", opt.scene_file.display());
-    println!("image-file: {}", opt.ppm_file.display());
+    println!("image-file: {}", opt.img_file.display());
     println!("resolution: {}x{}", opt.res_x, opt.res_y);
+    println!("gamma-correction: {}", opt.use_gamma);
     println!("adaptive-sampling: {} max-depth={}", opt.adaptive_sampling, opt.adaptive_max_depth);
     println!("reflection: {} max-depth={}", opt.use_reflection, opt.reflection_max_depth);
 }
