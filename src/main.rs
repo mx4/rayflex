@@ -1,5 +1,3 @@
-//#![allow(unused)]
-
 use structopt::StructOpt;
 use std::fs;
 use std::path::PathBuf;
@@ -79,7 +77,7 @@ impl RenderJob { // ??
             hit_max_level: 0,
         }
     }
-    fn calc_ray_color(&mut self, ray: Ray, depth: u32) -> RGB {
+    fn calc_ray_color(&mut self, ray: Ray, view_all: bool, depth: u32) -> RGB {
         let mut c = RGB::new();
         let mut tmin = f64::MAX;
         if depth > self.opt.reflection_max_depth {
@@ -89,7 +87,10 @@ impl RenderJob { // ??
         let mut hit_normal = Vec3::new();
         let mut hit_material = Material::new();
         let (mut hitx, mut hity) : (f64,f64) = (0.0, 0.0);
-        let raylen = ray.dir.norm();
+        let mut raylen = ray.dir.norm();
+        if view_all {
+            raylen = 0.0001;
+        }
 
         for obj in &self.objects {
             let mut t : f64 = 0.0;
@@ -166,7 +167,7 @@ impl RenderJob { // ??
                 self.num_rays_reflection += 1;
                 let reflected_vec = ray.dir.reflect(hit_normal);
                 let reflected_ray = Ray{orig: hit_point, dir: reflected_vec};
-                c = c + self.calc_ray_color(reflected_ray, depth + 1) * 0.5;
+                c = c + self.calc_ray_color(reflected_ray, true, depth + 1) * 0.5;
             }
         } else {
 	    let mut z = (ray.dir.z + 0.5) as f32;
@@ -200,7 +201,7 @@ impl RenderJob { // ??
                     let vec = pixel - camera_pos;
                     let ray = Ray{ orig: camera_pos, dir: vec };
                     self.num_rays_sampling += 1;
-                    let c = self.calc_ray_color(ray, 0);
+                    let c = self.calc_ray_color(ray, false, 0);
                     self.pmap.insert(key, c);
                     c
                 }
@@ -284,6 +285,7 @@ impl RenderJob { // ??
             assert!(c.g >= 0.0);
             assert!(c.b >= 0.0);
             let r = json[&name][3].as_f64().unwrap() as f32;
+            assert!(r >= 0.0);
             self.lights.push(Box::new(AmbientLight{ name: name.to_string(), rgb: c, intensity: r }));
         }
         {
@@ -297,6 +299,7 @@ impl RenderJob { // ??
                 };
                 let iname = format!("spot-light.{}.intensity", i);
                 let r = json[&iname].as_f64().unwrap() as f32;
+                assert!(r >= 0.0);
                 let cname = format!("spot-light.{}.color", i);
                 let c = RGB {
                     r: json[&cname][0].as_f64().unwrap() as f32,
@@ -322,6 +325,7 @@ impl RenderJob { // ??
                 v.normalize(); // how about intensity?
                 let iname = format!("vec-light.{}.intensity", i);
                 let r = json[&iname].as_f64().unwrap() as f32;
+                assert!(r >= 0.0);
                 let cname = format!("vec-light.{}.color", i);
                 let c = RGB {
                     r: json[&cname][0].as_f64().unwrap() as f32,
@@ -360,6 +364,7 @@ impl RenderJob { // ??
                 assert!(cb >= 0.0);
                 let aname = format!("plane.{}.albedo", i);
                 let albedo = json[&aname].as_f64().unwrap() as f32;
+                assert!(albedo >= 0.0);
                 let tname = format!("plane.{}.checkered", i);
                 let checkered = json[&tname].as_bool().unwrap();
                 let rgb = RGB{ r: cr, g: cg, b: cb };
@@ -386,8 +391,8 @@ impl RenderJob { // ??
                 assert!(cb >= 0.0);
                 let aname = format!("sphere.{}.albedo", i);
                 let albedo = json[&aname].as_f64().unwrap() as f32;
+                assert!(albedo >= 0.0);
                 let tname = format!("sphere.{}.checkered", i);
-                //let checkered = json[&tname].as_f64().unwrap() as f32;
                 let checkered = json[&tname].as_bool().unwrap();
                 let rgb = RGB{ r: cr, g: cg, b: cb };
                 let material = Material { rgb: rgb, albedo: albedo, checkered: checkered };
@@ -437,11 +442,15 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
         "sphere.0.color": [ 0.8, 0.7, 0.9],
         "sphere.0.albedo": 0.8,
         "sphere.0.checkered": true,
+        "sphere.1.center" : [2.2, -0.5, 0.5, 0.5],
+        "sphere.1.color": [ 0.8, 0.7, 0.9],
+        "sphere.1.albedo": 0.8,
+        "sphere.1.checkered": true,
     });
     json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
 
     let line = false;
-    for i in 1..num_spheres_to_generate {
+    for i in 2..num_spheres_to_generate {
         let mut x = rng.gen_range(2.0..5.0);
         let mut y = rng.gen_range(-2.0..2.0);
         let mut z = rng.gen_range(-2.0..2.0);
