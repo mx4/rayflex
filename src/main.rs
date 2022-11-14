@@ -21,8 +21,10 @@ use raymax::Ray;
 
 mod three_d;
 
+use three_d::Material;
 use three_d::Object;
 use three_d::Sphere;
+use three_d::Plane;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name="rtest", about="minimal raytracer")]
@@ -35,7 +37,7 @@ struct Options {
     res_x: u32,
      #[structopt(short="y", long, default_value = "400")]
     res_y: u32,
-     #[structopt(long, default_value = "0")]
+     #[structopt(short="n", long, default_value = "0")]
     num_spheres_to_generate: u32,
      #[structopt(short="a", long, default_value = "0")]
     adaptive_sampling: u8,
@@ -85,7 +87,7 @@ impl RenderJob { // ??
         }
         let mut hit_point = Point::new();
         let mut hit_normal = Vec3::new();
-        let mut hit_rgb = RGB::new();
+        let mut hit_material = Material::new();
         let (mut hitx, mut hity) : (f64,f64) = (0.0, 0.0);
         let raylen = ray.dir.norm();
 
@@ -95,34 +97,70 @@ impl RenderJob { // ??
                 assert!(t < tmin);
                 hit_point = ray.orig + ray.dir * t;
                 hit_normal = obj.get_normal(hit_point);
-                (hitx, hity) = obj.get_texture_2d(hit_point);
-                hit_rgb = obj.get_color(hit_point);
+                hit_material = obj.get_material();
+                if hit_material.checkered {
+                    (hitx, hity) = obj.get_texture_2d(hit_point);
+                }
                 tmin = t;
             }
         }
         if tmin < f64::MAX {
-            let pattern = ((hitx * 4.0).fract() > 0.5) ^ ((hity * 4.0).fract() > 0.5);
-
             for light in &self.lights {
-                let intensity = light.get_intensity();
+                let light_intensity = light.get_intensity();
                 let light_rgb = light.get_color();
+                let mut c_light = RGB::new();
+                let mut c_res = RGB{
+                    r : hit_material.rgb.r * light_rgb.r,
+                    g : hit_material.rgb.g * light_rgb.g,
+                    b : hit_material.rgb.b * light_rgb.b,
+                };
+                assert!(light_intensity >= 0.0);
+                c_res = c_res * light_intensity;
 
                 if light.is_ambient() {
-                    c = c + light_rgb * intensity;
-                    c = c + hit_rgb * intensity;
-                } else {
+                    c_light = c_res;
+                } else if light.is_vector() {
                     let light_vec = light.get_vector(hit_point);
-                    let mut v_prod : f64 = hit_normal * light_vec;
+                    let mut v_prod = (hit_normal * light_vec) as f32;
                     if v_prod > 0.0 { // only show visible side
                         v_prod = 0.0;
                     }
-                    let mut v = v_prod.powi(4);
-                    if pattern {
-                        v /= 1.4;
+                    let v = v_prod.powi(4);
+                    assert!(v >= 0.0);
+                    c_light = c_res * v;
+                } else {
+                    assert!(light.is_spot());
+                    let light_vec = light.get_vector(hit_point);
+                    let mut light_vec_norm = light_vec.clone();
+                    light_vec_norm.normalize();
+                    let mut shadow = false;
+                    let light_ray = Ray{orig: hit_point, dir: light_vec};
+                    for obj in &self.objects {
+                        let mut t : f64 = 0.0;
+                        if obj.intercept(&light_ray, 0.001, 1.0, &mut t) {
+                            shadow = true;
+                            break;
+                        }
                     }
-                    c = c + hit_rgb * v;
-                    c = c + light_rgb * v * intensity;
+                    if !shadow {
+                        let dist_sq = (light_vec * light_vec) as f32;
+                        let mut v_prod = (hit_normal * light_vec_norm) as f32;
+                        if v_prod > 0.0 { // only show visible side
+                            v_prod = 0.0;
+                        }
+                        let v = v_prod.powi(4) / (4.0 * std::f32::consts::PI * dist_sq);
+                        assert!(v >= 0.0);
+                        c_light = c_res * v ;
+                    }
                 }
+                if hit_material.checkered {
+                    let pattern = ((hitx * 4.0).fract() > 0.5) ^ ((hity * 4.0).fract() > 0.5);
+                    if pattern {
+                        c_light = c_light * (1.0 / 3.0);
+                    }
+                }
+                assert!(hit_material.albedo >= 0.0);
+                c = c + c_light * hit_material.albedo;
             }
             if self.opt.use_reflection > 0 {
                 self.num_rays_reflection += 1;
@@ -131,9 +169,12 @@ impl RenderJob { // ??
                 c = c + self.calc_ray_color(reflected_ray, depth + 1) * 0.5;
             }
         } else {
-	    let z =  ray.dir.z + 1.0;
+	    let mut z = (ray.dir.z + 0.5) as f32;
+            z = z.clamp(0.0, 1.0);
 	    let cmax = RGB{ r: 1.0, g: 1.0, b: 1.0 };
 	    let cyan = RGB{ r: 0.4, g: 0.6, b: 0.9 };
+            assert!(z >= 0.0);
+            assert!(z <= 1.0);
             c = cmax * (1.0 - z) + cyan * z;
         }
         c
@@ -141,8 +182,10 @@ impl RenderJob { // ??
 
     pub fn corner_difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> bool {
         let avg = (c00 + c01 + c10 + c11) * 0.25;
-        let d = avg.distance(c00) + avg.distance(c01) + avg.distance(c10) + avg.distance(c11);
-        d > 0.5
+        let d = avg.distance2(c00) + avg.distance2(c01) + avg.distance2(c10) + avg.distance2(c11);
+        d > 0.3
+        //let d = avg.distance(c00) + avg.distance(c01) + avg.distance(c10) + avg.distance(c11);
+        //d > 0.5
     }
 
     pub fn calc_ray_box(&mut self, sy: f64, sz: f64, dy: f64, dz: f64, lvl: u32) -> RGB {
@@ -232,31 +275,37 @@ impl RenderJob { // ??
         }
         {
             let name = "ambient.light";
-            let v = RGB {
-                r: json[&name][0].as_f64().unwrap(),
-                g: json[&name][1].as_f64().unwrap(),
-                b: json[&name][2].as_f64().unwrap()
+            let c = RGB {
+                r: json[&name][0].as_f64().unwrap() as f32,
+                g: json[&name][1].as_f64().unwrap() as f32,
+                b: json[&name][2].as_f64().unwrap() as f32
             };
-            let r = json[&name][3].as_f64().unwrap();
-            self.lights.push(Box::new(AmbientLight{ name: name.to_string(), rgb: v, intensity: r }));
+            assert!(c.r >= 0.0);
+            assert!(c.g >= 0.0);
+            assert!(c.b >= 0.0);
+            let r = json[&name][3].as_f64().unwrap() as f32;
+            self.lights.push(Box::new(AmbientLight{ name: name.to_string(), rgb: c, intensity: r }));
         }
         {
-            let num_vec_lights = json["num_spot_lights"].as_u64().unwrap();
-            for i in 0..num_vec_lights {
+            let num_spot_lights = json["num_spot_lights"].as_u64().unwrap();
+            for i in 0..num_spot_lights {
                 let name = format!("spot-light.{}.position", i);
                 let p = Point {
                     x: json[&name][0].as_f64().unwrap(),
                     y: json[&name][1].as_f64().unwrap(),
                     z: json[&name][2].as_f64().unwrap()
                 };
-                let iname = format!("vec-light.{}.intensity", i);
-                let r = json[&iname].as_f64().unwrap();
-                let cname = format!("vec-light.{}.color", i);
+                let iname = format!("spot-light.{}.intensity", i);
+                let r = json[&iname].as_f64().unwrap() as f32;
+                let cname = format!("spot-light.{}.color", i);
                 let c = RGB {
-                    r: json[&cname][0].as_f64().unwrap(),
-                    g: json[&cname][1].as_f64().unwrap(),
-                    b: json[&cname][2].as_f64().unwrap()
+                    r: json[&cname][0].as_f64().unwrap() as f32,
+                    g: json[&cname][1].as_f64().unwrap() as f32,
+                    b: json[&cname][2].as_f64().unwrap() as f32
                 };
+                assert!(c.r >= 0.0);
+                assert!(c.g >= 0.0);
+                assert!(c.b >= 0.0);
                 let sname = format!("spot-light.{}", i);
                 self.lights.push(Box::new(SpotLight{ name: sname, pos: p, rgb: c, intensity: r }));
             }
@@ -272,22 +321,56 @@ impl RenderJob { // ??
                 };
                 v.normalize(); // how about intensity?
                 let iname = format!("vec-light.{}.intensity", i);
-                let r = json[&iname].as_f64().unwrap();
+                let r = json[&iname].as_f64().unwrap() as f32;
                 let cname = format!("vec-light.{}.color", i);
                 let c = RGB {
-                    r: json[&cname][0].as_f64().unwrap(),
-                    g: json[&cname][1].as_f64().unwrap(),
-                    b: json[&cname][2].as_f64().unwrap()
+                    r: json[&cname][0].as_f64().unwrap() as f32,
+                    g: json[&cname][1].as_f64().unwrap() as f32,
+                    b: json[&cname][2].as_f64().unwrap() as f32
                 };
+                assert!(c.r >= 0.0);
+                assert!(c.g >= 0.0);
+                assert!(c.b >= 0.0);
                 let sname = format!("vec-light.{}", i);
                 self.lights.push(Box::new(VectorLight{ name: sname, dir: v, rgb: c, intensity: r }));
             }
         }
 
         {
+            let num_planes = json["num_planes"].as_u64().unwrap();
+            for i in 0..num_planes {
+                let name = format!("plane.{}.position", i);
+                let p = Point {
+                    x: json[&name][0].as_f64().unwrap(),
+                    y: json[&name][1].as_f64().unwrap(),
+                    z: json[&name][2].as_f64().unwrap()
+                };
+                let name = format!("plane.{}.normal", i);
+                let n = Vec3 {
+                    x: json[&name][0].as_f64().unwrap(),
+                    y: json[&name][1].as_f64().unwrap(),
+                    z: json[&name][2].as_f64().unwrap()
+                };
+                let cname = format!("plane.{}.color", i);
+                let cr = json[&cname][0].as_f64().unwrap() as f32;
+                let cg = json[&cname][1].as_f64().unwrap() as f32;
+                let cb = json[&cname][2].as_f64().unwrap() as f32;
+                assert!(cr >= 0.0);
+                assert!(cg >= 0.0);
+                assert!(cb >= 0.0);
+                let aname = format!("plane.{}.albedo", i);
+                let albedo = json[&aname].as_f64().unwrap() as f32;
+                let tname = format!("plane.{}.checkered", i);
+                let checkered = json[&tname].as_bool().unwrap();
+                let rgb = RGB{ r: cr, g: cg, b: cb };
+                let material = Material { rgb: rgb, albedo: albedo, checkered: checkered };
+                self.objects.push(Box::new(Plane::new(name, p, n, material)));
+            }
+        }
+        {
             let num_spheres = json["num_spheres"].as_u64().unwrap();
             for i in 0..num_spheres {
-                let name = format!("sphere.{}", i);
+                let name = format!("sphere.{}.center", i);
                 let p = Point {
                     x: json[&name][0].as_f64().unwrap(),
                     y: json[&name][1].as_f64().unwrap(),
@@ -295,11 +378,20 @@ impl RenderJob { // ??
                 };
                 let r = json[&name][3].as_f64().unwrap();
                 let cname = format!("sphere.{}.color", i);
-                let cr = json[&cname][0].as_f64().unwrap();
-                let cg = json[&cname][1].as_f64().unwrap();
-                let cb = json[&cname][2].as_f64().unwrap();
+                let cr = json[&cname][0].as_f64().unwrap() as f32;
+                let cg = json[&cname][1].as_f64().unwrap() as f32;
+                let cb = json[&cname][2].as_f64().unwrap() as f32;
+                assert!(cr >= 0.0);
+                assert!(cg >= 0.0);
+                assert!(cb >= 0.0);
+                let aname = format!("sphere.{}.albedo", i);
+                let albedo = json[&aname].as_f64().unwrap() as f32;
+                let tname = format!("sphere.{}.checkered", i);
+                //let checkered = json[&tname].as_f64().unwrap() as f32;
+                let checkered = json[&tname].as_bool().unwrap();
                 let rgb = RGB{ r: cr, g: cg, b: cb };
-                self.objects.push(Box::new(Sphere::new(name, p, r, rgb)));
+                let material = Material { rgb: rgb, albedo: albedo, checkered: checkered };
+                self.objects.push(Box::new(Sphere::new(name, p, r, material)));
             }
         }
         println!("camera: pos: {:?}", self.camera.as_ref().unwrap().pos);
@@ -327,33 +419,52 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
         "camera.position": [ 0.0, 0.0, 0.0 ],
         "camera.direction": [ 1, 0, 0 ],
         "num_vec_lights": 1,
-        "vec-light.0.vector": [ 0.5, -0.5, -0.5],
-        "vec-light.0.intensity": 0.2,
+        "num_spot_lights": 0,
+        "vec-light.0.vector": [ 0.5, -0.5, 0.5],
+        "vec-light.0.intensity": 2.0,
         "vec-light.0.color": [ 1, 1, 1],
-        "num_spot_lights": 1,
-        "spot-light.0.position": [ 5, 1, 2],
-        "spot-light.0.intensity": 0.2,
-        "spot-light.0.color": [ 0.5, 0.5, 0.1],
-        "ambient.light": [ 0.1, 0.1, 0.1, 0.05],
-        "sphere.0": [ 5, 0, -101, 100],
-        "sphere.0.color": [ 1, 1, 1],
-        "sphere.1": [ 5, 0, 0, 1],
-        "sphere.1.color": [ 1, 1, 0],
+        "spot-light.0.position": [ 2, 2, 2],
+        "spot-light.0.intensity": 2000,
+        "spot-light.0.color": [ 0.4, 0.5, 0.7],
+        "ambient.light": [ 0.1, 0.1, 0.1, 0.5],
+        "num_planes": 1,
+        "plane.0.position" : [0, 0, -1],
+        "plane.0.normal" : [0, 0, 1],
+        "plane.0.color": [ 0.8, 0.7, 0.9],
+        "plane.0.albedo": 0.8,
+        "plane.0.checkered": false,
+        "sphere.0.center" : [3, 0, -0.5, 1],
+        "sphere.0.color": [ 0.8, 0.7, 0.9],
+        "sphere.0.albedo": 0.8,
+        "sphere.0.checkered": true,
     });
     json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
 
-    for i in 2..num_spheres_to_generate {
-        let x = rng.gen_range(2.0..5.0);
-        let y = rng.gen_range(-2.0..2.0);
-        let z = rng.gen_range(-2.0..2.0);
-        let r = rng.gen_range(0.05..0.5);
+    let line = false;
+    for i in 1..num_spheres_to_generate {
+        let mut x = rng.gen_range(2.0..5.0);
+        let mut y = rng.gen_range(-2.0..2.0);
+        let mut z = rng.gen_range(-2.0..2.0);
+        let mut r = rng.gen_range(0.2..0.4);
+        if line {
+            x = i as f64 * 2.0;
+            y = -1.0;
+            z = -0.5;
+            r = 0.7;
+        }
         let cr = rng.gen_range(0.3..1.0);
         let cg = rng.gen_range(0.3..1.0);
         let cb = rng.gen_range(0.3..1.0);
-        let name  = format!("sphere.{}", i);
+        let albedo = rng.gen_range(0.5..1.0);
+        let checkered = rng.gen_range(0..100) % 2;
+        let name  = format!("sphere.{}.center", i);
         let cname = format!("sphere.{}.color", i);
+        let aname = format!("sphere.{}.albedo", i);
+        let tname = format!("sphere.{}.checkered", i);
         json[name]  = serde_json::json!([x, y, z, r ]);
         json[cname] = serde_json::json!([cr, cg, cb]);
+        json[aname] = serde_json::json!(albedo);
+        json[tname] = serde_json::json!(checkered > 0);
     }
     let s0 = serde_json::to_string_pretty(&json)?;
     println!("Writing scene file {}", scene_file.display());

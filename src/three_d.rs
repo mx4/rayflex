@@ -3,29 +3,89 @@ use raymax::vec3::Vec3;
 use raymax::vec3::Point;
 use raymax::Ray;
 
-#[derive(Debug)]
-pub struct Sphere {
-    pub name: String,
-    pub center: Point,
-    pub radius: f64,
+#[derive(Debug, Clone)]
+pub struct Material {
+    pub albedo: f32,
     pub rgb: RGB,
+    pub checkered: bool,
+}
+
+impl Material {
+    pub fn new() -> Material {
+        Material{ albedo: 0.0, rgb: RGB::new(), checkered : false }
+    }
 }
 
 pub trait Object {
     fn display(&self);
     fn intercept(&self, ray: &Ray, tmin: f64, tmax: f64, t : &mut f64) -> bool;
     fn get_normal(&self, point: Point) -> Vec3;
-    fn get_color(&self, point: Point) -> RGB;
     fn get_texture_2d(&self, point: Point) -> (f64, f64);
+    fn get_material(&self) -> Material;
+}
+
+#[derive(Debug)]
+pub struct Sphere {
+    pub name: String,
+    pub center: Point,
+    pub radius: f64,
+    pub material: Material,
+}
+
+#[derive(Debug)]
+pub struct Plane {
+    pub name: String,
+    pub point: Point,
+    pub normal: Vec3,
+    pub material: Material,
+}
+
+impl Plane {
+    pub fn new(name: String, point: Point, normal: Vec3, material: Material) -> Self {
+        let mut n = normal;
+        assert!(n.norm() > 0.0);
+        n.normalize();
+        Self { name: name, point: point, normal: n, material: material }
+    }
+}
+impl Object for Plane {
+    fn display(&self) {
+        println!("{}: {:?} normal={:?}", self.name, self.point, self.normal);
+    }
+    fn intercept(&self, ray: &Ray, tmin: f64, tmax: f64, t : &mut f64) -> bool {
+        let d = ray.dir * self.normal;
+        if d.abs() < 0.001 {
+            return false
+        }
+        let v = self.point - ray.orig;
+        let t0 = (v * self.normal) / d;
+        if t0 < tmin || t0 > tmax {
+            return false
+        }
+        *t = t0;
+        true
+    }
+    fn get_normal(&self, _point: Point) -> Vec3 {
+        self.normal
+    }
+    fn get_texture_2d(&self, _point: Point) -> (f64, f64) {
+        (0.0, 0.0)
+    }
+    fn get_material(&self) -> Material {
+        self.material.clone()
+    }
 }
 
 impl Sphere {
-    pub fn new(name: String, center: Point, radius: f64, rgb: RGB) -> Self {
-        Self { name: name, center: center, radius: radius, rgb: rgb }
+    pub fn new(name: String, center: Point, radius: f64, material: Material) -> Self {
+        Self { name: name, center: center, radius: radius, material: material }
     }
 }
 
 impl Object for Sphere {
+    fn get_material(&self) -> Material {
+        self.material.clone()
+    }
     fn display(&self) {
         println!("{}: {:?} radius={:?}", self.name, self.center, self.radius);
     }
@@ -33,10 +93,6 @@ impl Object for Sphere {
         let normal = point - self.center;
         normal * (1.0 / self.radius)
     }
-    fn get_color(&self, _point: Point) -> RGB {
-        self.rgb
-    }
-
     fn get_texture_2d(&self, point: Point) -> (f64, f64) {
         let v = (point - self.center) * (1.0 / self.radius);
         let x = (1.0 + v.y.atan2(v.x) / std::f64::consts::PI) * 0.5;
@@ -68,8 +124,11 @@ impl Object for Sphere {
         } else {
             t0 = t2;
         }
-        *t = t0;
+        if t0 >= tmax {
+            return false
+        }
 
-        t0 < tmax
+        *t = t0;
+        true
     }
 }
