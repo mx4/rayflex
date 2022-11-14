@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub, Mul};
+use std::ops::{Add, AddAssign, Sub, Mul};
 
 
 #[derive(Debug, Clone, Copy)]
@@ -37,6 +37,16 @@ impl Mul<Vec3> for Vec3 {
     type Output = f64;
     fn mul(self, rhs: Vec3) -> f64 {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
+    }
+}
+
+impl AddAssign<Vec3> for Vec3 {
+    fn add_assign(&mut self, other: Vec3)  {
+        *self = Vec3 {
+            x: self.x + other.x,
+            y: self.y + other.y,
+            z: self.z + other.z,
+        };
     }
 }
 

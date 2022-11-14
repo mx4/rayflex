@@ -161,7 +161,7 @@ impl RenderJob { // ??
                     }
                 }
                 assert!(hit_material.albedo >= 0.0);
-                c = c + c_light * hit_material.albedo;
+                c += c_light * hit_material.albedo;
             }
             if self.opt.use_reflection > 0 {
                 self.num_rays_reflection += 1;

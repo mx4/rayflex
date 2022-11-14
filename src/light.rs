@@ -17,9 +17,9 @@ pub struct SpotLight {
 
 pub struct VectorLight {
     pub name: String,
-    pub rgb: RGB,
     pub dir: Vec3,
-    pub intensity: f32, // ??
+    pub rgb: RGB,
+    pub intensity: f32,
 }
 
 pub trait Light {

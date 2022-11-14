@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul};
+use std::ops::{Add, AddAssign, Mul};
 
 #[derive(Debug, Clone, Copy)]
 pub struct RGB {
@@ -29,6 +29,16 @@ impl Mul<f32> for RGB {
         assert!(self.b >= 0.0);
         assert!(rhs >= 0.0);
         RGB { r: self.r * rhs, g: self.g * rhs, b: self.b * rhs }
+    }
+}
+
+impl AddAssign<RGB> for RGB {
+    fn add_assign(&mut self, other: RGB)  {
+        *self = RGB {
+            r: self.r + other.r,
+            g: self.g + other.g,
+            b: self.b + other.b,
+        };
     }
 }
 
