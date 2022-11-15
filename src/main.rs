@@ -1,10 +1,10 @@
 use structopt::StructOpt;
+use serde_json;
+use rand::Rng;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 use std::collections::HashMap;
-use serde_json;
-use rand::Rng;
 
 use raymax::color::RGB;
 use raymax::vec3::Vec3;
@@ -114,7 +114,6 @@ impl RenderJob {
                     g : hit_material.rgb.g * light_rgb.g,
                     b : hit_material.rgb.b * light_rgb.b,
                 };
-                assert!(light_intensity >= 0.0);
                 c_res = c_res * light_intensity;
 
                 if light.is_ambient() {
@@ -137,7 +136,6 @@ impl RenderJob {
                             v_prod = 0.0;
                         }
                         let v = v_prod.powi(4);
-                        assert!(v >= 0.0);
                         c_light = c_res * v;
                     }
                 } else {
@@ -200,20 +198,23 @@ impl RenderJob {
         //d > 0.5
     }
 
-    pub fn calc_ray_box(&mut self, sy: f64, sz: f64, dy: f64, dz: f64, lvl: u32) -> RGB {
+    /*
+     * pos_u: -0.5 .. 0.5
+     * pos_v: -0.5 .. 0.5
+     */
+    pub fn calc_ray_box(&mut self, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
         let camera_pos = self.camera.as_ref().unwrap().pos;
         let camera_dir = self.camera.as_ref().unwrap().dir;
         let camera_u = self.camera.as_ref().unwrap().screen_u;
         let camera_v = self.camera.as_ref().unwrap().screen_v;
 
-        let mut calc_one_corner = |y0, z0| -> RGB {
-            let key = format!("{}-{}", y0, z0);
+        let mut calc_one_corner = |u0, v0| -> RGB {
+            let key = format!("{}-{}", u0, v0);
             match self.pmap.get(&key) {
                 Some(c) => return *c,
                 _ =>  {
-                    let pixel = camera_pos + camera_dir + camera_u * y0 + camera_v * z0;
-                    let vec = pixel - camera_pos;
-                    let ray = Ray{ orig: camera_pos, dir: vec };
+                    let pixel = camera_pos + camera_dir + camera_u * u0 + camera_v * v0;
+                    let ray = Ray{ orig: camera_pos, dir: pixel - camera_pos };
                     self.num_rays_sampling += 1;
                     let c = self.calc_ray_color(ray, false, 0);
                     self.pmap.insert(key, c);
@@ -221,22 +222,22 @@ impl RenderJob {
                 }
             }
         };
-        let mut c00 = calc_one_corner(sy,      sz);
-        let mut c01 = calc_one_corner(sy,      sz - dz);
-        let mut c10 = calc_one_corner(sy - dy, sz);
-        let mut c11 = calc_one_corner(sy - dy, sz - dz);
+        let mut c00 = calc_one_corner(pos_u,      pos_v);
+        let mut c01 = calc_one_corner(pos_u,      pos_v + dv);
+        let mut c10 = calc_one_corner(pos_u + du, pos_v);
+        let mut c11 = calc_one_corner(pos_u + du, pos_v + dv);
 
         let color_diff = Self::corner_difference(c00, c01, c10, c11);
         if self.opt.adaptive_sampling > 0 && color_diff && lvl >= self.opt.adaptive_max_depth {
             self.hit_max_level += 1;
         }
         if self.opt.adaptive_sampling > 0 && lvl < self.opt.adaptive_max_depth && color_diff {
-            let dy2 = dy / 2.0;
-            let dz2 = dz / 2.0;
-            c00 = self.calc_ray_box(sy,       sz,       dy2, dz2, lvl + 1);
-            c01 = self.calc_ray_box(sy,       sz - dz2, dy2, dz2, lvl + 1);
-            c10 = self.calc_ray_box(sy - dy2, sz,       dy2, dz2, lvl + 1);
-            c11 = self.calc_ray_box(sy - dy2, sz - dz2, dy2, dz2, lvl + 1);
+            let du2 = du / 2.0;
+            let dv2 = dv / 2.0;
+            c00 = self.calc_ray_box(pos_u,       pos_v,       du2, dv2, lvl + 1);
+            c01 = self.calc_ray_box(pos_u,       pos_v + dv2, du2, dv2, lvl + 1);
+            c10 = self.calc_ray_box(pos_u + du2, pos_v,       du2, dv2, lvl + 1);
+            c11 = self.calc_ray_box(pos_u + du2, pos_v + dv2, du2, dv2, lvl + 1);
         }
         (c00 + c01 + c10 + c11) * 0.25
     }
@@ -246,19 +247,19 @@ impl RenderJob {
         assert!(self.camera.is_some());
         let u = 1.0;
         let v = 1.0;
-        let dy = u / self.opt.res_x as f64;
-        let dz = v / self.opt.res_y as f64;
+        let du = u / self.opt.res_x as f64;
+        let dv = v / self.opt.res_y as f64;
 
-        let mut sz = v / 2.0;
+        let mut pos_v = v / 2.0;
         for i in 0..self.opt.res_y {
-            let mut sy = u / 2.0;
+            let mut pos_u = u / 2.0;
             for j in 0..self.opt.res_x {
-                let c = self.calc_ray_box(sy, sz, dy, dz, 0);
+                let c = self.calc_ray_box(pos_u, pos_v, du, dv, 0);
 
                 self.image.push_pixel(j, i, c);
-                sy -= dy;
+                pos_u -= du;
             }
-            sz -= dz;
+            pos_v -= dv;
         }
         let num_pixels = self.opt.res_x * self.opt.res_y;
         println!("sampling: {} rays {}%", self.num_rays_sampling, 100 * self.num_rays_sampling / num_pixels as u64);
