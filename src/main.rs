@@ -214,18 +214,14 @@ impl RenderJob {
 
         let calc_one_corner = |u0, v0| -> RGB {
             let key = format!("{}-{}", u0, v0);
-            {
-                let pmap = self.pmap.lock().unwrap();
-                if let Some(c) = pmap.get(&key) {
-                    return *c;
-                }
+            if let Some(c) = self.pmap.lock().unwrap().get(&key) {
+                return *c;
             }
             let pixel = camera_pos + camera_dir + camera_u * u0 + camera_v * v0;
             let ray = Ray{ orig: camera_pos, dir: pixel - camera_pos };
             self.num_rays_sampling.fetch_add(1, Ordering::SeqCst);
             let c = self.calc_ray_color(ray, false, 0);
-            let mut pmap = self.pmap.lock().unwrap();
-            pmap.insert(key, c);
+            self.pmap.lock().unwrap().insert(key, c);
             c
         };
         let mut c00 = calc_one_corner(pos_u,      pos_v);
@@ -259,19 +255,18 @@ impl RenderJob {
         let dv = v / self.opt.res_y as f64;
 
         (0..self.opt.res_y).into_par_iter().for_each(|i| {
-        //(0..self.opt.res_y).for_each(|i| {
             let mut pos_u = u / 2.0;
             let pos_v = v / 2.0 - (i as f64) * dv;
             for j in 0..self.opt.res_x {
                 let c = self.calc_ray_box(pos_u, pos_v, du, dv, 0);
 
-                let mut img = self.image.lock().unwrap();
-                img.push_pixel(j, i, c);
+                self.image.lock().unwrap().push_pixel(j, i, c);
                 pos_u -= du;
             }
             pb.inc(1);
         });
         pb.finish_with_message("done");
+        println!("{} threads", rayon::current_num_threads());
 
         let num_pixels = self.opt.res_x * self.opt.res_y;
         println!("sampling: {} rays {}%", self.num_rays_sampling.load(Ordering::SeqCst), 100 * self.num_rays_sampling.load(Ordering::SeqCst) / num_pixels as u64);
@@ -433,8 +428,7 @@ impl RenderJob {
     pub fn save_image(&mut self) -> std::io::Result<()> {
         let elapsed = self.start_time.elapsed();
         println!("duration: {} sec", elapsed.as_millis() as f64 / 1000.0);
-        let mut img = self.image.lock().unwrap();
-        return img.save_image(PathBuf::from(&self.opt.img_file), self.opt.use_gamma > 0);
+        return self.image.lock().unwrap().save_image(PathBuf::from(&self.opt.img_file), self.opt.use_gamma > 0);
     }
 }
 
