@@ -210,17 +210,15 @@ impl RenderJob {
 
         let mut calc_one_corner = |u0, v0| -> RGB {
             let key = format!("{}-{}", u0, v0);
-            match self.pmap.get(&key) {
-                Some(c) => return *c,
-                _ =>  {
-                    let pixel = camera_pos + camera_dir + camera_u * u0 + camera_v * v0;
-                    let ray = Ray{ orig: camera_pos, dir: pixel - camera_pos };
-                    self.num_rays_sampling += 1;
-                    let c = self.calc_ray_color(ray, false, 0);
-                    self.pmap.insert(key, c);
-                    c
-                }
+            if let Some(c) = self.pmap.get(&key) {
+                return *c;
             }
+            let pixel = camera_pos + camera_dir + camera_u * u0 + camera_v * v0;
+            let ray = Ray{ orig: camera_pos, dir: pixel - camera_pos };
+            self.num_rays_sampling += 1;
+            let c = self.calc_ray_color(ray, false, 0);
+            self.pmap.insert(key, c);
+            c
         };
         let mut c00 = calc_one_corner(pos_u,      pos_v);
         let mut c01 = calc_one_corner(pos_u,      pos_v + dv);
