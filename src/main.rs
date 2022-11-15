@@ -58,7 +58,6 @@ struct Options {
 
 struct RenderJob {
     opt: Options,
-    start_time: Instant,
     camera: Option<Camera>,
     objects: Vec<Arc<Box<dyn Object + 'static + Send + Sync>>>,
     lights: Vec<Arc<Box<dyn Light + 'static + Send + Sync>>>,
@@ -73,7 +72,6 @@ struct RenderJob {
 impl RenderJob {
     pub fn new(opt: Options) -> Self {
         Self {
-            start_time : Instant::now(),
             camera: None,
             image: Mutex::new(Image::new(0, 0)),
             objects: vec![],
@@ -249,7 +247,7 @@ impl RenderJob {
     pub fn render_scene(&mut self) {
         let pb = ProgressBar::new(self.opt.res_y as u64);
         self.image = Mutex::new(Image::new(self.opt.res_x, self.opt.res_y));
-        self.start_time = Instant::now();
+        let start_time = Instant::now();
         assert!(self.camera.is_some());
         let u = 1.0;
         let v = 1.0;
@@ -268,7 +266,10 @@ impl RenderJob {
             pb.inc(1);
         });
         pb.finish_with_message("done");
-        println!("{} threads", rayon::current_num_threads());
+        let elapsed = start_time.elapsed();
+        println!("duration: {} sec", elapsed.as_millis() as f64 / 1000.0);
+        println!("num_intersects Sphere: {}", Sphere::get_num_intersects());
+        println!("num_intersects Plane:  {}", Plane::get_num_intersects());
 
         let num_pixels = self.opt.res_x * self.opt.res_y;
         println!("sampling: {} rays {}%", self.num_rays_sampling.load(Ordering::SeqCst), 100 * self.num_rays_sampling.load(Ordering::SeqCst) / num_pixels as u64);
@@ -324,10 +325,12 @@ impl RenderJob {
         if ! self.opt.scene_file.is_file() {
             panic!("scene file {} not present.", self.opt.scene_file.display());
         }
-        println!("Loading scene file: {:?}", self.opt.scene_file);
+        println!("Loading scene file..");
 
         let data = fs::read_to_string(&self.opt.scene_file)?;
         let json: serde_json::Value = serde_json::from_str(&data)?;
+        let num_planes;
+        let num_spheres;
 
         if self.opt.res_x == 0 && self.opt.res_y == 0 {
             if let Some(array) = json[&"resolution".to_string()].as_array() {
@@ -379,7 +382,7 @@ impl RenderJob {
         }
 
         {
-            let num_planes = json["num_planes"].as_u64().unwrap();
+            num_planes = json["num_planes"].as_u64().unwrap();
             for i in 0..num_planes {
                 let name  = format!("plane.{}.position", i);
                 let nname = format!("plane.{}.normal", i);
@@ -399,7 +402,7 @@ impl RenderJob {
             }
         }
         {
-            let num_spheres = json["num_spheres"].as_u64().unwrap();
+            num_spheres = json["num_spheres"].as_u64().unwrap();
             for i in 0..num_spheres {
                 let name  = format!("sphere.{}.center", i);
                 let rname = format!("sphere.{}.radius", i);
@@ -418,9 +421,11 @@ impl RenderJob {
                 self.objects.push(Arc::new(Box::new(Sphere::new(oname, center, radius, material))));
             }
         }
+        println!("Scene has {} objects: num_spheres={} num_planes={}", self.objects.len(), num_spheres, num_planes);
         println!("camera: pos: {:?}", self.camera.as_ref().unwrap().pos);
         println!("camera: dir: {:?}", self.camera.as_ref().unwrap().dir);
-        println!("Scene has {} objects", self.objects.len());
+        println!("camera:   u: {:?}", self.camera.as_ref().unwrap().screen_u);
+        println!("camera:   v: {:?}", self.camera.as_ref().unwrap().screen_v);
         for light in &self.lights {
             light.display();
         }
@@ -428,8 +433,6 @@ impl RenderJob {
     }
 
     pub fn save_image(&mut self) -> std::io::Result<()> {
-        let elapsed = self.start_time.elapsed();
-        println!("duration: {} sec", elapsed.as_millis() as f64 / 1000.0);
         return self.image.lock().unwrap().save_image(PathBuf::from(&self.opt.img_file), self.opt.use_gamma > 0);
     }
 }
@@ -528,8 +531,8 @@ fn print_opt(opt: &Options) {
     println!("image-file: {}", opt.img_file.display());
     println!("resolution: {}x{}", opt.res_x, opt.res_y);
     println!("gamma-correction: {}", opt.use_gamma);
-    println!("adaptive-sampling: {} max-depth={}", opt.adaptive_sampling, opt.adaptive_max_depth);
-    println!("reflection: {} max-depth={}", opt.use_reflection, opt.reflection_max_depth);
+    println!("adaptive-sampling: {} max-depth: {}", opt.adaptive_sampling, opt.adaptive_max_depth);
+    println!("reflection: {} max-depth: {}", opt.use_reflection, opt.reflection_max_depth);
 }
 
 fn main() -> std::io::Result<()> {
@@ -542,6 +545,7 @@ fn main() -> std::io::Result<()> {
     }
 
     print_opt(&job.opt);
+    println!("{} threads", rayon::current_num_threads());
 
     job.load_scene()?;
     job.render_scene();

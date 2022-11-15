@@ -1,7 +1,12 @@
+use std::sync::atomic::{ AtomicU64, Ordering};
+
 use raymax::color::RGB;
 use raymax::vec3::Vec3;
 use raymax::vec3::Point;
 use raymax::Ray;
+
+static NUM_INTERSECTS_SPHERE: AtomicU64 = AtomicU64::new(0);
+static NUM_INTERSECTS_PLANE:  AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone)]
 pub struct Material {
@@ -42,6 +47,9 @@ pub struct Plane {
 }
 
 impl Plane {
+    pub fn get_num_intersects() -> u64 {
+        NUM_INTERSECTS_PLANE.load(Ordering::SeqCst)
+    }
     pub fn new(name: String, point: Point, normal: Vec3, material: Material) -> Self {
         let n = normal.normalize();
         Self { name: name, point: point, normal: n, material: material }
@@ -52,6 +60,7 @@ impl Object for Plane {
         println!("{}: {:?} normal={:?}", self.name, self.point, self.normal);
     }
     fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
+        NUM_INTERSECTS_PLANE.fetch_add(1, Ordering::SeqCst);
         let d = ray.dir.dot(self.normal);
         if d.abs() < 0.001 {
             return false
@@ -76,6 +85,9 @@ impl Object for Plane {
 }
 
 impl Sphere {
+    pub fn get_num_intersects() -> u64 {
+        NUM_INTERSECTS_SPHERE.load(Ordering::SeqCst)
+    }
     pub fn new(name: String, center: Point, radius: f64, material: Material) -> Self {
         Self { name: name, center: center, radius: radius, material: material }
     }
@@ -100,6 +112,7 @@ impl Object for Sphere {
     }
 
     fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
+        NUM_INTERSECTS_SPHERE.fetch_add(1, Ordering::SeqCst);
         let a = ray.dir.dot(ray.dir);
         let v0 = ray.orig - self.center;
         let b = 2.0 * ray.dir.dot(v0);

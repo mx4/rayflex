@@ -16,8 +16,6 @@ impl Camera {
         let sc_u = Vec3{ x: -d.y, y: d.x, z: 0.0 };
         let sc_v = dir.vector_product(sc_u);
 
-        println!("camera_u: {:?}", sc_u);
-        println!("camera_v: {:?}", sc_v);
         Self { pos: pos, dir: d, screen_u: sc_u, screen_v: sc_v }
     }
 }
