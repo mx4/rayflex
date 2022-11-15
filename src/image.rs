@@ -1,7 +1,6 @@
 use image::{Rgb32FImage, RgbImage, Rgb};
 use std::path::PathBuf;
 use std::time::Instant;
-
 use crate::color::RGB;
 
 const GAMMA: f32 = 2.2;
