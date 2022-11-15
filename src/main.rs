@@ -180,7 +180,8 @@ impl RenderJob {
                 self.num_rays_reflection += 1;
                 let reflected_vec = ray.dir.reflect(hit_normal);
                 let reflected_ray = Ray{orig: hit_point, dir: reflected_vec};
-                c = c + self.calc_ray_color(reflected_ray, true, depth + 1) * hit_material.reflectivity;
+                let c_reflect = self.calc_ray_color(reflected_ray, true, depth + 1);
+                c = c * (1.0 - hit_material.reflectivity) + c_reflect * hit_material.reflectivity;
             }
         } else {
 	    let mut z = (ray.dir.z + 0.5) as f32;
