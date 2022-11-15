@@ -437,13 +437,13 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
         "sphere.0.color": [ 0.8, 0.7, 0.9],
         "sphere.0.checkered": true,
         "sphere.0.reflectivity" : 0.5,
-        "num_planes": 5,
+        "num_planes": 6,
         "plane.0.position" : [0, 0, -1], // bottom
         "plane.0.normal" : [0, 0, 1],
         "plane.0.reflectivity" : 0.1,
         "plane.1.position" : [0, 0, 3], // top
         "plane.1.normal" : [0, 0, -1],
-        "plane.2.position" : [4.5, 0, 0], // back
+        "plane.2.position" : [4.5, 0, 0], // front
         "plane.2.normal" : [-1, 0, 0],
         "plane.2.color": [ 0.5, 0.9, 0.5],
         "plane.3.position" : [0, 3, 0], // left
@@ -452,6 +452,9 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
         "plane.4.position" : [0, -3, 0], // right
         "plane.4.normal" : [0, 1, 0],
         "plane.4.color": [ 0.5, 0.5, 1],
+        "plane.5.position" : [-3, 0, 0], // back
+        "plane.5.normal" : [1, 0, 0],
+        "plane.5.color": [ 1, 1, 1],
     });
     json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
 
