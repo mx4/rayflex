@@ -6,14 +6,14 @@ use raymax::Ray;
 #[derive(Debug, Clone)]
 pub struct Material {
     pub albedo: f32,
-    pub reflectance: f32,
+    pub reflectivity: f32,
     pub rgb: RGB,
     pub checkered: bool,
 }
 
 impl Material {
     pub fn new() -> Material {
-        Material{ albedo: 0.0, rgb: RGB::new(), checkered : false, reflectance: 0.0 }
+        Material{ albedo: 0.0, rgb: RGB::new(), checkered : false, reflectivity: 0.0 }
     }
 }
 

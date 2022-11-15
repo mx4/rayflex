@@ -164,11 +164,11 @@ impl RenderJob {
                 assert!(hit_material.albedo >= 0.0);
                 c += c_light * hit_material.albedo;
             }
-            if self.opt.use_reflection > 0 && hit_material.reflectance > 0.0 {
+            if self.opt.use_reflection > 0 && hit_material.reflectivity > 0.0 {
                 self.num_rays_reflection += 1;
                 let reflected_vec = ray.dir.reflect(hit_normal);
                 let reflected_ray = Ray{orig: hit_point, dir: reflected_vec};
-                c = c + self.calc_ray_color(reflected_ray, true, depth + 1) * hit_material.reflectance;
+                c = c + self.calc_ray_color(reflected_ray, true, depth + 1) * hit_material.reflectivity;
             }
         } else {
 	    let mut z = (ray.dir.z + 0.5) as f32;
@@ -255,7 +255,7 @@ impl RenderJob {
         println!("reflection: {} rays {}%", self.num_rays_reflection, 100 * self.num_rays_reflection / self.num_rays_sampling as u64);
         println!("{} sample rays hit max-depth {}%", self.hit_max_level, 100 * self.hit_max_level / self.num_rays_sampling);
     }
-    fn get_json_reflectance(json: &serde_json::Value, key: String) -> f32 {
+    fn get_json_reflectivity(json: &serde_json::Value, key: String) -> f32 {
         let mut r : f32 = 0.0;
         if let Some(v) = json[&key].as_f64() {
             r = v as f32;
@@ -270,7 +270,7 @@ impl RenderJob {
         checkered
     }
     fn get_json_albedo(json: &serde_json::Value, key: String) -> f32 {
-        let mut albedo: f32 = 0.8;
+        let mut albedo: f32 = 1.0;
         if let Some(v) = json[&key].as_f64() {
             albedo = v as f32;
         }
@@ -278,9 +278,9 @@ impl RenderJob {
         albedo
     }
     fn get_json_color(json: &serde_json::Value, key: String) -> RGB {
-        let mut cr : f32 = 0.9;
-        let mut cg : f32 = 0.9;
-        let mut cb : f32 = 0.9;
+        let mut cr : f32 = 1.0;
+        let mut cg : f32 = 1.0;
+        let mut cb : f32 = 1.0;
         if let Some(array) = json[&key].as_array() {
             cr = array[0].as_f64().unwrap() as f32;
             cg = array[1].as_f64().unwrap() as f32;
@@ -363,15 +363,15 @@ impl RenderJob {
                 let cname = format!("plane.{}.color", i);
                 let aname = format!("plane.{}.albedo", i);
                 let tname = format!("plane.{}.checkered", i);
-                let rname = format!("plane.{}.reflectance", i);
+                let rname = format!("plane.{}.reflectivity", i);
                 let oname = format!("plane.{}", i);
                 let p         = Self::get_json_vec3(&json, name);
                 let normal    = Self::get_json_vec3(&json, nname);
                 let rgb       = Self::get_json_color(&json, cname);
                 let albedo    = Self::get_json_albedo(&json, aname);
                 let checkered = Self::get_json_checkered(&json, tname);
-                let r         = Self::get_json_reflectance(&json, rname);
-                let material = Material { rgb: rgb, albedo: albedo, checkered: checkered, reflectance: r };
+                let r         = Self::get_json_reflectivity(&json, rname);
+                let material = Material { rgb: rgb, albedo: albedo, checkered: checkered, reflectivity: r };
                 self.objects.push(Box::new(Plane::new(oname, p, normal, material)));
             }
         }
@@ -383,15 +383,15 @@ impl RenderJob {
                 let cname = format!("sphere.{}.color", i);
                 let aname = format!("sphere.{}.albedo", i);
                 let tname = format!("sphere.{}.checkered", i);
-                let refname = format!("sphere.{}.reflectance", i);
+                let refname = format!("sphere.{}.reflectivity", i);
                 let oname = format!("sphere.{}", i);
                 let radius = json[&rname].as_f64().unwrap();
                 let center    = Self::get_json_vec3(&json, name);
                 let rgb       = Self::get_json_color(&json, cname);
                 let albedo    = Self::get_json_albedo(&json, aname);
                 let checkered = Self::get_json_checkered(&json, tname);
-                let r         = Self::get_json_reflectance(&json, refname);
-                let material = Material { rgb: rgb, albedo: albedo, checkered: checkered, reflectance: r };
+                let r         = Self::get_json_reflectivity(&json, refname);
+                let material = Material { rgb: rgb, albedo: albedo, checkered: checkered, reflectivity: r };
                 self.objects.push(Box::new(Sphere::new(oname, center, radius, material)));
             }
         }
@@ -418,47 +418,45 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
     println!("Generating scene w/ {} spheres", num_spheres_to_generate);
     json = serde_json::json!({
         "resolution": [ 400, 400 ],
-        "camera.position": [ -2, 0.0, 1.0 ],
-        "camera.direction": [ 1, 0, -0.15 ],
+        "camera.position": [ -2.5, 0.0, 1.0 ],
+        "camera.direction": [ 1, 0, -0.10 ],
+        "ambient.light": [ 1, 1, 1, 0.15],
         "num_vec_lights": 1,
-        "num_spot_lights": 1,
+        "num_spot_lights": 2,
         "vec-light.0.vector": [ 0.5, 0.5, -0.5],
-        "vec-light.0.intensity": 2.0,
+        "vec-light.0.intensity": 1.5,
         "vec-light.0.color": [ 1, 1, 1],
-        "spot-light.0.position": [ 1.5, 2.5, 2],
-        "spot-light.0.intensity": 400,
-        "spot-light.0.color": [ 0.4, 0.5, 0.7],
-        "ambient.light": [ 0.1, 0.1, 0.1, 0.5],
+        "spot-light.0.position": [ 0.5, 2.5, 1],
+        "spot-light.0.intensity": 200,
+        "spot-light.0.color": [ 0.4, 0.4, 0.7],
+        "spot-light.1.position": [ 0.5, -2, 0],
+        "spot-light.1.intensity": 80,
+        "spot-light.1.color": [ 0.8, 0.3, 0.3],
         "sphere.0.center" : [3, 0, -0.5],
         "sphere.0.radius" : 1,
         "sphere.0.color": [ 0.8, 0.7, 0.9],
         "sphere.0.checkered": true,
-        "sphere.0.reflectance" : 0.5,
-        "sphere.1.center" : [2.2, -0.5, 0.5],
-        "sphere.1.radius" : 0.5,
-        "sphere.1.color": [ 0.8, 0.7, 0.9],
-        "sphere.1.checkered": true,
-        "sphere.1.reflectance" : 0.5,
+        "sphere.0.reflectivity" : 0.5,
         "num_planes": 5,
-        "plane.0.position" : [0, 0, -1],
+        "plane.0.position" : [0, 0, -1], // bottom
         "plane.0.normal" : [0, 0, 1],
-        "plane.0.reflectance" : 0.1,
-        "plane.1.position" : [0, 0, 3],
+        "plane.0.reflectivity" : 0.1,
+        "plane.1.position" : [0, 0, 3], // top
         "plane.1.normal" : [0, 0, -1],
-        "plane.2.position" : [5, 0, 0],
+        "plane.2.position" : [4.5, 0, 0], // back
         "plane.2.normal" : [-1, 0, 0],
         "plane.2.color": [ 0.5, 0.9, 0.5],
-        "plane.3.position" : [0, 3, 0],
+        "plane.3.position" : [0, 3, 0], // left
         "plane.3.normal" : [0, -1, 0],
-        "plane.3.color": [ 0.6, 0.9, 0.6],
-        "plane.4.position" : [0, -3, 0],
+        "plane.3.color": [ 1, 0.2, 0.2],
+        "plane.4.position" : [0, -3, 0], // right
         "plane.4.normal" : [0, 1, 0],
-        "plane.4.color": [ 0.6, 0.6, 0.9],
+        "plane.4.color": [ 0.5, 0.5, 1],
     });
     json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
 
     let line = false;
-    for i in 2..num_spheres_to_generate {
+    for i in 1..num_spheres_to_generate {
         let mut x = rng.gen_range(2.0..5.0);
         let mut y = rng.gen_range(-2.0..2.0);
         let mut z = rng.gen_range(-2.0..2.0);
@@ -473,20 +471,20 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
         let cg = rng.gen_range(0.3..1.0);
         let cb = rng.gen_range(0.3..1.0);
         let albedo = rng.gen_range(0.5..1.0);
-        let reflectance = rng.gen_range(0.0..1.0);
+        let reflectivity = rng.gen_range(0.0..1.0);
         let checkered = rng.gen_range(0..100) % 2;
         let name  = format!("sphere.{}.center", i);
         let rname = format!("sphere.{}.radius", i);
         let cname = format!("sphere.{}.color", i);
         let aname = format!("sphere.{}.albedo", i);
         let tname = format!("sphere.{}.checkered", i);
-        let refname = format!("sphere.{}.reflectance", i);
+        let refname = format!("sphere.{}.reflectivity", i);
         json[name]  = serde_json::json!([x, y, z ]);
         json[rname] = serde_json::json!(r);
         json[cname] = serde_json::json!([cr, cg, cb]);
         json[aname] = serde_json::json!(albedo);
         json[tname] = serde_json::json!(checkered > 0);
-        json[refname] = serde_json::json!(reflectance);
+        json[refname] = serde_json::json!(reflectivity);
     }
     let s0 = serde_json::to_string_pretty(&json)?;
     println!("Writing scene file {}", scene_file.display());
