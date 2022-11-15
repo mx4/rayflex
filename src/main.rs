@@ -123,14 +123,26 @@ impl RenderJob {
                 if light.is_ambient() {
                     c_light = c_res;
                 } else if light.is_vector() {
-                    let light_vec = light.get_vector(hit_point);
-                    let mut v_prod = (hit_normal * light_vec) as f32;
-                    if v_prod > 0.0 { // only show visible side
-                        v_prod = 0.0;
+                    let light_vec = light.get_vector(hit_point) * -1.0;
+
+                    let shadow = false;
+                   //let light_ray = Ray{orig: hit_point, dir: light_vec};
+                   //let mut t : f64 = 0.0;
+                   //for obj in &self.objects {
+                   //    if obj.intercept(&light_ray, 0.001, f64::MAX, &mut t) {
+                   //        shadow = true;
+                   //        break;
+                   //    }
+                   //}
+                    if ! shadow {
+                        let mut v_prod = (hit_normal * light_vec) as f32;
+                        if v_prod > 0.0 { // only show visible side
+                            v_prod = 0.0;
+                        }
+                        let v = v_prod.powi(4);
+                        assert!(v >= 0.0);
+                        c_light = c_res * v;
                     }
-                    let v = v_prod.powi(4);
-                    assert!(v >= 0.0);
-                    c_light = c_res * v;
                 } else {
                     assert!(light.is_spot());
                     let light_vec = light.get_vector(hit_point) * -1.0;
@@ -319,9 +331,10 @@ impl RenderJob {
             self.camera = Some(Camera::new(p, v));
         }
         {
-            let name = "ambient.light";
+            let name = "ambient.color";
             let c = Self::get_json_color(&json, name.to_string());
-            let r = json[&name][3].as_f64().unwrap() as f32;
+            let name = "ambient.intensity";
+            let r = json[&name].as_f64().unwrap() as f32;
             assert!(r >= 0.0);
             self.lights.push(Box::new(AmbientLight{ name: name.to_string(), rgb: c, intensity: r }));
         }
@@ -420,7 +433,8 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
         "resolution": [ 400, 400 ],
         "camera.position": [ -2.5, 0.0, 1.0 ],
         "camera.direction": [ 1, 0, -0.10 ],
-        "ambient.light": [ 1, 1, 1, 0.15],
+        "ambient.color": [ 1, 1, 1 ],
+        "ambient.intensity": 0.2,
         "num_vec_lights": 1,
         "num_spot_lights": 2,
         "vec-light.0.vector": [ 0.5, 0.5, -0.5],
