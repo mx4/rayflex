@@ -31,9 +31,9 @@ struct Options {
     img_file: PathBuf,
     #[structopt(long, default_value = "scene.json")]
     scene_file: PathBuf,
-     #[structopt(short="x", long, default_value = "400")]
+     #[structopt(short="x", long, default_value = "0")]
     res_x: u32,
-     #[structopt(short="y", long, default_value = "400")]
+     #[structopt(short="y", long, default_value = "0")]
     res_y: u32,
      #[structopt(short="n", long, default_value = "0")]
     num_spheres_to_generate: u32,
@@ -69,7 +69,7 @@ impl RenderJob {
         Self {
             start_time : Instant::now(),
             camera: None,
-            image: Image::new(opt.res_x, opt.res_y),
+            image: Image::new(0, 0),
             objects: vec![],
             lights: vec![],
             pmap: HashMap::new(),
@@ -232,6 +232,7 @@ impl RenderJob {
         (c00 + c01 + c10 + c11) * 0.25
     }
     pub fn render_scene(&mut self) {
+        self.image = Image::new(self.opt.res_x, self.opt.res_y);
         self.start_time = Instant::now();
         assert!(self.camera.is_some());
         let u = 1.0;
@@ -307,6 +308,12 @@ impl RenderJob {
         let data = fs::read_to_string(&self.opt.scene_file)?;
         let json: serde_json::Value = serde_json::from_str(&data)?;
 
+        if self.opt.res_x == 0 && self.opt.res_y == 0 {
+            if let Some(array) = json[&"resolution".to_string()].as_array() {
+                self.opt.res_x = array[0].as_u64().unwrap() as u32;
+                self.opt.res_y = array[1].as_u64().unwrap() as u32;
+            }
+        }
         {
             let p = Self::get_json_vec3(&json, "camera.position".to_string());
             let v = Self::get_json_vec3(&json, "camera.direction".to_string());
@@ -411,6 +418,7 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
 
     println!("Generating scene w/ {} spheres", num_spheres_to_generate);
     json = serde_json::json!({
+        "resolution": [ 400, 400 ],
         "camera.position": [ -2, 0.0, 1.0 ],
         "camera.direction": [ 1, 0, -0.15 ],
         "num_vec_lights": 1,
