@@ -47,13 +47,6 @@ impl Mul<f64> for Vec3 {
     }
 }
 
-impl Mul<Vec3> for Vec3 {
-    type Output = f64;
-    fn mul(self, rhs: Vec3) -> f64 {
-        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
-    }
-}
-
 impl AddAssign<Vec3> for Vec3 {
     fn add_assign(&mut self, other: Vec3)  {
         *self = Vec3 {
@@ -70,7 +63,10 @@ impl Vec3 {
        Vec3{ x: 0.0, y: 0.0, z: 0.0 }
     }
     pub fn norm(self) -> f64 {
-        (self * self).sqrt()
+        self.dot(self).sqrt()
+    }
+    pub fn dot(self, rhs: Vec3) -> f64 {
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
     pub fn normalize(self) -> Vec3 {
         let norm = self.norm();
@@ -78,7 +74,7 @@ impl Vec3 {
         self / norm
     }
     pub fn reflect(self, normal: Vec3) -> Vec3 {
-	self - normal * (self * normal) * 2.0
+	self - normal * self.dot(normal) * 2.0
     }
     pub fn vector_product(self, rhs: Vec3) -> Vec3 {
         let v = Vec3{

@@ -1,10 +1,17 @@
 use std::ops::{Add, AddAssign, Mul};
+use std::fmt;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct RGB {
     pub r: f32,
     pub g: f32,
     pub b: f32,
+}
+
+impl fmt::Debug for RGB {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "RGB: {{ r={} g={} b={} }}", self.r, self.g, self.b)
+    }
 }
 
 impl Add for RGB {

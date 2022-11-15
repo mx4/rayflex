@@ -52,12 +52,12 @@ impl Object for Plane {
         println!("{}: {:?} normal={:?}", self.name, self.point, self.normal);
     }
     fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
-        let d = ray.dir * self.normal;
+        let d = ray.dir.dot(self.normal);
         if d.abs() < 0.001 {
             return false
         }
         let v = self.point - ray.orig;
-        let t0 = (v * self.normal) / d;
+        let t0 = v.dot(self.normal) / d;
         if t0 <= tmin || t0 >= *tmax {
             return false
         }
@@ -100,11 +100,11 @@ impl Object for Sphere {
     }
 
     fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
-        let a = ray.dir * ray.dir;
+        let a = ray.dir.dot(ray.dir);
         let v0 = ray.orig - self.center;
-        let b = ray.dir * 2.0 * v0;
+        let b = 2.0 * ray.dir.dot(v0);
         let v1 = self.center - ray.orig;
-        let c = v1 * v1 - self.radius * self.radius;
+        let c = v1.dot(v1) - self.radius * self.radius;
 
         let delta = b * b - 4.0 * a * c;
 

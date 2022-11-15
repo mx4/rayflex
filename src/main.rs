@@ -135,7 +135,7 @@ impl RenderJob {
                    //    }
                    //}
                     if ! shadow {
-                        let mut v_prod = (hit_normal * light_vec) as f32;
+                        let mut v_prod = hit_normal.dot(light_vec) as f32;
                         if v_prod > 0.0 { // only show visible side
                             v_prod = 0.0;
                         }
@@ -156,8 +156,8 @@ impl RenderJob {
                         }
                     }
                     if !shadow {
-                        let dist_sq = (light_vec * light_vec) as f32;
-                        let mut v_prod = (hit_normal * light_vec_norm) as f32;
+                        let dist_sq = light_vec.dot(light_vec) as f32;
+                        let mut v_prod = hit_normal.dot(light_vec_norm) as f32;
                         if v_prod < 0.0 { // only show visible side
                             v_prod = 0.0;
                         }
@@ -194,7 +194,7 @@ impl RenderJob {
         c
     }
 
-    pub fn corner_difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> bool {
+    fn corner_difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> bool {
         let avg = (c00 + c01 + c10 + c11) * 0.25;
         let d = avg.distance2(c00) + avg.distance2(c01) + avg.distance2(c10) + avg.distance2(c11);
         d > 0.3
@@ -206,7 +206,7 @@ impl RenderJob {
      * pos_u: -0.5 .. 0.5
      * pos_v: -0.5 .. 0.5
      */
-    pub fn calc_ray_box(&self, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
+    fn calc_ray_box(&self, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
         let camera_pos = self.camera.as_ref().unwrap().pos;
         let camera_dir = self.camera.as_ref().unwrap().dir;
         let camera_u = self.camera.as_ref().unwrap().screen_u;
@@ -455,7 +455,7 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
         "spot-light.1.intensity": 80,
         "spot-light.1.color": [ 0.8, 0.3, 0.3],
         "sphere.0.center" : [3, 0, -0.5],
-        "sphere.0.radius" : 1,
+        "sphere.0.radius" : 1.3,
         "sphere.0.color": [ 0.8, 0.7, 0.9],
         "sphere.0.checkered": true,
         "sphere.0.reflectivity" : 0.5,
