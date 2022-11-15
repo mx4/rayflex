@@ -18,6 +18,12 @@ impl Camera {
 
         Self { pos: pos, dir: d, screen_u: sc_u, screen_v: sc_v }
     }
+    pub fn display(&self) {
+        println!("camera: pos: {:?}", self.pos);
+        println!("camera: dir: {:?}", self.dir);
+        println!("camera:   u: {:?}", self.screen_u);
+        println!("camera:   v: {:?}", self.screen_v);
+    }
 }
 
 

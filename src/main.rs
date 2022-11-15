@@ -214,14 +214,14 @@ impl RenderJob {
 
         let calc_one_corner = |u0, v0| -> RGB {
             let key = format!("{}-{}", u0, v0);
-            if let Some(c) = self.pmap.lock().unwrap().get(&key) {
-                return *c;
-            }
+//            if falselet Some(c) = self.pmap.lock().unwrap().get(&key) {
+//                return *c;
+//            }
             let pixel = camera_pos + camera_dir + camera_u * u0 + camera_v * v0;
             let ray = Ray{ orig: camera_pos, dir: pixel - camera_pos };
             self.num_rays_sampling.fetch_add(1, Ordering::SeqCst);
             let c = self.calc_ray_color(ray, false, 0);
-            self.pmap.lock().unwrap().insert(key, c);
+//            self.pmap.lock().unwrap().insert(key, c);
             c
         };
         let mut c00 = calc_one_corner(pos_u,      pos_v);
@@ -422,10 +422,7 @@ impl RenderJob {
             }
         }
         println!("Scene has {} objects: num_spheres={} num_planes={}", self.objects.len(), num_spheres, num_planes);
-        println!("camera: pos: {:?}", self.camera.as_ref().unwrap().pos);
-        println!("camera: dir: {:?}", self.camera.as_ref().unwrap().dir);
-        println!("camera:   u: {:?}", self.camera.as_ref().unwrap().screen_u);
-        println!("camera:   v: {:?}", self.camera.as_ref().unwrap().screen_v);
+        self.camera.as_ref().unwrap().display();
         for light in &self.lights {
             light.display();
         }
