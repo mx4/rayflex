@@ -81,7 +81,6 @@ impl RenderJob {
     }
     fn calc_ray_color(&mut self, ray: Ray, view_all: bool, depth: u32) -> RGB {
         let mut c = RGB::new();
-        let mut tmin = f64::MAX;
         if depth > self.opt.reflection_max_depth {
             return c
         }
@@ -94,20 +93,18 @@ impl RenderJob {
             raylen = 0.0001;
         }
 
+        let mut t = f64::MAX;
         for obj in &self.objects {
-            let mut t : f64 = 0.0;
-            if obj.intercept(&ray, raylen, tmin, &mut t) {
-                assert!(t < tmin);
+            if obj.intercept(&ray, raylen, &mut t) {
                 hit_point = ray.orig + ray.dir * t;
                 hit_normal = obj.get_normal(hit_point);
                 hit_material = obj.get_material();
                 if hit_material.checkered {
                     (hitx, hity) = obj.get_texture_2d(hit_point);
                 }
-                tmin = t;
             }
         }
-        if tmin < f64::MAX {
+        if t < f64::MAX {
             for light in &self.lights {
                 let light_intensity = light.get_intensity();
                 let light_rgb = light.get_color();
@@ -149,9 +146,9 @@ impl RenderJob {
                     let light_vec_norm = light_vec.normalize();
                     let mut shadow = false;
                     let light_ray = Ray{orig: hit_point, dir: light_vec};
-                    let mut t : f64 = 0.0;
+                    let mut t : f64 = 1.0;
                     for obj in &self.objects {
-                        if obj.intercept(&light_ray, 0.001, 1.0, &mut t) {
+                        if obj.intercept(&light_ray, 0.001, &mut t) {
                             shadow = true;
                             break;
                         }

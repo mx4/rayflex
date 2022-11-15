@@ -19,7 +19,7 @@ impl Material {
 
 pub trait Object {
     fn display(&self);
-    fn intercept(&self, ray: &Ray, tmin: f64, tmax: f64, t : &mut f64) -> bool;
+    fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool;
     fn get_normal(&self, point: Point) -> Vec3;
     fn get_texture_2d(&self, point: Point) -> (f64, f64);
     fn get_material(&self) -> Material;
@@ -51,17 +51,17 @@ impl Object for Plane {
     fn display(&self) {
         println!("{}: {:?} normal={:?}", self.name, self.point, self.normal);
     }
-    fn intercept(&self, ray: &Ray, tmin: f64, tmax: f64, t : &mut f64) -> bool {
+    fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
         let d = ray.dir * self.normal;
         if d.abs() < 0.001 {
             return false
         }
         let v = self.point - ray.orig;
         let t0 = (v * self.normal) / d;
-        if t0 <= tmin || t0 >= tmax {
+        if t0 <= tmin || t0 >= *tmax {
             return false
         }
-        *t = t0;
+        *tmax = t0;
         true
     }
     fn get_normal(&self, _point: Point) -> Vec3 {
@@ -99,7 +99,7 @@ impl Object for Sphere {
         ( x, y )
     }
 
-    fn intercept(&self, ray: &Ray, tmin: f64, tmax: f64, t: &mut f64) -> bool {
+    fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
         let a = ray.dir * ray.dir;
         let v0 = ray.orig - self.center;
         let b = ray.dir * 2.0 * v0;
@@ -123,11 +123,11 @@ impl Object for Sphere {
         } else {
             t0 = t2;
         }
-        if t0 >= tmax {
+        if t0 >= *tmax {
             return false
         }
 
-        *t = t0;
+        *tmax = t0;
         true
     }
 }
