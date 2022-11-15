@@ -134,8 +134,7 @@ impl RenderJob {
                 } else {
                     assert!(light.is_spot());
                     let light_vec = light.get_vector(hit_point) * -1.0;
-                    let mut light_vec_norm = light_vec.clone();
-                    light_vec_norm.normalize();
+                    let light_vec_norm = light_vec.normalize();
                     let mut shadow = false;
                     let light_ray = Ray{orig: hit_point, dir: light_vec};
                     let mut t : f64 = 0.0;
@@ -349,7 +348,7 @@ impl RenderJob {
                 let sname = format!("vec-light.{}", i);
                 let c     = Self::get_json_color(&json, cname);
                 let mut v = Self::get_json_vec3(&json, name);
-                v.normalize();
+                v = v.normalize();
                 let i = json[&iname].as_f64().unwrap() as f32;
                 assert!(i >= 0.0);
                 self.lights.push(Box::new(VectorLight{ name: sname, dir: v, rgb: c, intensity: i }));

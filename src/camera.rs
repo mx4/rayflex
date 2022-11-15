@@ -12,8 +12,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(pos: Point, dir: Vec3) -> Self {
-        let mut d = dir;
-        d.normalize();
+        let d = dir.normalize();
         let sc_u = Vec3{ x: -d.y, y: d.x, z: 0.0 };
         let sc_v = dir.vector_product(sc_u);
 

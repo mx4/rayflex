@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Sub, Mul};
+use std::ops::{Add, AddAssign, Sub, Mul, Div};
 
 
 #[derive(Debug, Clone, Copy)]
@@ -23,6 +23,13 @@ impl Sub for Vec3 {
 
     fn sub(self, other: Vec3) -> Vec3 {
         Vec3 { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
+    }
+}
+
+impl Div<f64> for Vec3 {
+    type Output = Vec3;
+    fn div(self, rhs: f64) -> Vec3 {
+        Vec3 { x: self.x / rhs, y: self.y / rhs, z: self.z / rhs }
     }
 }
 
@@ -58,22 +65,20 @@ impl Vec3 {
     pub fn norm(self) -> f64 {
         (self * self).sqrt()
     }
-    pub fn normalize(&mut self) {
+    pub fn normalize(self) -> Vec3 {
         let norm = self.norm();
-        self.x /= norm;
-        self.y /= norm;
-        self.z /= norm;
+        assert!(norm > 0.0);
+        self / norm
     }
     pub fn reflect(self, normal: Vec3) -> Vec3 {
 	self - normal * (self * normal) * 2.0
     }
     pub fn vector_product(self, rhs: Vec3) -> Vec3 {
-        let mut v = Vec3{
+        let v = Vec3{
             x : self.y * rhs.z - self.z * rhs.y,
             y : self.z * rhs.x - self.x * rhs.z,
             z : self.x * rhs.y - self.y * rhs.x,
         };
-        v.normalize();
-        v
+        v.normalize()
     }
 }

@@ -43,9 +43,7 @@ pub struct Plane {
 
 impl Plane {
     pub fn new(name: String, point: Point, normal: Vec3, material: Material) -> Self {
-        let mut n = normal;
-        assert!(n.norm() > 0.0);
-        n.normalize();
+        let n = normal.normalize();
         Self { name: name, point: point, normal: n, material: material }
     }
 }
@@ -92,10 +90,10 @@ impl Object for Sphere {
     }
     fn get_normal(&self, point: Point) -> Vec3 {
         let normal = point - self.center;
-        normal * (1.0 / self.radius)
+        normal / self.radius
     }
     fn get_texture_2d(&self, point: Point) -> (f64, f64) {
-        let v = (point - self.center) * (1.0 / self.radius);
+        let v = (point - self.center) / self.radius;
         let x = (1.0 + v.y.atan2(v.x) / std::f64::consts::PI) * 0.5;
         let y = v.z.acos() / std::f64::consts::PI;
         ( x, y )
