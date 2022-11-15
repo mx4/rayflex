@@ -5,6 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 use std::collections::HashMap;
+use indicatif::ProgressBar;
 
 use raymax::color::RGB;
 use raymax::vec3::Vec3;
@@ -239,7 +240,9 @@ impl RenderJob {
         }
         (c00 + c01 + c10 + c11) * 0.25
     }
+
     pub fn render_scene(&mut self) {
+        let pb = ProgressBar::new((self.opt.res_x * self.opt.res_y) as u64);
         self.image = Image::new(self.opt.res_x, self.opt.res_y);
         self.start_time = Instant::now();
         assert!(self.camera.is_some());
@@ -256,9 +259,11 @@ impl RenderJob {
 
                 self.image.push_pixel(j, i, c);
                 pos_u -= du;
+                pb.inc(1);
             }
             pos_v -= dv;
         }
+        pb.finish_with_message("done");
         let num_pixels = self.opt.res_x * self.opt.res_y;
         println!("sampling: {} rays {}%", self.num_rays_sampling, 100 * self.num_rays_sampling / num_pixels as u64);
         println!("reflection: {} rays {}%", self.num_rays_reflection, 100 * self.num_rays_reflection / self.num_rays_sampling as u64);
