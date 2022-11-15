@@ -51,6 +51,8 @@ struct Options {
     use_reflection: u32,
      #[structopt(short="g", long, default_value = "0")]
     use_gamma: u32,
+     #[structopt(short="b", long, default_value = "1")]
+    use_box: u32,
 }
 
 
@@ -432,7 +434,7 @@ impl RenderJob {
     }
 }
 
-fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io::Result<()> {
+fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bool) -> std::io::Result<()> {
     let mut rng = rand::thread_rng();
     let mut json: serde_json::Value;
 
@@ -459,26 +461,31 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf) ->  std::io
         "sphere.0.color": [ 0.8, 0.7, 0.9],
         "sphere.0.checkered": true,
         "sphere.0.reflectivity" : 0.5,
-        "num_planes": 6,
-        "plane.0.position" : [0, 0, -1], // bottom
-        "plane.0.normal" : [0, 0, 1],
-        "plane.0.reflectivity" : 0.1,
-        "plane.1.position" : [0, 0, 3], // top
-        "plane.1.normal" : [0, 0, -1],
-        "plane.2.position" : [4.5, 0, 0], // front
-        "plane.2.normal" : [-1, 0, 0],
-        "plane.2.color": [ 0.5, 0.9, 0.5],
-        "plane.3.position" : [0, 3, 0], // left
-        "plane.3.normal" : [0, -1, 0],
-        "plane.3.color": [ 1, 0.2, 0.2],
-        "plane.4.position" : [0, -3, 0], // right
-        "plane.4.normal" : [0, 1, 0],
-        "plane.4.color": [ 0.5, 0.5, 1],
-        "plane.5.position" : [-3, 0, 0], // back
-        "plane.5.normal" : [1, 0, 0],
-        "plane.5.color": [ 1, 1, 1],
+        "num_planes" : 0
     });
     json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
+
+    if use_box {
+        println!("using box!");
+        json["num_planes"]        = serde_json::json!(6);
+        json["plane.0.position" ] = serde_json::json!([0, 0, -1]); // bottom
+        json["plane.0.normal" ]   = serde_json::json!([0, 0, 1]);
+        json["plane.0.reflectivity" ] = serde_json::json!(0.1);
+        json["plane.1.position" ] = serde_json::json!([0, 0, 3]); // top
+        json["plane.1.normal" ]   = serde_json::json!([0, 0, -1]);
+        json["plane.2.position" ] = serde_json::json!([4.5, 0, 0]); // front
+        json["plane.2.normal" ]   = serde_json::json!([-1, 0, 0]);
+        json["plane.2.color"]     = serde_json::json!([ 0.5, 0.9, 0.5]);
+        json["plane.3.position" ] = serde_json::json!([0, 3, 0]); // left
+        json["plane.3.normal" ]   = serde_json::json!([0, -1, 0]);
+        json["plane.3.color"]     = serde_json::json!([ 1, 0.2, 0.2]);
+        json["plane.4.position" ] = serde_json::json!([0, -3, 0]); // right
+        json["plane.4.normal" ]   = serde_json::json!([0, 1, 0]);
+        json["plane.4.color"]     = serde_json::json!([ 0.5, 0.5, 1]);
+        json["plane.5.position" ] = serde_json::json!([-3, 0, 0]); // back
+        json["plane.5.normal" ]   = serde_json::json!([1, 0, 0]);
+        json["plane.5.color"]     = serde_json::json!([ 1, 1, 1]);
+    }
 
     let line = false;
     for i in 1..num_spheres_to_generate {
@@ -531,7 +538,7 @@ fn main() -> std::io::Result<()> {
     let mut job = RenderJob::new(opt);
 
     if job.opt.num_spheres_to_generate != 0 {
-        return generate_scene(job.opt.num_spheres_to_generate, job.opt.scene_file);
+        return generate_scene(job.opt.num_spheres_to_generate, job.opt.scene_file, job.opt.use_box > 0);
     }
 
     print_opt(&job.opt);

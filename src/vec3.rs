@@ -1,7 +1,6 @@
 use std::ops::{Add, AddAssign, Sub, Mul, Div};
 use std::fmt;
 
-
 #[derive(Clone, Copy)]
 pub struct Vec3 {
     pub x: f64,
@@ -9,13 +8,13 @@ pub struct Vec3 {
     pub z: f64,
 }
 
+pub type Point = Vec3;
+
 impl fmt::Debug for Vec3 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "vec3: {{ x={:.3} y={:.3} z={:.3} }}", self.x, self.y, self.z)
     }
 }
-
-pub type Point = Vec3;
 
 impl Add for Vec3 {
     type Output = Vec3;
