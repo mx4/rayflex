@@ -5,7 +5,10 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{ AtomicU64, Ordering};
 use indicatif::ProgressBar;
+use rayon::prelude::*;
 
 use raymax::color::RGB;
 use raymax::vec3::Vec3;
@@ -55,13 +58,13 @@ struct RenderJob {
     opt: Options,
     start_time: Instant,
     camera: Option<Camera>,
-    objects: Vec<Box<dyn Object + 'static>>,
-    lights: Vec<Box<dyn Light + 'static>>,
-    image: Image,
-    pmap: HashMap<String,RGB>,
-    num_rays_sampling: u64,
-    num_rays_reflection: u64,
-    hit_max_level: u64,
+    objects: Vec<Arc<Box<dyn Object + 'static + Send + Sync>>>,
+    lights: Vec<Arc<Box<dyn Light + 'static + Send + Sync>>>,
+    image: Mutex<Image>,
+    pmap: Mutex<HashMap<String,RGB>>,
+    num_rays_sampling: AtomicU64,
+    num_rays_reflection: AtomicU64,
+    hit_max_level: AtomicU64,
 }
 
 
@@ -70,17 +73,17 @@ impl RenderJob {
         Self {
             start_time : Instant::now(),
             camera: None,
-            image: Image::new(0, 0),
+            image: Mutex::new(Image::new(0, 0)),
             objects: vec![],
             lights: vec![],
-            pmap: HashMap::new(),
+            pmap: Mutex::new(HashMap::new()),
             opt : opt,
-            num_rays_sampling: 0,
-            num_rays_reflection: 0,
-            hit_max_level: 0,
+            num_rays_sampling: AtomicU64::new(0),
+            num_rays_reflection: AtomicU64::new(0),
+            hit_max_level: AtomicU64::new(0),
         }
     }
-    fn calc_ray_color(&mut self, ray: Ray, view_all: bool, depth: u32) -> RGB {
+    fn calc_ray_color(&self, ray: Ray, view_all: bool, depth: u32) -> RGB {
         let mut c = RGB::new();
         if depth > self.opt.reflection_max_depth {
             return c
@@ -173,7 +176,7 @@ impl RenderJob {
                 c += c_light * hit_material.albedo;
             }
             if self.opt.use_reflection > 0 && hit_material.reflectivity > 0.0 {
-                self.num_rays_reflection += 1;
+                self.num_rays_reflection.fetch_add(1, Ordering::SeqCst);
                 let reflected_vec = ray.dir.reflect(hit_normal);
                 let reflected_ray = Ray{orig: hit_point, dir: reflected_vec};
                 let c_reflect = self.calc_ray_color(reflected_ray, true, depth + 1);
@@ -203,22 +206,26 @@ impl RenderJob {
      * pos_u: -0.5 .. 0.5
      * pos_v: -0.5 .. 0.5
      */
-    pub fn calc_ray_box(&mut self, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
+    pub fn calc_ray_box(&self, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
         let camera_pos = self.camera.as_ref().unwrap().pos;
         let camera_dir = self.camera.as_ref().unwrap().dir;
         let camera_u = self.camera.as_ref().unwrap().screen_u;
         let camera_v = self.camera.as_ref().unwrap().screen_v;
 
-        let mut calc_one_corner = |u0, v0| -> RGB {
+        let calc_one_corner = |u0, v0| -> RGB {
             let key = format!("{}-{}", u0, v0);
-            if let Some(c) = self.pmap.get(&key) {
-                return *c;
+            {
+                let pmap = self.pmap.lock().unwrap();
+                if let Some(c) = pmap.get(&key) {
+                    return *c;
+                }
             }
             let pixel = camera_pos + camera_dir + camera_u * u0 + camera_v * v0;
             let ray = Ray{ orig: camera_pos, dir: pixel - camera_pos };
-            self.num_rays_sampling += 1;
+            self.num_rays_sampling.fetch_add(1, Ordering::SeqCst);
             let c = self.calc_ray_color(ray, false, 0);
-            self.pmap.insert(key, c);
+            let mut pmap = self.pmap.lock().unwrap();
+            pmap.insert(key, c);
             c
         };
         let mut c00 = calc_one_corner(pos_u,      pos_v);
@@ -228,7 +235,7 @@ impl RenderJob {
 
         let color_diff = Self::corner_difference(c00, c01, c10, c11);
         if self.opt.adaptive_sampling > 0 && color_diff && lvl >= self.opt.adaptive_max_depth {
-            self.hit_max_level += 1;
+            self.hit_max_level.fetch_add(1, Ordering::SeqCst);
         }
         if self.opt.adaptive_sampling > 0 && lvl < self.opt.adaptive_max_depth && color_diff {
             let du2 = du / 2.0;
@@ -242,8 +249,8 @@ impl RenderJob {
     }
 
     pub fn render_scene(&mut self) {
-        let pb = ProgressBar::new((self.opt.res_x * self.opt.res_y) as u64);
-        self.image = Image::new(self.opt.res_x, self.opt.res_y);
+        let pb = ProgressBar::new(self.opt.res_y as u64);
+        self.image = Mutex::new(Image::new(self.opt.res_x, self.opt.res_y));
         self.start_time = Instant::now();
         assert!(self.camera.is_some());
         let u = 1.0;
@@ -251,23 +258,27 @@ impl RenderJob {
         let du = u / self.opt.res_x as f64;
         let dv = v / self.opt.res_y as f64;
 
-        let mut pos_v = v / 2.0;
-        for i in 0..self.opt.res_y {
+        (0..self.opt.res_y).into_par_iter().for_each(|i| {
+        //(0..self.opt.res_y).for_each(|i| {
             let mut pos_u = u / 2.0;
+            let pos_v = v / 2.0 - (i as f64) * dv;
             for j in 0..self.opt.res_x {
                 let c = self.calc_ray_box(pos_u, pos_v, du, dv, 0);
 
-                self.image.push_pixel(j, i, c);
+                let mut img = self.image.lock().unwrap();
+                img.push_pixel(j, i, c);
                 pos_u -= du;
-                pb.inc(1);
             }
-            pos_v -= dv;
-        }
+            pb.inc(1);
+        });
         pb.finish_with_message("done");
+
         let num_pixels = self.opt.res_x * self.opt.res_y;
-        println!("sampling: {} rays {}%", self.num_rays_sampling, 100 * self.num_rays_sampling / num_pixels as u64);
-        println!("reflection: {} rays {}%", self.num_rays_reflection, 100 * self.num_rays_reflection / self.num_rays_sampling as u64);
-        println!("{} sample rays hit max-depth {}%", self.hit_max_level, 100 * self.hit_max_level / self.num_rays_sampling);
+        println!("sampling: {} rays {}%", self.num_rays_sampling.load(Ordering::SeqCst), 100 * self.num_rays_sampling.load(Ordering::SeqCst) / num_pixels as u64);
+        if self.num_rays_sampling.load(Ordering::SeqCst) > 0 {
+            println!("reflection: {} rays {}%", self.num_rays_reflection.load(Ordering::SeqCst), 100 * self.num_rays_reflection.load(Ordering::SeqCst) / self.num_rays_sampling.load(Ordering::SeqCst));
+            println!("{} sample rays hit max-depth {}%", self.hit_max_level.load(Ordering::SeqCst), 100 * self.hit_max_level.load(Ordering::SeqCst) / self.num_rays_sampling.load(Ordering::SeqCst));
+        }
     }
     fn get_json_reflectivity(json: &serde_json::Value, key: String) -> f32 {
         let mut r : f32 = 0.0;
@@ -338,7 +349,7 @@ impl RenderJob {
             let name = "ambient.intensity";
             let r = json[&name].as_f64().unwrap() as f32;
             assert!(r >= 0.0);
-            self.lights.push(Box::new(AmbientLight{ name: name.to_string(), rgb: c, intensity: r }));
+            self.lights.push(Arc::new(Box::new(AmbientLight{ name: name.to_string(), rgb: c, intensity: r })));
         }
         {
             let num_spot_lights = json["num_spot_lights"].as_u64().unwrap();
@@ -351,7 +362,7 @@ impl RenderJob {
                 let p = Self::get_json_vec3(&json, name);
                 let i = json[&iname].as_f64().unwrap() as f32;
                 assert!(i >= 0.0);
-                self.lights.push(Box::new(SpotLight{ name: sname, pos: p, rgb: c, intensity: i }));
+                self.lights.push(Arc::new(Box::new(SpotLight{ name: sname, pos: p, rgb: c, intensity: i })));
             }
         }
         {
@@ -366,7 +377,7 @@ impl RenderJob {
                 v = v.normalize();
                 let i = json[&iname].as_f64().unwrap() as f32;
                 assert!(i >= 0.0);
-                self.lights.push(Box::new(VectorLight{ name: sname, dir: v, rgb: c, intensity: i }));
+                self.lights.push(Arc::new(Box::new(VectorLight{ name: sname, dir: v, rgb: c, intensity: i })));
             }
         }
 
@@ -387,7 +398,7 @@ impl RenderJob {
                 let checkered = Self::get_json_checkered(&json, tname);
                 let r         = Self::get_json_reflectivity(&json, rname);
                 let material = Material { rgb: rgb, albedo: albedo, checkered: checkered, reflectivity: r };
-                self.objects.push(Box::new(Plane::new(oname, p, normal, material)));
+                self.objects.push(Arc::new(Box::new(Plane::new(oname, p, normal, material))));
             }
         }
         {
@@ -407,7 +418,7 @@ impl RenderJob {
                 let checkered = Self::get_json_checkered(&json, tname);
                 let r         = Self::get_json_reflectivity(&json, refname);
                 let material = Material { rgb: rgb, albedo: albedo, checkered: checkered, reflectivity: r };
-                self.objects.push(Box::new(Sphere::new(oname, center, radius, material)));
+                self.objects.push(Arc::new(Box::new(Sphere::new(oname, center, radius, material))));
             }
         }
         println!("camera: pos: {:?}", self.camera.as_ref().unwrap().pos);
@@ -422,7 +433,8 @@ impl RenderJob {
     pub fn save_image(&mut self) -> std::io::Result<()> {
         let elapsed = self.start_time.elapsed();
         println!("duration: {} sec", elapsed.as_millis() as f64 / 1000.0);
-        return self.image.save_image(PathBuf::from(&self.opt.img_file), self.opt.use_gamma > 0);
+        let mut img = self.image.lock().unwrap();
+        return img.save_image(PathBuf::from(&self.opt.img_file), self.opt.use_gamma > 0);
     }
 }
 
