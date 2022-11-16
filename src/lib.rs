@@ -3,6 +3,7 @@ pub mod color;
 pub mod vec3;
 pub mod light;
 pub mod camera;
+pub mod three_d;
 
 #[derive(Debug)]
 pub struct Ray {

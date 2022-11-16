@@ -1,7 +1,7 @@
-use raymax::color::RGB;
-use raymax::vec3::Vec3;
-use raymax::vec3::Point;
-use raymax::Ray;
+use crate::color::RGB;
+use crate::vec3::Vec3;
+use crate::vec3::Point;
+use crate::Ray;
 
 #[derive(Debug, Clone)]
 pub struct Material {
