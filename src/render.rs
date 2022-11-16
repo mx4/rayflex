@@ -88,22 +88,20 @@ impl RenderJob {
         }
         let (mut hitx, mut hity) : (f64,f64) = (0.0, 0.0);
         let mut t = f64::MAX;
-        let mut hit_obj = None;
         let mut raylen = ray.dir.norm();
         if view_all {
             raylen = 0.0001;
         }
 
-        self.objects.iter().for_each(|obj| {
+        let hit_obj = self.objects.iter().filter(|obj| {
             if obj.is_sphere() {
                 stats.num_intersects_sphere += 1;
             } else {
                 stats.num_intersects_plane += 1;
             }
-            if obj.intercept(&ray, raylen, &mut t) {
-                hit_obj = Some(obj.clone());
-            }
-        });
+            obj.intercept(&ray, raylen, &mut t)
+        }).fold(None, |_acc, obj| Some(obj));
+
         if hit_obj.is_some() {
             let hit_point = ray.orig + ray.dir * t;
             let hit_normal = hit_obj.clone().unwrap().get_normal(hit_point);
