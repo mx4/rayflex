@@ -207,21 +207,22 @@ impl RenderJob {
      * pos_v: -0.5 .. 0.5
      */
     fn calc_ray_box(&self, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
-        let camera_pos = self.camera.as_ref().unwrap().pos;
-        let camera_dir = self.camera.as_ref().unwrap().dir;
-        let camera_u = self.camera.as_ref().unwrap().screen_u;
-        let camera_v = self.camera.as_ref().unwrap().screen_v;
+        let camera = self.camera.as_ref().unwrap();
+        let camera_pos = camera.pos;
+        let camera_dir = camera.dir;
+        let camera_u = camera.screen_u;
+        let camera_v = camera.screen_v;
 
         let calc_one_corner = |u0, v0| -> RGB {
             let key = format!("{}-{}", u0, v0);
-//            if falselet Some(c) = self.pmap.lock().unwrap().get(&key) {
-//                return *c;
-//            }
+            if let Some(c) = self.pmap.lock().unwrap().get(&key) {
+                return *c;
+            }
             let pixel = camera_pos + camera_dir + camera_u * u0 + camera_v * v0;
             let ray = Ray{ orig: camera_pos, dir: pixel - camera_pos };
             self.num_rays_sampling.fetch_add(1, Ordering::SeqCst);
             let c = self.calc_ray_color(ray, false, 0);
-//            self.pmap.lock().unwrap().insert(key, c);
+            self.pmap.lock().unwrap().insert(key, c);
             c
         };
         let mut c00 = calc_one_corner(pos_u,      pos_v);
@@ -421,6 +422,7 @@ impl RenderJob {
                 self.objects.push(Arc::new(Box::new(Sphere::new(oname, center, radius, material))));
             }
         }
+        println!("resolution: {}x{}", self.opt.res_x, self.opt.res_y);
         println!("Scene has {} objects: num_spheres={} num_planes={}", self.objects.len(), num_spheres, num_planes);
         self.camera.as_ref().unwrap().display();
         for light in &self.lights {
@@ -526,7 +528,6 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
 fn print_opt(opt: &Options) {
     println!("scene-file: {}", opt.scene_file.display());
     println!("image-file: {}", opt.img_file.display());
-    println!("resolution: {}x{}", opt.res_x, opt.res_y);
     println!("gamma-correction: {}", opt.use_gamma);
     println!("adaptive-sampling: {} max-depth: {}", opt.adaptive_sampling, opt.adaptive_max_depth);
     println!("reflection: {} max-depth: {}", opt.use_reflection, opt.reflection_max_depth);
