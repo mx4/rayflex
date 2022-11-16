@@ -58,7 +58,6 @@ impl RenderStats {
     }
 }
 
-#[derive(StructOpt, Debug)]
 #[structopt(name="rtest", about="minimal raytracer")]
 struct Options {
     #[structopt(long, default_value = "pic.png")]
@@ -87,27 +86,39 @@ struct Options {
 
 
 struct RenderJob {
-    opt: Options,
     camera: Option<Camera>,
     objects: Vec<Arc<Box<dyn Object + 'static + Send + Sync>>>,
     lights: Vec<Arc<Box<dyn Light + 'static + Send + Sync>>>,
     image: Mutex<Image>,
+    use_adaptive_sampling: bool,
+    use_reflection: bool,
+    use_gamma: bool,
+    adaptive_max_depth: u32,
+    reflection_max_depth: u32,
+    res_x: u32,
+    res_y: u32,
 }
 
 
 impl RenderJob {
-    pub fn new(opt: Options) -> Self {
+    pub fn new(reflection_max_depth: u32, use_reflection: bool, adaptive_sampling: bool, adaptive_max_depth: u32, res_x: u32, res_y: u32, use_gamma: bool) -> Self {
         Self {
             camera: None,
             image: Mutex::new(Image::new(0, 0)),
             objects: vec![],
             lights: vec![],
-            opt : opt,
+            reflection_max_depth: reflection_max_depth,
+            use_reflection: use_reflection,
+            use_adaptive_sampling: adaptive_sampling,
+            use_gamma: use_gamma,
+            adaptive_max_depth: adaptive_max_depth,
+            res_x: res_x,
+            res_y: res_y,
         }
     }
     fn calc_ray_color(&self, stats: &mut RenderStats, ray: Ray, view_all: bool, depth: u32) -> RGB {
         let mut c = RGB::new();
-        if depth > self.opt.reflection_max_depth {
+        if depth > self.reflection_max_depth {
             return c
         }
         let mut hit_point = Point::new();
@@ -190,7 +201,7 @@ impl RenderJob {
                 assert!(hit_material.albedo >= 0.0);
                 c += c_light * hit_material.albedo;
             }
-            if self.opt.use_reflection > 0 && hit_material.reflectivity > 0.0 {
+            if self.use_reflection && hit_material.reflectivity > 0.0 {
                 stats.num_rays_reflection += 1;
                 let reflected_vec = ray.dir.reflect(hit_normal);
                 let reflected_ray = Ray{orig: hit_point, dir: reflected_vec};
@@ -218,7 +229,7 @@ impl RenderJob {
     }
 
     fn calc_one_ray(&self, stats: &mut RenderStats, pmap: &mut HashMap<String,RGB>, u: f64, v: f64) -> RGB {
-        if self.opt.adaptive_sampling != 0 {
+        if self.use_adaptive_sampling {
             let key = format!("{}-{}", u, v);
             if let Some(c) = pmap.get(&key) {
                 return *c;
@@ -229,7 +240,7 @@ impl RenderJob {
         stats.num_rays_sampling += 1;
 
         let c = self.calc_ray_color(stats, ray, false, 0);
-        if self.opt.adaptive_sampling != 0 {
+        if self.use_adaptive_sampling {
             let key = format!("{}-{}", u, v);
             pmap.insert(key, c);
         }
@@ -241,7 +252,7 @@ impl RenderJob {
      * pos_v: -0.5 .. 0.5
      */
     fn calc_ray_box(&self, stats: &mut RenderStats, pmap: &mut HashMap<String,RGB>, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
-        if self.opt.adaptive_sampling == 0 {
+        if ! self.use_adaptive_sampling {
             return self.calc_one_ray(stats, pmap, pos_u + du / 2.0, pos_v + dv / 2.0);
         }
         let mut c00 = self.calc_one_ray(stats, pmap, pos_u,      pos_v);
@@ -249,7 +260,7 @@ impl RenderJob {
         let mut c10 = self.calc_one_ray(stats, pmap, pos_u + du, pos_v);
         let mut c11 = self.calc_one_ray(stats, pmap, pos_u + du, pos_v + dv);
 
-        if lvl < self.opt.adaptive_max_depth {
+        if lvl < self.adaptive_max_depth {
             let color_diff = Self::color_difference(c00, c01, c10, c11);
             if color_diff {
                 let du2 = du / 2.0;
@@ -271,7 +282,7 @@ impl RenderJob {
         println!("num_intersects Sphere: {:10}", stats.num_intersects_sphere);
         println!("num_intersects Plane:  {:10}", stats.num_intersects_plane);
 
-        let num_pixels = (self.opt.res_x * self.opt.res_y) as u64;
+        let num_pixels = (self.res_x * self.res_y) as u64;
         println!("num_rays_sampling:   {:12} {}%", stats.num_rays_sampling, 100 * stats.num_rays_sampling / num_pixels);
         println!("num_rays_reflection: {:12} {}%", stats.num_rays_reflection, 100 * stats.num_rays_reflection / stats.num_rays_sampling);
         println!("num_rays_max_level:  {:12} {}%", stats.num_rays_hit_max_level, 100 * stats.num_rays_hit_max_level / stats.num_rays_sampling);
@@ -280,10 +291,10 @@ impl RenderJob {
     fn render_pixel_box(&self, x0: u32, y0: u32, nx: u32, ny: u32, stats: &mut RenderStats) {
         let u = 1.0;
         let v = 1.0;
-        let du = u / self.opt.res_x as f64;
-        let dv = v / self.opt.res_y as f64;
-        let y_max = std::cmp::min(y0 + ny, self.opt.res_y);
-        let x_max = std::cmp::min(x0 + nx, self.opt.res_x);
+        let du = u / self.res_x as f64;
+        let dv = v / self.res_y as f64;
+        let y_max = std::cmp::min(y0 + ny, self.res_y);
+        let x_max = std::cmp::min(x0 + nx, self.res_x);
 
         let mut pmap = HashMap::new();
 
@@ -299,13 +310,13 @@ impl RenderJob {
     }
 
     pub fn render_scene(&mut self) {
-        self.image = Mutex::new(Image::new(self.opt.res_x, self.opt.res_y));
+        self.image = Mutex::new(Image::new(self.res_x, self.res_y));
         let start_time = Instant::now();
         assert!(self.camera.is_some());
 
         let step = 64;
-        let ny = (self.opt.res_y + step - 1) / step;
-        let nx = (self.opt.res_x + step - 1) / step;
+        let ny = (self.res_y + step - 1) / step;
+        let nx = (self.res_x + step - 1) / step;
         let pb = ProgressBar::new((nx * ny) as u64);
 
         let total_stats = Mutex::new(RenderStats::new());
@@ -371,21 +382,21 @@ impl RenderJob {
             z: json[&key][2].as_f64().unwrap()
         }
     }
-    pub fn load_scene(&mut self) -> std::io::Result<()> {
-        if ! self.opt.scene_file.is_file() {
-            panic!("scene file {} not present.", self.opt.scene_file.display());
+    pub fn load_scene(&mut self, scene_file: PathBuf) -> std::io::Result<()> {
+        if ! scene_file.is_file() {
+            panic!("scene file {} not present.", scene_file.display());
         }
         println!("Loading scene file..");
 
-        let data = fs::read_to_string(&self.opt.scene_file)?;
+        let data = fs::read_to_string(&scene_file)?;
         let json: serde_json::Value = serde_json::from_str(&data)?;
         let num_planes;
         let num_spheres;
 
-        if self.opt.res_x == 0 && self.opt.res_y == 0 {
+        if self.res_x == 0 && self.res_y == 0 {
             if let Some(array) = json[&"resolution".to_string()].as_array() {
-                self.opt.res_x = array[0].as_u64().unwrap() as u32;
-                self.opt.res_y = array[1].as_u64().unwrap() as u32;
+                self.res_x = array[0].as_u64().unwrap() as u32;
+                self.res_y = array[1].as_u64().unwrap() as u32;
             }
         }
         {
@@ -471,7 +482,7 @@ impl RenderJob {
                 self.objects.push(Arc::new(Box::new(Sphere::new(oname, center, radius, material))));
             }
         }
-        println!("img resolution: {}x{}", self.opt.res_x, self.opt.res_y);
+        println!("img resolution: {}x{}", self.res_x, self.res_y);
         println!("{} objects: num_spheres={} num_planes={}", self.objects.len(), num_spheres, num_planes);
         self.camera.as_ref().unwrap().display();
         for light in &self.lights {
@@ -480,8 +491,8 @@ impl RenderJob {
         Ok(())
     }
 
-    pub fn save_image(&mut self) -> std::io::Result<()> {
-        return self.image.lock().unwrap().save_image(PathBuf::from(&self.opt.img_file), self.opt.use_gamma > 0);
+    pub fn save_image(&mut self, img_file: PathBuf) -> std::io::Result<()> {
+        return self.image.lock().unwrap().save_image(PathBuf::from(&img_file), self.use_gamma);
     }
 }
 
@@ -575,33 +586,31 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
 }
 
 fn print_opt(opt: &Options) {
-    println!("scene-file: {}", opt.scene_file.display());
-    println!("image-file: {}", opt.img_file.display());
-    println!("gamma-correction: {}", opt.use_gamma);
-    println!("adaptive-sampling: {} max-depth: {}", opt.adaptive_sampling, opt.adaptive_max_depth);
+    println!("scene-file: {} -- image-file: {}", opt.scene_file.display(), opt.img_file.display());
+    println!("gamma-correction: {} adaptive-sampling: {} max-depth: {}", opt.use_gamma, opt.adaptive_sampling, opt.adaptive_max_depth);
     println!("reflection: {} max-depth: {}", opt.use_reflection, opt.reflection_max_depth);
 }
 
 fn main() -> std::io::Result<()> {
     let opt = Options::from_args();
 
-    let mut job = RenderJob::new(opt);
+    let mut job = RenderJob::new(opt.reflection_max_depth, opt.use_reflection > 0, opt.adaptive_sampling > 0, opt.adaptive_max_depth, opt.res_x, opt.res_y, opt.use_gamma > 0);
 
      ctrlc::set_handler(move || {
          CTRLC_HIT.store(true, Ordering::SeqCst);
      })
      .expect("Error setting Ctrl-C handler");
 
-    if job.opt.num_spheres_to_generate != 0 {
-        return generate_scene(job.opt.num_spheres_to_generate, job.opt.scene_file, job.opt.use_box > 0);
+    if opt.num_spheres_to_generate != 0 {
+        return generate_scene(opt.num_spheres_to_generate, opt.scene_file, opt.use_box > 0);
     }
 
-    print_opt(&job.opt);
+    print_opt(&opt);
     println!("num_threads: {}", rayon::current_num_threads());
 
-    job.load_scene()?;
+    job.load_scene(opt.scene_file)?;
     job.render_scene();
-    job.save_image()?;
+    job.save_image(opt.img_file)?;
 
     Ok(())
 }
