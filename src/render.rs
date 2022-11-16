@@ -306,7 +306,7 @@ impl RenderJob {
             total_stats.lock().unwrap().add(stats);
         });
 
-        pb.finish_with_message("done");
+        pb.finish_and_clear();
         self.print_stats(start_time, *total_stats.lock().unwrap());
     }
 
@@ -376,12 +376,11 @@ impl RenderJob {
             self.camera = Some(Camera::new(p, v));
         }
         {
-            let name = "ambient.color";
-            let c = Self::get_json_color(&json, name.to_string());
+            let c = Self::get_json_color(&json, "ambient.color".to_string());
             let name = "ambient.intensity";
             let r = json[&name].as_f64().unwrap() as f32;
             assert!(r >= 0.0);
-            self.lights.push(Arc::new(Box::new(AmbientLight{ name: name.to_string(), rgb: c, intensity: r })));
+            self.lights.push(Arc::new(Box::new(AmbientLight{ name: "ambient".to_string(), rgb: c, intensity: r })));
         }
         {
             let num_spot_lights = json["num_spot_lights"].as_u64().unwrap();

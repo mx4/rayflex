@@ -1,4 +1,5 @@
 use structopt::StructOpt;
+use colored::Colorize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::path::PathBuf;
 use std::fs;
@@ -129,8 +130,9 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
 }
 
 fn print_opt(opt: &Options) {
-    println!("gamma-correction: {} adaptive-sampling: {} max-depth: {}", opt.use_gamma, opt.adaptive_sampling, opt.adaptive_max_depth);
-    println!("reflection: {} max-depth: {}", opt.use_reflection, opt.reflection_max_depth);
+    println!("use_gamma: {} adaptive-sampling: {} max-depth: {} use_reflection: {} max-depth: {}", opt.use_gamma, opt.adaptive_sampling, opt.adaptive_max_depth, opt.use_reflection, opt.reflection_max_depth);
+    let s = format!("num_threads: {}", rayon::current_num_threads()).red();
+    println!("{s}");
 }
 
 fn main() -> std::io::Result<()> {
@@ -148,7 +150,6 @@ fn main() -> std::io::Result<()> {
     }
 
     print_opt(&opt);
-    println!("num_threads: {}", rayon::current_num_threads());
 
     job.load_scene(opt.scene_file)?;
     job.render_scene();

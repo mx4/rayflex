@@ -1,3 +1,4 @@
+use colored::Colorize;
 use crate::color::RGB;
 use crate::vec3::Vec3;
 use crate::vec3::Point;
@@ -34,7 +35,8 @@ pub trait Light {
 
 impl Light for SpotLight {
     fn display(&self) {
-        println!("{}: {} {:?} {:?}", self.name, self.intensity, self.pos, self.rgb);
+        let s = format!("{:3} {:?} {:?}", self.intensity, self.pos, self.rgb).dimmed();
+        println!("{:12}: {s}", self.name.blue());
     }
     fn get_vector(&self, point: Point) -> Vec3 {
         point - self.pos
@@ -62,7 +64,8 @@ impl Light for SpotLight {
 
 impl Light for AmbientLight {
     fn display(&self) {
-        println!("{}: {} {:?}", self.name, self.intensity, self.rgb);
+        let s = format!("{:3} {:?}", self.intensity, self.rgb).dimmed();
+        println!("{:12}: {s}", self.name.blue());
     }
     fn get_vector(&self, _point: Point) -> Vec3 {
         Vec3 { x: 0.0, y: 0.0, z: 0.0 }
@@ -89,7 +92,8 @@ impl Light for VectorLight {
         false
     }
     fn display(&self) {
-        println!("{}: {} {:?} {:?}", self.name, self.intensity, self.dir, self.rgb);
+        let s = format!("{:3} {:?} {:?}", self.intensity, self.dir, self.rgb).dimmed();
+        println!("{:12}: {s}", self.name.blue());
     }
     fn get_vector(&self, _point: Point) -> Vec3 {
         self.dir

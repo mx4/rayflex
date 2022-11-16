@@ -1,3 +1,4 @@
+use colored::Colorize;
 use crate::vec3::Vec3;
 use crate::vec3::Point;
 use crate::Ray;
@@ -26,10 +27,15 @@ impl Camera {
         Ray{ orig: self.pos, dir: pixel - self.pos }
     }
     pub fn display(&self) {
-        println!("camera: pos: {:?}", self.pos);
-        println!("camera: dir: {:?}", self.dir);
-        println!("camera:   u: {:?}", self.screen_u);
-        println!("camera:   v: {:?}", self.screen_v);
+        let s = format!("camera:").green();
+        let s_pos = format!("pos: {:?}", self.pos).dimmed();
+        let s_dir = format!("dir: {:?}", self.dir).dimmed();
+        let s_u   = format!("  u: {:?}", self.screen_u).dimmed();
+        let s_v   = format!("  v: {:?}", self.screen_v).dimmed();
+        println!("{s} {s_pos}");
+        println!("{s} {s_dir}");
+        println!("{s} {s_u}");
+        println!("{s} {s_v}");
     }
 }
 
