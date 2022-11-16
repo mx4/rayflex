@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Mul};
+use std::ops::{Add, AddAssign, Mul, Div};
 use std::fmt;
 
 #[derive(Clone, Copy)]
@@ -25,6 +25,30 @@ impl Add for RGB {
         assert!(other.g >= 0.0);
         assert!(other.b >= 0.0);
         RGB { r: self.r + other.r, g: self.g + other.g, b: self.b + other.b }
+    }
+}
+
+impl Mul<RGB> for RGB {
+    type Output = RGB;
+    fn mul(self, rhs: RGB) -> RGB {
+        assert!(self.r >= 0.0);
+        assert!(self.g >= 0.0);
+        assert!(self.b >= 0.0);
+        assert!(rhs.r >= 0.0);
+        assert!(rhs.g >= 0.0);
+        assert!(rhs.b >= 0.0);
+        RGB { r: self.r * rhs.r, g: self.g * rhs.g, b: self.b * rhs.b }
+    }
+}
+
+impl Div<f32> for RGB {
+    type Output = RGB;
+    fn div(self, rhs: f32) -> RGB {
+        assert!(self.r >= 0.0);
+        assert!(self.g >= 0.0);
+        assert!(self.b >= 0.0);
+        assert!(rhs >= 0.0);
+        RGB { r: self.r / rhs, g: self.g / rhs, b: self.b / rhs }
     }
 }
 

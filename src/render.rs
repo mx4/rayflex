@@ -83,79 +83,59 @@ impl RenderJob {
         }
     }
     fn calc_ray_color(&self, stats: &mut RenderStats, ray: Ray, view_all: bool, depth: u32) -> RGB {
-        let mut c = RGB::new();
         if depth > self.cfg.reflection_max_depth {
-            return c
+            return RGB::new();
         }
-        let mut hit_point = Point::new();
-        let mut hit_normal = Vec3::new();
-        let mut hit_material = Material::new();
         let (mut hitx, mut hity) : (f64,f64) = (0.0, 0.0);
+        let mut t = f64::MAX;
+        let mut hit_obj = None;
         let mut raylen = ray.dir.norm();
         if view_all {
             raylen = 0.0001;
         }
 
-        let mut t = f64::MAX;
-        for obj in &self.objects {
-            if obj.intercept(&ray, raylen, &mut t) {
-                if obj.is_sphere() {
-                    stats.num_intersects_sphere += 1;
-                } else {
-                    stats.num_intersects_plane += 1;
-                }
-                hit_point = ray.orig + ray.dir * t;
-                hit_normal = obj.get_normal(hit_point);
-                hit_material = obj.get_material();
-                if hit_material.checkered {
-                    (hitx, hity) = obj.get_texture_2d(hit_point);
-                }
+        self.objects.iter().for_each(|obj| {
+            if obj.is_sphere() {
+                stats.num_intersects_sphere += 1;
+            } else {
+                stats.num_intersects_plane += 1;
             }
-        }
-        if t < f64::MAX {
-            for light in &self.lights {
-                let light_intensity = light.get_intensity();
-                let light_rgb = light.get_color();
+            if obj.intercept(&ray, raylen, &mut t) {
+                hit_obj = Some(obj.clone());
+            }
+        });
+        if hit_obj.is_some() {
+            let hit_point = ray.orig + ray.dir * t;
+            let hit_normal = hit_obj.clone().unwrap().get_normal(hit_point);
+            let hit_material = hit_obj.clone().unwrap().get_material();
+            if hit_material.checkered {
+                (hitx, hity) = hit_obj.clone().unwrap().get_texture_2d(hit_point);
+            }
+            let mut c = self.lights.iter().fold(RGB::new(), |acc, light| {
                 let mut c_light = RGB::new();
-                let mut c_res = RGB{
-                    r : hit_material.rgb.r * light_rgb.r,
-                    g : hit_material.rgb.g * light_rgb.g,
-                    b : hit_material.rgb.b * light_rgb.b,
-                };
-                c_res = c_res * light_intensity;
+                let c_res = hit_material.rgb * light.get_color() * light.get_intensity();
 
                 if light.is_ambient() {
                     c_light = c_res;
                 } else if light.is_vector() {
                     let light_vec = light.get_vector(hit_point) * -1.0;
                     let mut v_prod = hit_normal.dot(light_vec) as f32;
-                    if v_prod > 0.0 { // only show visible side
-                        v_prod = 0.0;
-                    }
-                    let v = v_prod.powi(4);
-                    c_light = c_res * v;
+                    v_prod = v_prod.min(0.0); // only show visible side
+                    c_light = c_res * v_prod.powi(4);
                 } else {
                     assert!(light.is_spot());
                     let light_vec = light.get_vector(hit_point) * -1.0;
                     let light_vec_norm = light_vec.normalize();
-                    let mut shadow = false;
                     let light_ray = Ray{orig: hit_point, dir: light_vec};
-                    let mut t : f64 = 1.0;
-                    for obj in &self.objects {
-                        if obj.intercept(&light_ray, 0.001, &mut t) {
-                            shadow = true;
-                            break;
-                        }
-                    }
+                    let mut t = 1.0;
+                    let shadow = self.objects.iter().find(|obj| obj.intercept(&light_ray, 0.0001, &mut t)).is_some();
+
                     if !shadow {
                         let dist_sq = light_vec.dot(light_vec) as f32;
                         let mut v_prod = hit_normal.dot(light_vec_norm) as f32;
-                        if v_prod < 0.0 { // only show visible side
-                            v_prod = 0.0;
-                        }
-                        let v = v_prod.powi(4) / (1.0 + 4.0 * std::f32::consts::PI * dist_sq);
-                        assert!(v >= 0.0);
-                        c_light = c_res * v ;
+                        v_prod = v_prod.max(0.0); // only show visible side
+                        let pi = std::f32::consts::PI;
+                        c_light = c_res * v_prod.powi(4) / (1.0 + 4.0 * pi * dist_sq);
                     }
                 }
                 if hit_material.checkered {
@@ -165,8 +145,8 @@ impl RenderJob {
                     }
                 }
                 assert!(hit_material.albedo >= 0.0);
-                c += c_light * hit_material.albedo;
-            }
+                acc + c_light * hit_material.albedo
+            });
             if self.cfg.use_reflection && hit_material.reflectivity > 0.0 {
                 stats.num_rays_reflection += 1;
                 let reflected_vec = ray.dir.reflect(hit_normal);
@@ -174,6 +154,7 @@ impl RenderJob {
                 let c_reflect = self.calc_ray_color(stats, reflected_ray, true, depth + 1);
                 c = c * (1.0 - hit_material.reflectivity) + c_reflect * hit_material.reflectivity;
             }
+            c
         } else {
 	    let mut z = (ray.dir.z + 0.5) as f32;
             z = z.clamp(0.0, 1.0);
@@ -181,9 +162,8 @@ impl RenderJob {
 	    let cyan = RGB{ r: 0.4, g: 0.6, b: 0.9 };
             assert!(z >= 0.0);
             assert!(z <= 1.0);
-            c = cmax * (1.0 - z) + cyan * z;
+            cmax * (1.0 - z) + cyan * z
         }
-        c
     }
 
     fn calc_one_ray(&self, stats: &mut RenderStats, pmap: &mut HashMap<String,RGB>, u: f64, v: f64) -> RGB {
@@ -449,9 +429,8 @@ impl RenderJob {
         println!("img resolution: {}{}", res_str, smp_str);
         println!("{} objects: num_spheres={} num_planes={}", self.objects.len(), num_spheres, num_planes);
         self.camera.as_ref().unwrap().display();
-        for light in &self.lights {
-            light.display();
-        }
+
+        self.lights.iter().for_each(|light| light.display());
         Ok(())
     }
 
