@@ -53,41 +53,38 @@ impl RenderStats {
     }
 }
 
+pub struct RenderConfig {
+    pub use_adaptive_sampling: bool,
+    pub use_reflection: bool,
+    pub use_gamma: bool,
+    pub adaptive_max_depth: u32,
+    pub reflection_max_depth: u32,
+    pub res_x: u32,
+    pub res_y: u32,
+}
 
 pub struct RenderJob {
     camera: Option<Camera>,
     objects: Vec<Arc<Box<dyn Object + 'static + Send + Sync>>>,
     lights: Vec<Arc<Box<dyn Light + 'static + Send + Sync>>>,
     image: Mutex<Image>,
-    use_adaptive_sampling: bool,
-    use_reflection: bool,
-    use_gamma: bool,
-    adaptive_max_depth: u32,
-    reflection_max_depth: u32,
-    res_x: u32,
-    res_y: u32,
+    cfg: RenderConfig,
 }
 
 
 impl RenderJob {
-    pub fn new(reflection_max_depth: u32, use_reflection: bool, adaptive_sampling: bool, adaptive_max_depth: u32, res_x: u32, res_y: u32, use_gamma: bool) -> Self {
+    pub fn new(cfg: RenderConfig) -> Self {
         Self {
             camera: None,
             image: Mutex::new(Image::new(0, 0)),
             objects: vec![],
             lights: vec![],
-            reflection_max_depth: reflection_max_depth,
-            use_reflection: use_reflection,
-            use_adaptive_sampling: adaptive_sampling,
-            use_gamma: use_gamma,
-            adaptive_max_depth: adaptive_max_depth,
-            res_x: res_x,
-            res_y: res_y,
+            cfg: cfg,
         }
     }
     fn calc_ray_color(&self, stats: &mut RenderStats, ray: Ray, view_all: bool, depth: u32) -> RGB {
         let mut c = RGB::new();
-        if depth > self.reflection_max_depth {
+        if depth > self.cfg.reflection_max_depth {
             return c
         }
         let mut hit_point = Point::new();
@@ -170,7 +167,7 @@ impl RenderJob {
                 assert!(hit_material.albedo >= 0.0);
                 c += c_light * hit_material.albedo;
             }
-            if self.use_reflection && hit_material.reflectivity > 0.0 {
+            if self.cfg.use_reflection && hit_material.reflectivity > 0.0 {
                 stats.num_rays_reflection += 1;
                 let reflected_vec = ray.dir.reflect(hit_normal);
                 let reflected_ray = Ray{orig: hit_point, dir: reflected_vec};
@@ -189,16 +186,8 @@ impl RenderJob {
         c
     }
 
-    fn color_difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> bool {
-        let avg = (c00 + c01 + c10 + c11) * 0.25;
-        let d = avg.distance2(c00) + avg.distance2(c01) + avg.distance2(c10) + avg.distance2(c11);
-        d > 0.3
-        //let d = avg.distance(c00) + avg.distance(c01) + avg.distance(c10) + avg.distance(c11);
-        //d > 0.5
-    }
-
     fn calc_one_ray(&self, stats: &mut RenderStats, pmap: &mut HashMap<String,RGB>, u: f64, v: f64) -> RGB {
-        if self.use_adaptive_sampling {
+        if self.cfg.use_adaptive_sampling {
             let key = format!("{}-{}", u, v);
             if let Some(c) = pmap.get(&key) {
                 return *c;
@@ -209,7 +198,7 @@ impl RenderJob {
         stats.num_rays_sampling += 1;
 
         let c = self.calc_ray_color(stats, ray, false, 0);
-        if self.use_adaptive_sampling {
+        if self.cfg.use_adaptive_sampling {
             let key = format!("{}-{}", u, v);
             pmap.insert(key, c);
         }
@@ -221,7 +210,7 @@ impl RenderJob {
      * pos_v: -0.5 .. 0.5
      */
     fn calc_ray_box(&self, stats: &mut RenderStats, pmap: &mut HashMap<String,RGB>, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
-        if ! self.use_adaptive_sampling {
+        if ! self.cfg.use_adaptive_sampling {
             return self.calc_one_ray(stats, pmap, pos_u + du / 2.0, pos_v + dv / 2.0);
         }
         let mut c00 = self.calc_one_ray(stats, pmap, pos_u,      pos_v);
@@ -229,8 +218,8 @@ impl RenderJob {
         let mut c10 = self.calc_one_ray(stats, pmap, pos_u + du, pos_v);
         let mut c11 = self.calc_one_ray(stats, pmap, pos_u + du, pos_v + dv);
 
-        if lvl < self.adaptive_max_depth {
-            let color_diff = Self::color_difference(c00, c01, c10, c11);
+        if lvl < self.cfg.adaptive_max_depth {
+            let color_diff = RGB::difference(c00, c01, c10, c11) > 0.3;
             if color_diff {
                 let du2 = du / 2.0;
                 let dv2 = dv / 2.0;
@@ -253,7 +242,7 @@ impl RenderJob {
         println!("num_intersects Sphere: {:10}", stats.num_intersects_sphere);
         println!("num_intersects Plane:  {:10}", stats.num_intersects_plane);
 
-        let num_pixels = (self.res_x * self.res_y) as u64;
+        let num_pixels = (self.cfg.res_x * self.cfg.res_y) as u64;
         println!("num_rays_sampling:   {:12} {}%", stats.num_rays_sampling, 100 * stats.num_rays_sampling / num_pixels);
         println!("num_rays_reflection: {:12} {}%", stats.num_rays_reflection, 100 * stats.num_rays_reflection / stats.num_rays_sampling);
         println!("num_rays_max_level:  {:12} {}%", stats.num_rays_hit_max_level, 100 * stats.num_rays_hit_max_level / stats.num_rays_sampling);
@@ -262,10 +251,10 @@ impl RenderJob {
     fn render_pixel_box(&self, x0: u32, y0: u32, nx: u32, ny: u32, stats: &mut RenderStats) {
         let u = 1.0;
         let v = 1.0;
-        let du = u / self.res_x as f64;
-        let dv = v / self.res_y as f64;
-        let y_max = std::cmp::min(y0 + ny, self.res_y);
-        let x_max = std::cmp::min(x0 + nx, self.res_x);
+        let du = u / self.cfg.res_x as f64;
+        let dv = v / self.cfg.res_y as f64;
+        let y_max = std::cmp::min(y0 + ny, self.cfg.res_y);
+        let x_max = std::cmp::min(x0 + nx, self.cfg.res_x);
 
         let mut pmap = HashMap::new();
 
@@ -281,13 +270,13 @@ impl RenderJob {
     }
 
     pub fn render_scene(&mut self) {
-        self.image = Mutex::new(Image::new(self.res_x, self.res_y));
+        self.image = Mutex::new(Image::new(self.cfg.res_x, self.cfg.res_y));
         let start_time = Instant::now();
         assert!(self.camera.is_some());
 
         let step = 64;
-        let ny = (self.res_y + step - 1) / step;
-        let nx = (self.res_x + step - 1) / step;
+        let ny = (self.cfg.res_y + step - 1) / step;
+        let nx = (self.cfg.res_x + step - 1) / step;
         let pb = ProgressBar::new((nx * ny) as u64);
 
         let total_stats = Mutex::new(RenderStats::new());
@@ -364,10 +353,10 @@ impl RenderJob {
         let num_planes;
         let num_spheres;
 
-        if self.res_x == 0 && self.res_y == 0 {
+        if self.cfg.res_x == 0 && self.cfg.res_y == 0 {
             if let Some(array) = json[&"resolution".to_string()].as_array() {
-                self.res_x = array[0].as_u64().unwrap() as u32;
-                self.res_y = array[1].as_u64().unwrap() as u32;
+                self.cfg.res_x = array[0].as_u64().unwrap() as u32;
+                self.cfg.res_y = array[1].as_u64().unwrap() as u32;
             }
         }
         {
@@ -452,8 +441,12 @@ impl RenderJob {
                 self.objects.push(Arc::new(Box::new(Sphere::new(oname, center, radius, material))));
             }
         }
-        let res_str = format!("{}x{}", self.res_x, self.res_y).bold();
-        println!("img resolution: {}", res_str);
+        let res_str = format!("{}x{}", self.cfg.res_x, self.cfg.res_y).bold();
+        let mut smp_str = format!("").cyan();
+        if self.cfg.use_adaptive_sampling {
+            smp_str = format!(" w/ adaptive sampling").cyan();
+        }
+        println!("img resolution: {}{}", res_str, smp_str);
         println!("{} objects: num_spheres={} num_planes={}", self.objects.len(), num_spheres, num_planes);
         self.camera.as_ref().unwrap().display();
         for light in &self.lights {
@@ -463,6 +456,6 @@ impl RenderJob {
     }
 
     pub fn save_image(&mut self, img_file: PathBuf) -> std::io::Result<()> {
-        return self.image.lock().unwrap().save_image(PathBuf::from(&img_file), self.use_gamma);
+        return self.image.lock().unwrap().save_image(PathBuf::from(&img_file), self.cfg.use_gamma);
     }
 }

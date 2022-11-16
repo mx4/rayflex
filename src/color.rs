@@ -53,11 +53,13 @@ impl RGB {
     pub fn new() -> RGB {
 	RGB{ r: 0.0, g: 0.0, b: 0.0 }
     }
+    pub fn difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> f32 {
+        let avg = (c00 + c01 + c10 + c11) * 0.25;
+        avg.distance2(c00) + avg.distance2(c01) + avg.distance2(c10) + avg.distance2(c11)
+    }
     pub fn distance2(&self, rhs: RGB) -> f32 {
         let m = f32::max((self.r - rhs.r).abs(), (self.g - rhs.g).abs());
-        let m = f32::max((self.b - rhs.b).abs(), m);
-
-        m
+        f32::max((self.b - rhs.b).abs(), m)
     }
     pub fn distance(&self, rhs: RGB) -> f32 {
         ((self.r - rhs.r).powi(2) + (self.g - rhs.g).powi(2) + (self.b - rhs.b).powi(2)).sqrt()
