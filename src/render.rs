@@ -44,6 +44,13 @@ impl RenderStats {
             num_intersects_sphere: 0,
         }
     }
+    fn intersect_obj(&mut self, is_sphere: bool) {
+        if is_sphere {
+            self.num_intersects_sphere += 1;
+        } else {
+            self.num_intersects_plane += 1;
+        }
+    }
     fn add(&mut self, other: RenderStats) {
         self.num_rays_sampling      = self.num_rays_sampling + other.num_rays_sampling;
         self.num_rays_reflection    = self.num_rays_reflection + other.num_rays_reflection;
@@ -82,23 +89,19 @@ impl RenderJob {
             cfg: cfg,
         }
     }
-    fn calc_ray_color(&self, stats: &mut RenderStats, ray: Ray, view_all: bool, depth: u32) -> RGB {
+    fn calc_ray_color(&self, stats: &mut RenderStats, ray: Ray, depth: u32) -> RGB {
         if depth > self.cfg.reflection_max_depth {
             return RGB::new();
         }
         let (mut hitx, mut hity) : (f64,f64) = (0.0, 0.0);
         let mut t = f64::MAX;
-        let mut raylen = ray.dir.norm();
-        if view_all {
-            raylen = 0.0001;
+        let mut raylen = 0.0001;
+        if depth == 0 {
+            raylen = ray.dir.norm();
         }
 
         let hit_obj = self.objects.iter().filter(|obj| {
-            if obj.is_sphere() {
-                stats.num_intersects_sphere += 1;
-            } else {
-                stats.num_intersects_plane += 1;
-            }
+            stats.intersect_obj(obj.is_sphere());
             obj.intercept(&ray, raylen, &mut t)
         }).fold(None, |_acc, obj| Some(obj));
 
@@ -149,7 +152,7 @@ impl RenderJob {
                 stats.num_rays_reflection += 1;
                 let reflected_vec = ray.dir.reflect(hit_normal);
                 let reflected_ray = Ray{orig: hit_point, dir: reflected_vec};
-                let c_reflect = self.calc_ray_color(stats, reflected_ray, true, depth + 1);
+                let c_reflect = self.calc_ray_color(stats, reflected_ray, depth + 1);
                 c = c * (1.0 - hit_material.reflectivity) + c_reflect * hit_material.reflectivity;
             }
             c
@@ -175,7 +178,7 @@ impl RenderJob {
 
         stats.num_rays_sampling += 1;
 
-        let c = self.calc_ray_color(stats, ray, false, 0);
+        let c = self.calc_ray_color(stats, ray, 0);
         if self.cfg.use_adaptive_sampling {
             let key = format!("{}-{}", u, v);
             pmap.insert(key, c);
@@ -231,8 +234,8 @@ impl RenderJob {
         let v = 1.0;
         let du = u / self.cfg.res_x as f64;
         let dv = v / self.cfg.res_y as f64;
-        let y_max = std::cmp::min(y0 + ny, self.cfg.res_y);
-        let x_max = std::cmp::min(x0 + nx, self.cfg.res_x);
+        let y_max = (y0 + ny).min(self.cfg.res_y);
+        let x_max = (x0 + nx).min(self.cfg.res_x);
 
         let mut pmap = HashMap::new();
 
