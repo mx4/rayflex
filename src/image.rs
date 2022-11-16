@@ -1,3 +1,4 @@
+use colored::Colorize;
 use image::{Rgb32FImage, RgbImage, Rgb};
 use std::path::PathBuf;
 use std::time::Instant;
@@ -48,7 +49,8 @@ impl Image {
 	}
         img.save(file.clone()).expect("png write");
         let elapsed = start_time.elapsed();
-        println!("writing '{}' took {} sec", file.display(), elapsed.as_millis() as f64 / 1000.0);
+        let lat_msec = elapsed.as_millis() as f64 / 1000.0;
+        println!("writing '{}' took {} sec", file.display().to_string().bold(), lat_msec);
         Ok(())
     }
 }

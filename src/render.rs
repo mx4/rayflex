@@ -1,4 +1,5 @@
 use std::sync::atomic::Ordering;
+use colored::Colorize;
 use serde_json;
 use std::fs;
 use std::path::PathBuf;
@@ -246,7 +247,9 @@ impl RenderJob {
 
     fn print_stats(&self, start_time: Instant, stats: RenderStats) {
         let elapsed = start_time.elapsed();
-        println!("duration: {} sec -- {:.2} usec per ray", elapsed.as_millis() as f64 / 1000.0, elapsed.as_micros() as f64 / (stats.num_rays_sampling + stats.num_rays_reflection) as f64);
+        let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as f64 / 1000.0);
+        let ray_lat_str = format!("{:.2} usec", elapsed.as_micros() as f64 / (stats.num_rays_sampling + stats.num_rays_reflection) as f64);
+        println!("duration: {} -- {} per ray", tot_lat_str.bold(), ray_lat_str.bold());
         println!("num_intersects Sphere: {:10}", stats.num_intersects_sphere);
         println!("num_intersects Plane:  {:10}", stats.num_intersects_plane);
 
@@ -352,9 +355,9 @@ impl RenderJob {
     }
     pub fn load_scene(&mut self, scene_file: PathBuf) -> std::io::Result<()> {
         if ! scene_file.is_file() {
-            panic!("scene file {} not present.", scene_file.display());
+             panic!("scene file {} not present.", scene_file.display());
         }
-        println!("Loading scene file..");
+        println!("loading scene file {}", scene_file.display().to_string().bold());
 
         let data = fs::read_to_string(&scene_file)?;
         let json: serde_json::Value = serde_json::from_str(&data)?;
@@ -450,7 +453,8 @@ impl RenderJob {
                 self.objects.push(Arc::new(Box::new(Sphere::new(oname, center, radius, material))));
             }
         }
-        println!("img resolution: {}x{}", self.res_x, self.res_y);
+        let res_str = format!("{}x{}", self.res_x, self.res_y).bold();
+        println!("img resolution: {}", res_str);
         println!("{} objects: num_spheres={} num_planes={}", self.objects.len(), num_spheres, num_planes);
         self.camera.as_ref().unwrap().display();
         for light in &self.lights {
