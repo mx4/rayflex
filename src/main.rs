@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use std::time::Instant;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::{ AtomicU64, Ordering};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
 
@@ -27,6 +26,34 @@ use three_d::Material;
 use three_d::Object;
 use three_d::Sphere;
 use three_d::Plane;
+
+#[derive(Clone, Copy)]
+struct RenderStats {
+    num_rays_sampling: u64,
+    num_rays_reflection: u64,
+    num_rays_hit_max_level: u64,
+    num_intersects_plane: u64,
+    num_intersects_sphere: u64,
+}
+
+impl RenderStats {
+    fn new() -> RenderStats {
+        RenderStats {
+            num_rays_sampling: 0,
+            num_rays_reflection: 0,
+            num_rays_hit_max_level: 0,
+            num_intersects_plane: 0,
+            num_intersects_sphere: 0,
+        }
+    }
+    fn add(&mut self, other: RenderStats) {
+        self.num_rays_sampling      = self.num_rays_sampling + other.num_rays_sampling;
+        self.num_rays_reflection    = self.num_rays_reflection + other.num_rays_reflection;
+        self.num_rays_hit_max_level = self.num_rays_hit_max_level + other.num_rays_hit_max_level;
+        self.num_intersects_sphere  = self.num_intersects_sphere + other.num_intersects_sphere;
+        self.num_intersects_plane   = self.num_intersects_plane + other.num_intersects_plane;
+    }
+}
 
 #[derive(StructOpt, Debug)]
 #[structopt(name="rtest", about="minimal raytracer")]
@@ -62,9 +89,6 @@ struct RenderJob {
     objects: Vec<Arc<Box<dyn Object + 'static + Send + Sync>>>,
     lights: Vec<Arc<Box<dyn Light + 'static + Send + Sync>>>,
     image: Mutex<Image>,
-    num_rays_sampling: AtomicU64,
-    num_rays_reflection: AtomicU64,
-    hit_max_level: AtomicU64,
 }
 
 
@@ -76,12 +100,9 @@ impl RenderJob {
             objects: vec![],
             lights: vec![],
             opt : opt,
-            num_rays_sampling: AtomicU64::new(0),
-            num_rays_reflection: AtomicU64::new(0),
-            hit_max_level: AtomicU64::new(0),
         }
     }
-    fn calc_ray_color(&self, ray: Ray, view_all: bool, depth: u32) -> RGB {
+    fn calc_ray_color(&self, stats: &mut RenderStats, ray: Ray, view_all: bool, depth: u32) -> RGB {
         let mut c = RGB::new();
         if depth > self.opt.reflection_max_depth {
             return c
@@ -98,6 +119,11 @@ impl RenderJob {
         let mut t = f64::MAX;
         for obj in &self.objects {
             if obj.intercept(&ray, raylen, &mut t) {
+                if obj.is_sphere() {
+                    stats.num_intersects_sphere += 1;
+                } else {
+                    stats.num_intersects_plane += 1;
+                }
                 hit_point = ray.orig + ray.dir * t;
                 hit_normal = obj.get_normal(hit_point);
                 hit_material = obj.get_material();
@@ -162,10 +188,10 @@ impl RenderJob {
                 c += c_light * hit_material.albedo;
             }
             if self.opt.use_reflection > 0 && hit_material.reflectivity > 0.0 {
-                self.num_rays_reflection.fetch_add(1, Ordering::SeqCst);
+                stats.num_rays_reflection += 1;
                 let reflected_vec = ray.dir.reflect(hit_normal);
                 let reflected_ray = Ray{orig: hit_point, dir: reflected_vec};
-                let c_reflect = self.calc_ray_color(reflected_ray, true, depth + 1);
+                let c_reflect = self.calc_ray_color(stats, reflected_ray, true, depth + 1);
                 c = c * (1.0 - hit_material.reflectivity) + c_reflect * hit_material.reflectivity;
             }
         } else {
@@ -188,7 +214,7 @@ impl RenderJob {
         //d > 0.5
     }
 
-    fn calc_one_ray(&self, pmap: &mut HashMap<String,RGB>, u: f64, v: f64) -> RGB {
+    fn calc_one_ray(&self, stats: &mut RenderStats, pmap: &mut HashMap<String,RGB>, u: f64, v: f64) -> RGB {
         if self.opt.adaptive_sampling != 0 {
             let key = format!("{}-{}", u, v);
             if let Some(c) = pmap.get(&key) {
@@ -197,9 +223,9 @@ impl RenderJob {
         }
         let ray = self.camera.as_ref().unwrap().get_ray(u, v);
 
-        self.num_rays_sampling.fetch_add(1, Ordering::SeqCst);
+        stats.num_rays_sampling += 1;
 
-        let c = self.calc_ray_color(ray, false, 0);
+        let c = self.calc_ray_color(stats, ray, false, 0);
         if self.opt.adaptive_sampling != 0 {
             let key = format!("{}-{}", u, v);
             pmap.insert(key, c);
@@ -211,50 +237,50 @@ impl RenderJob {
      * pos_u: -0.5 .. 0.5
      * pos_v: -0.5 .. 0.5
      */
-    fn calc_ray_box(&self, pmap: &mut HashMap<String,RGB>, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
+    fn calc_ray_box(&self, stats: &mut RenderStats, pmap: &mut HashMap<String,RGB>, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
         if self.opt.adaptive_sampling == 0 {
-            return self.calc_one_ray(pmap, pos_u + du / 2.0, pos_v + dv / 2.0);
+            return self.calc_one_ray(stats, pmap, pos_u + du / 2.0, pos_v + dv / 2.0);
         }
-        let mut c00 = self.calc_one_ray(pmap, pos_u,      pos_v);
-        let mut c01 = self.calc_one_ray(pmap, pos_u,      pos_v + dv);
-        let mut c10 = self.calc_one_ray(pmap, pos_u + du, pos_v);
-        let mut c11 = self.calc_one_ray(pmap, pos_u + du, pos_v + dv);
+        let mut c00 = self.calc_one_ray(stats, pmap, pos_u,      pos_v);
+        let mut c01 = self.calc_one_ray(stats, pmap, pos_u,      pos_v + dv);
+        let mut c10 = self.calc_one_ray(stats, pmap, pos_u + du, pos_v);
+        let mut c11 = self.calc_one_ray(stats, pmap, pos_u + du, pos_v + dv);
 
         if lvl < self.opt.adaptive_max_depth {
             let color_diff = Self::color_difference(c00, c01, c10, c11);
             if color_diff {
                 let du2 = du / 2.0;
                 let dv2 = dv / 2.0;
-                c00 = self.calc_ray_box(pmap, pos_u,       pos_v,       du2, dv2, lvl + 1);
-                c01 = self.calc_ray_box(pmap, pos_u,       pos_v + dv2, du2, dv2, lvl + 1);
-                c10 = self.calc_ray_box(pmap, pos_u + du2, pos_v,       du2, dv2, lvl + 1);
-                c11 = self.calc_ray_box(pmap, pos_u + du2, pos_v + dv2, du2, dv2, lvl + 1);
+                c00 = self.calc_ray_box(stats, pmap, pos_u,       pos_v,       du2, dv2, lvl + 1);
+                c01 = self.calc_ray_box(stats, pmap, pos_u,       pos_v + dv2, du2, dv2, lvl + 1);
+                c10 = self.calc_ray_box(stats, pmap, pos_u + du2, pos_v,       du2, dv2, lvl + 1);
+                c11 = self.calc_ray_box(stats, pmap, pos_u + du2, pos_v + dv2, du2, dv2, lvl + 1);
             }
         } else {
-            self.hit_max_level.fetch_add(1, Ordering::SeqCst);
+            stats.num_rays_hit_max_level += 1;
         }
         (c00 + c01 + c10 + c11) * 0.25
     }
 
-    fn print_stats(&self, start_time: Instant) {
+    fn print_stats(&self, start_time: Instant, stats: RenderStats) {
         let elapsed = start_time.elapsed();
         println!("duration: {} sec", elapsed.as_millis() as f64 / 1000.0);
-        println!("num_intersects Sphere: {}", Sphere::get_num_intersects());
-        println!("num_intersects Plane:  {}", Plane::get_num_intersects());
+        println!("num_intersects Sphere: {}", stats.num_intersects_sphere);
+        println!("num_intersects Plane:  {}", stats.num_intersects_plane);
 
         let num_pixels = (self.opt.res_x * self.opt.res_y) as u64;
-        let num_rays_sampling = self.num_rays_sampling.load(Ordering::SeqCst);
-        let num_rays_reflection = self.num_rays_reflection.load(Ordering::SeqCst);
-        let hit_max_level = self.hit_max_level.load(Ordering::SeqCst);
+        let num_rays_sampling = stats.num_rays_sampling;
+        let num_rays_reflection = stats.num_rays_reflection;
+        let num_rays_hit_max_level = stats.num_rays_hit_max_level;
         println!("sampling: {} rays {}%", num_rays_sampling, 100 * num_rays_sampling / num_pixels);
         if num_rays_sampling > 0 {
             println!("reflection: {} rays {}%", num_rays_reflection, 100 * num_rays_reflection / num_rays_sampling);
-            println!("{} sample rays hit max-depth {}%", hit_max_level, 100 * hit_max_level / num_rays_sampling);
+            println!("{} sample rays hit max-depth {}%", num_rays_hit_max_level, 100 * num_rays_hit_max_level / num_rays_sampling);
             println!("{:.2} usec per ray", elapsed.as_micros() as f64 / (num_rays_sampling + num_rays_reflection) as f64);
         }
     }
 
-    fn render_pixel_box(&self, x0: u32, y0: u32, nx: u32, ny: u32) {
+    fn render_pixel_box(&self, x0: u32, y0: u32, nx: u32, ny: u32, stats: &mut RenderStats) {
         let u = 1.0;
         let v = 1.0;
         let du = u / self.opt.res_x as f64;
@@ -268,7 +294,7 @@ impl RenderJob {
             let pos_v = v / 2.0 - (y as f64) * dv;
             for x in x0..x_max {
                 let pos_u = u / 2.0 - (x as f64) * du;
-                let c = self.calc_ray_box(&mut pmap, pos_u, pos_v, du, dv, 0);
+                let c = self.calc_ray_box(stats, &mut pmap, pos_u, pos_v, du, dv, 0);
 
                 self.image.lock().unwrap().push_pixel(x, y, c);
             }
@@ -285,15 +311,19 @@ impl RenderJob {
         let nx = (self.opt.res_x + step - 1) / step;
         let pb = ProgressBar::new((nx * ny) as u64);
 
+        let total_stats = Mutex::new(RenderStats::new());
+
         (0..ny*nx).into_par_iter().for_each(|v| {
             let x = (v % nx) * step;
             let y = (v / nx) * step;
-            self.render_pixel_box(x, y, step, step);
+            let mut stats = RenderStats::new();
+            self.render_pixel_box(x, y, step, step, &mut stats);
             pb.inc(1);
+            total_stats.lock().unwrap().add(stats);
         });
 
         pb.finish_with_message("done");
-        self.print_stats(start_time);
+        self.print_stats(start_time, *total_stats.lock().unwrap());
     }
 
     fn get_json_reflectivity(json: &serde_json::Value, key: String) -> f32 {
