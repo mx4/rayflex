@@ -122,24 +122,12 @@ impl RenderJob {
                     c_light = c_res;
                 } else if light.is_vector() {
                     let light_vec = light.get_vector(hit_point) * -1.0;
-
-                    let shadow = false;
-                   //let light_ray = Ray{orig: hit_point, dir: light_vec};
-                   //let mut t : f64 = 0.0;
-                   //for obj in &self.objects {
-                   //    if obj.intercept(&light_ray, 0.001, f64::MAX, &mut t) {
-                   //        shadow = true;
-                   //        break;
-                   //    }
-                   //}
-                    if ! shadow {
-                        let mut v_prod = hit_normal.dot(light_vec) as f32;
-                        if v_prod > 0.0 { // only show visible side
-                            v_prod = 0.0;
-                        }
-                        let v = v_prod.powi(4);
-                        c_light = c_res * v;
+                    let mut v_prod = hit_normal.dot(light_vec) as f32;
+                    if v_prod > 0.0 { // only show visible side
+                        v_prod = 0.0;
                     }
+                    let v = v_prod.powi(4);
+                    c_light = c_res * v;
                 } else {
                     assert!(light.is_spot());
                     let light_vec = light.get_vector(hit_point) * -1.0;
@@ -205,34 +193,43 @@ impl RenderJob {
      * pos_v: -0.5 .. 0.5
      */
     fn calc_ray_box(&self, pmap: &mut HashMap<String,RGB>, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
-        let camera = self.camera.as_ref().unwrap();
-        let camera_pos = camera.pos;
-        let camera_dir = camera.dir;
-        let camera_u = camera.screen_u;
-        let camera_v = camera.screen_v;
-
-        let mut calc_one_corner = |u0, v0| -> RGB {
+        let mut calc_one_ray = |u0, v0| -> RGB {
             let key = format!("{}-{}", u0, v0);
-            if let Some(c) = pmap.get(&key) {
-                return *c;
+
+            if self.opt.adaptive_sampling != 0 {
+                if let Some(c) = pmap.get(&key) {
+                    return *c;
+                }
             }
+            let camera = self.camera.as_ref().unwrap();
+            let camera_pos = camera.pos;
+            let camera_dir = camera.dir;
+            let camera_u = camera.screen_u;
+            let camera_v = camera.screen_v;
             let pixel = camera_pos + camera_dir + camera_u * u0 + camera_v * v0;
             let ray = Ray{ orig: camera_pos, dir: pixel - camera_pos };
+
             self.num_rays_sampling.fetch_add(1, Ordering::SeqCst);
+
             let c = self.calc_ray_color(ray, false, 0);
-            pmap.insert(key, c);
+            if self.opt.adaptive_sampling != 0 {
+                pmap.insert(key, c);
+            }
             c
         };
-        let mut c00 = calc_one_corner(pos_u,      pos_v);
-        let mut c01 = calc_one_corner(pos_u,      pos_v + dv);
-        let mut c10 = calc_one_corner(pos_u + du, pos_v);
-        let mut c11 = calc_one_corner(pos_u + du, pos_v + dv);
+        if self.opt.adaptive_sampling == 0 {
+            return calc_one_ray(pos_u + du / 2.0, pos_v + dv / 2.0);
+        }
+        let mut c00 = calc_one_ray(pos_u,      pos_v);
+        let mut c01 = calc_one_ray(pos_u,      pos_v + dv);
+        let mut c10 = calc_one_ray(pos_u + du, pos_v);
+        let mut c11 = calc_one_ray(pos_u + du, pos_v + dv);
 
         let color_diff = Self::corner_difference(c00, c01, c10, c11);
-        if self.opt.adaptive_sampling > 0 && color_diff && lvl >= self.opt.adaptive_max_depth {
+        if color_diff && lvl >= self.opt.adaptive_max_depth {
             self.hit_max_level.fetch_add(1, Ordering::SeqCst);
         }
-        if self.opt.adaptive_sampling > 0 && lvl < self.opt.adaptive_max_depth && color_diff {
+        if lvl < self.opt.adaptive_max_depth && color_diff {
             let du2 = du / 2.0;
             let dv2 = dv / 2.0;
             c00 = self.calc_ray_box(pmap, pos_u,       pos_v,       du2, dv2, lvl + 1);
