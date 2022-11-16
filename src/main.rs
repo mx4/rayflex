@@ -1,4 +1,5 @@
 use structopt::StructOpt;
+use std::sync::atomic::{AtomicBool, Ordering};
 use serde_json;
 use rand::Rng;
 use std::fs;
@@ -26,6 +27,8 @@ use three_d::Material;
 use three_d::Object;
 use three_d::Sphere;
 use three_d::Plane;
+
+static CTRLC_HIT : AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone, Copy)]
 struct RenderStats {
@@ -272,9 +275,9 @@ impl RenderJob {
         let num_rays_sampling = stats.num_rays_sampling;
         let num_rays_reflection = stats.num_rays_reflection;
         let num_rays_hit_max_level = stats.num_rays_hit_max_level;
-        println!("num_rays_sampling:   {:8} {}%", num_rays_sampling, 100 * num_rays_sampling / num_pixels);
-        println!("num_rays_reflection: {:8} {}%", num_rays_reflection, 100 * num_rays_reflection / num_rays_sampling);
-        println!("num_rays_max_level:  {:8} {}%", num_rays_hit_max_level, 100 * num_rays_hit_max_level / num_rays_sampling);
+        println!("num_rays_sampling:   {:12} {}%", num_rays_sampling, 100 * num_rays_sampling / num_pixels);
+        println!("num_rays_reflection: {:12} {}%", num_rays_reflection, 100 * num_rays_reflection / num_rays_sampling);
+        println!("num_rays_max_level:  {:12} {}%", num_rays_hit_max_level, 100 * num_rays_hit_max_level / num_rays_sampling);
         println!("{:.2} usec per ray", elapsed.as_micros() as f64 / (num_rays_sampling + num_rays_reflection) as f64);
     }
 
@@ -312,9 +315,14 @@ impl RenderJob {
         let total_stats = Mutex::new(RenderStats::new());
 
         (0..ny*nx).into_par_iter().for_each(|v| {
+            let mut stats = RenderStats::new();
             let x = (v % nx) * step;
             let y = (v / nx) * step;
-            let mut stats = RenderStats::new();
+
+            if CTRLC_HIT.load(Ordering::SeqCst) {
+                pb.inc(1);
+                return;
+            }
             self.render_pixel_box(x, y, step, step, &mut stats);
             pb.inc(1);
             total_stats.lock().unwrap().add(stats);
@@ -582,6 +590,11 @@ fn main() -> std::io::Result<()> {
     let opt = Options::from_args();
 
     let mut job = RenderJob::new(opt);
+
+     ctrlc::set_handler(move || {
+         CTRLC_HIT.store(true, Ordering::SeqCst);
+     })
+     .expect("Error setting Ctrl-C handler");
 
     if job.opt.num_spheres_to_generate != 0 {
         return generate_scene(job.opt.num_spheres_to_generate, job.opt.scene_file, job.opt.use_box > 0);
