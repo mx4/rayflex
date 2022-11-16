@@ -225,17 +225,18 @@ impl RenderJob {
         let mut c10 = calc_one_ray(pos_u + du, pos_v);
         let mut c11 = calc_one_ray(pos_u + du, pos_v + dv);
 
-        let color_diff = Self::corner_difference(c00, c01, c10, c11);
-        if color_diff && lvl >= self.opt.adaptive_max_depth {
+        if lvl < self.opt.adaptive_max_depth {
+            let color_diff = Self::corner_difference(c00, c01, c10, c11);
+            if color_diff {
+                let du2 = du / 2.0;
+                let dv2 = dv / 2.0;
+                c00 = self.calc_ray_box(pmap, pos_u,       pos_v,       du2, dv2, lvl + 1);
+                c01 = self.calc_ray_box(pmap, pos_u,       pos_v + dv2, du2, dv2, lvl + 1);
+                c10 = self.calc_ray_box(pmap, pos_u + du2, pos_v,       du2, dv2, lvl + 1);
+                c11 = self.calc_ray_box(pmap, pos_u + du2, pos_v + dv2, du2, dv2, lvl + 1);
+            }
+        } else {
             self.hit_max_level.fetch_add(1, Ordering::SeqCst);
-        }
-        if lvl < self.opt.adaptive_max_depth && color_diff {
-            let du2 = du / 2.0;
-            let dv2 = dv / 2.0;
-            c00 = self.calc_ray_box(pmap, pos_u,       pos_v,       du2, dv2, lvl + 1);
-            c01 = self.calc_ray_box(pmap, pos_u,       pos_v + dv2, du2, dv2, lvl + 1);
-            c10 = self.calc_ray_box(pmap, pos_u + du2, pos_v,       du2, dv2, lvl + 1);
-            c11 = self.calc_ray_box(pmap, pos_u + du2, pos_v + dv2, du2, dv2, lvl + 1);
         }
         (c00 + c01 + c10 + c11) * 0.25
     }
@@ -246,11 +247,11 @@ impl RenderJob {
         println!("num_intersects Sphere: {}", Sphere::get_num_intersects());
         println!("num_intersects Plane:  {}", Plane::get_num_intersects());
 
-        let num_pixels = self.opt.res_x * self.opt.res_y;
+        let num_pixels = (self.opt.res_x * self.opt.res_y) as u64;
         let num_rays_sampling = self.num_rays_sampling.load(Ordering::SeqCst);
         let num_rays_reflection = self.num_rays_reflection.load(Ordering::SeqCst);
         let hit_max_level = self.hit_max_level.load(Ordering::SeqCst);
-        println!("sampling: {} rays {}%", num_rays_sampling, 100 * num_rays_sampling / num_pixels as u64);
+        println!("sampling: {} rays {}%", num_rays_sampling, 100 * num_rays_sampling / num_pixels);
         if num_rays_sampling > 0 {
             println!("reflection: {} rays {}%", num_rays_reflection, 100 * num_rays_reflection / num_rays_sampling);
             println!("{} sample rays hit max-depth {}%", hit_max_level, 100 * hit_max_level / num_rays_sampling);
@@ -263,14 +264,14 @@ impl RenderJob {
         let v = 1.0;
         let du = u / self.opt.res_x as f64;
         let dv = v / self.opt.res_y as f64;
-        let ymax = std::cmp::min(y0 + ny, self.opt.res_y);
-        let xmax = std::cmp::min(x0 + nx, self.opt.res_x);
+        let y_max = std::cmp::min(y0 + ny, self.opt.res_y);
+        let x_max = std::cmp::min(x0 + nx, self.opt.res_x);
 
         let mut pmap = HashMap::new();
 
-        for y in y0..ymax {
+        for y in y0..y_max {
             let pos_v = v / 2.0 - (y as f64) * dv;
-            for x in x0..xmax {
+            for x in x0..x_max {
                 let pos_u = u / 2.0 - (x as f64) * du;
                 let c = self.calc_ray_box(&mut pmap, pos_u, pos_v, du, dv, 0);
 
@@ -285,8 +286,8 @@ impl RenderJob {
         assert!(self.camera.is_some());
 
         let step = 64;
-        let ny = self.opt.res_y / step;
-        let nx = self.opt.res_x / step;
+        let ny = (self.opt.res_y + step - 1) / step;
+        let nx = (self.opt.res_x + step - 1) / step;
         let pb = ProgressBar::new((nx * ny) as u64);
         (0..ny).into_par_iter().for_each(|y| {
             (0..nx).into_par_iter().for_each(|x| {
