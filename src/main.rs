@@ -259,7 +259,7 @@ impl RenderJob {
         }
     }
 
-    fn render_box(&self, x0: u32, y0: u32, nx: u32, ny: u32) {
+    fn render_pixel_box(&self, x0: u32, y0: u32, nx: u32, ny: u32) {
         let u = 1.0;
         let v = 1.0;
         let du = u / self.opt.res_x as f64;
@@ -289,11 +289,12 @@ impl RenderJob {
         let ny = (self.opt.res_y + step - 1) / step;
         let nx = (self.opt.res_x + step - 1) / step;
         let pb = ProgressBar::new((nx * ny) as u64);
-        (0..ny).into_par_iter().for_each(|y| {
-            (0..nx).into_par_iter().for_each(|x| {
-                self.render_box(x * step, y * step, step, step);
-                pb.inc(1);
-            });
+
+        (0..ny*nx).into_par_iter().for_each(|v| {
+            let x = (v % nx) * step;
+            let y = (v / nx) * step;
+            self.render_pixel_box(x, y, step, step);
+            pb.inc(1);
         });
 
         pb.finish_with_message("done");
