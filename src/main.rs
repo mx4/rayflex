@@ -265,19 +265,17 @@ impl RenderJob {
     fn print_stats(&self, start_time: Instant, stats: RenderStats) {
         let elapsed = start_time.elapsed();
         println!("duration: {} sec", elapsed.as_millis() as f64 / 1000.0);
-        println!("num_intersects Sphere: {}", stats.num_intersects_sphere);
-        println!("num_intersects Plane:  {}", stats.num_intersects_plane);
+        println!("num_intersects Sphere: {:10}", stats.num_intersects_sphere);
+        println!("num_intersects Plane:  {:10}", stats.num_intersects_plane);
 
         let num_pixels = (self.opt.res_x * self.opt.res_y) as u64;
         let num_rays_sampling = stats.num_rays_sampling;
         let num_rays_reflection = stats.num_rays_reflection;
         let num_rays_hit_max_level = stats.num_rays_hit_max_level;
-        println!("sampling: {} rays {}%", num_rays_sampling, 100 * num_rays_sampling / num_pixels);
-        if num_rays_sampling > 0 {
-            println!("reflection: {} rays {}%", num_rays_reflection, 100 * num_rays_reflection / num_rays_sampling);
-            println!("{} sample rays hit max-depth {}%", num_rays_hit_max_level, 100 * num_rays_hit_max_level / num_rays_sampling);
-            println!("{:.2} usec per ray", elapsed.as_micros() as f64 / (num_rays_sampling + num_rays_reflection) as f64);
-        }
+        println!("num_rays_sampling:   {:8} {}%", num_rays_sampling, 100 * num_rays_sampling / num_pixels);
+        println!("num_rays_reflection: {:8} {}%", num_rays_reflection, 100 * num_rays_reflection / num_rays_sampling);
+        println!("num_rays_max_level:  {:8} {}%", num_rays_hit_max_level, 100 * num_rays_hit_max_level / num_rays_sampling);
+        println!("{:.2} usec per ray", elapsed.as_micros() as f64 / (num_rays_sampling + num_rays_reflection) as f64);
     }
 
     fn render_pixel_box(&self, x0: u32, y0: u32, nx: u32, ny: u32, stats: &mut RenderStats) {
