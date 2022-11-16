@@ -93,22 +93,22 @@ impl RenderJob {
         if depth > self.cfg.reflection_max_depth {
             return RGB::new();
         }
-        let (mut hitx, mut hity) : (f64,f64) = (0.0, 0.0);
         let mut t = f64::MAX;
-        let mut raylen = 0.0001;
+        let mut tmin = 0.0001;
         if depth == 0 {
-            raylen = ray.dir.norm();
+            tmin = ray.dir.norm();
         }
 
         let hit_obj = self.objects.iter().filter(|obj| {
             stats.intersect_obj(obj.is_sphere());
-            obj.intercept(&ray, raylen, &mut t)
+            obj.intercept(&ray, tmin, &mut t)
         }).fold(None, |_acc, obj| Some(obj));
 
         if hit_obj.is_some() {
             let hit_point = ray.orig + ray.dir * t;
             let hit_normal = hit_obj.clone().unwrap().get_normal(hit_point);
             let hit_material = hit_obj.clone().unwrap().get_material();
+            let (mut hitx, mut hity) = (0.0, 0.0);
             if hit_material.checkered {
                 (hitx, hity) = hit_obj.clone().unwrap().get_texture_2d(hit_point);
             }
@@ -218,7 +218,7 @@ impl RenderJob {
     fn print_stats(&self, start_time: Instant, stats: RenderStats) {
         let elapsed = start_time.elapsed();
         let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as f64 / 1000.0);
-        let ray_lat_str = format!("{:.2} usec", elapsed.as_micros() as f64 / (stats.num_rays_sampling + stats.num_rays_reflection) as f64);
+        let ray_lat_str = format!("{:.3} usec", elapsed.as_micros() as f64 / (stats.num_rays_sampling + stats.num_rays_reflection) as f64);
         println!("duration: {} -- {} per ray", tot_lat_str.bold(), ray_lat_str.bold());
         println!("num_intersects Sphere: {:10}", stats.num_intersects_sphere);
         println!("num_intersects Plane:  {:10}", stats.num_intersects_plane);
