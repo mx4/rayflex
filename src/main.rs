@@ -180,7 +180,7 @@ impl RenderJob {
         c
     }
 
-    fn corner_difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> bool {
+    fn color_difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> bool {
         let avg = (c00 + c01 + c10 + c11) * 0.25;
         let d = avg.distance2(c00) + avg.distance2(c01) + avg.distance2(c10) + avg.distance2(c11);
         d > 0.3
@@ -188,26 +188,20 @@ impl RenderJob {
         //d > 0.5
     }
 
-    fn calc_one_ray(&self, pmap: &mut HashMap<String,RGB>, u0: f64, v0: f64) -> RGB {
-        let key = format!("{}-{}", u0, v0);
-
+    fn calc_one_ray(&self, pmap: &mut HashMap<String,RGB>, u: f64, v: f64) -> RGB {
         if self.opt.adaptive_sampling != 0 {
+            let key = format!("{}-{}", u, v);
             if let Some(c) = pmap.get(&key) {
                 return *c;
             }
         }
-        let camera = self.camera.as_ref().unwrap();
-        let camera_pos = camera.pos;
-        let camera_dir = camera.dir;
-        let camera_u = camera.screen_u;
-        let camera_v = camera.screen_v;
-        let pixel = camera_pos + camera_dir + camera_u * u0 + camera_v * v0;
-        let ray = Ray{ orig: camera_pos, dir: pixel - camera_pos };
+        let ray = self.camera.as_ref().unwrap().get_ray(u, v);
 
         self.num_rays_sampling.fetch_add(1, Ordering::SeqCst);
 
         let c = self.calc_ray_color(ray, false, 0);
         if self.opt.adaptive_sampling != 0 {
+            let key = format!("{}-{}", u, v);
             pmap.insert(key, c);
         }
         c
@@ -227,7 +221,7 @@ impl RenderJob {
         let mut c11 = self.calc_one_ray(pmap, pos_u + du, pos_v + dv);
 
         if lvl < self.opt.adaptive_max_depth {
-            let color_diff = Self::corner_difference(c00, c01, c10, c11);
+            let color_diff = Self::color_difference(c00, c01, c10, c11);
             if color_diff {
                 let du2 = du / 2.0;
                 let dv2 = dv / 2.0;
@@ -566,7 +560,7 @@ fn main() -> std::io::Result<()> {
     }
 
     print_opt(&job.opt);
-    println!("{} threads", rayon::current_num_threads());
+    println!("num_threads: {}", rayon::current_num_threads());
 
     job.load_scene()?;
     job.render_scene();

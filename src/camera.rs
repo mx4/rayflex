@@ -1,5 +1,6 @@
 use crate::vec3::Vec3;
 use crate::vec3::Point;
+use crate::Ray;
 
 #[derive(Debug)]
 pub struct Camera {
@@ -17,6 +18,12 @@ impl Camera {
         let sc_v = dir.vector_product(sc_u);
 
         Self { pos: pos, dir: d, screen_u: sc_u, screen_v: sc_v }
+    }
+    // u0: -0.5 .. 0.5
+    // v0: -0.5 .. 0.5
+    pub fn get_ray(&self, u: f64, v: f64) -> Ray {
+        let pixel = self.pos + self.dir + self.screen_u * u + self.screen_v * v;
+        Ray{ orig: self.pos, dir: pixel - self.pos }
     }
     pub fn display(&self) {
         println!("camera: pos: {:?}", self.pos);
