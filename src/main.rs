@@ -62,7 +62,6 @@ struct RenderJob {
     objects: Vec<Arc<Box<dyn Object + 'static + Send + Sync>>>,
     lights: Vec<Arc<Box<dyn Light + 'static + Send + Sync>>>,
     image: Mutex<Image>,
-    pmap: Mutex<HashMap<String,RGB>>,
     num_rays_sampling: AtomicU64,
     num_rays_reflection: AtomicU64,
     hit_max_level: AtomicU64,
@@ -76,7 +75,6 @@ impl RenderJob {
             image: Mutex::new(Image::new(0, 0)),
             objects: vec![],
             lights: vec![],
-            pmap: Mutex::new(HashMap::new()),
             opt : opt,
             num_rays_sampling: AtomicU64::new(0),
             num_rays_reflection: AtomicU64::new(0),
@@ -206,23 +204,23 @@ impl RenderJob {
      * pos_u: -0.5 .. 0.5
      * pos_v: -0.5 .. 0.5
      */
-    fn calc_ray_box(&self, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
+    fn calc_ray_box(&self, pmap: &mut HashMap<String,RGB>, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
         let camera = self.camera.as_ref().unwrap();
         let camera_pos = camera.pos;
         let camera_dir = camera.dir;
         let camera_u = camera.screen_u;
         let camera_v = camera.screen_v;
 
-        let calc_one_corner = |u0, v0| -> RGB {
+        let mut calc_one_corner = |u0, v0| -> RGB {
             let key = format!("{}-{}", u0, v0);
-            if let Some(c) = self.pmap.lock().unwrap().get(&key) {
+            if let Some(c) = pmap.get(&key) {
                 return *c;
             }
             let pixel = camera_pos + camera_dir + camera_u * u0 + camera_v * v0;
             let ray = Ray{ orig: camera_pos, dir: pixel - camera_pos };
             self.num_rays_sampling.fetch_add(1, Ordering::SeqCst);
             let c = self.calc_ray_color(ray, false, 0);
-            self.pmap.lock().unwrap().insert(key, c);
+            pmap.insert(key, c);
             c
         };
         let mut c00 = calc_one_corner(pos_u,      pos_v);
@@ -237,10 +235,10 @@ impl RenderJob {
         if self.opt.adaptive_sampling > 0 && lvl < self.opt.adaptive_max_depth && color_diff {
             let du2 = du / 2.0;
             let dv2 = dv / 2.0;
-            c00 = self.calc_ray_box(pos_u,       pos_v,       du2, dv2, lvl + 1);
-            c01 = self.calc_ray_box(pos_u,       pos_v + dv2, du2, dv2, lvl + 1);
-            c10 = self.calc_ray_box(pos_u + du2, pos_v,       du2, dv2, lvl + 1);
-            c11 = self.calc_ray_box(pos_u + du2, pos_v + dv2, du2, dv2, lvl + 1);
+            c00 = self.calc_ray_box(pmap, pos_u,       pos_v,       du2, dv2, lvl + 1);
+            c01 = self.calc_ray_box(pmap, pos_u,       pos_v + dv2, du2, dv2, lvl + 1);
+            c10 = self.calc_ray_box(pmap, pos_u + du2, pos_v,       du2, dv2, lvl + 1);
+            c11 = self.calc_ray_box(pmap, pos_u + du2, pos_v + dv2, du2, dv2, lvl + 1);
         }
         (c00 + c01 + c10 + c11) * 0.25
     }
@@ -271,11 +269,13 @@ impl RenderJob {
         let ymax = std::cmp::min(y0 + ny, self.opt.res_y);
         let xmax = std::cmp::min(x0 + nx, self.opt.res_x);
 
+        let mut pmap = HashMap::new();
+
         for y in y0..ymax {
             let pos_v = v / 2.0 - (y as f64) * dv;
             for x in x0..xmax {
                 let pos_u = u / 2.0 - (x as f64) * du;
-                let c = self.calc_ray_box(pos_u, pos_v, du, dv, 0);
+                let c = self.calc_ray_box(&mut pmap, pos_u, pos_v, du, dv, 0);
 
                 self.image.lock().unwrap().push_pixel(x, y, c);
             }
