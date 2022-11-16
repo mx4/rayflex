@@ -245,40 +245,63 @@ impl RenderJob {
         (c00 + c01 + c10 + c11) * 0.25
     }
 
-    pub fn render_scene(&mut self) {
-        let pb = ProgressBar::new(self.opt.res_y as u64);
-        self.image = Mutex::new(Image::new(self.opt.res_x, self.opt.res_y));
-        let start_time = Instant::now();
-        assert!(self.camera.is_some());
-        let u = 1.0;
-        let v = 1.0;
-        let du = u / self.opt.res_x as f64;
-        let dv = v / self.opt.res_y as f64;
-
-        (0..self.opt.res_y).into_par_iter().for_each(|i| {
-            let mut pos_u = u / 2.0;
-            let pos_v = v / 2.0 - (i as f64) * dv;
-            for j in 0..self.opt.res_x {
-                let c = self.calc_ray_box(pos_u, pos_v, du, dv, 0);
-
-                self.image.lock().unwrap().push_pixel(j, i, c);
-                pos_u -= du;
-            }
-            pb.inc(1);
-        });
-        pb.finish_with_message("done");
+    fn print_stats(&self, start_time: Instant) {
         let elapsed = start_time.elapsed();
         println!("duration: {} sec", elapsed.as_millis() as f64 / 1000.0);
         println!("num_intersects Sphere: {}", Sphere::get_num_intersects());
         println!("num_intersects Plane:  {}", Plane::get_num_intersects());
 
         let num_pixels = self.opt.res_x * self.opt.res_y;
-        println!("sampling: {} rays {}%", self.num_rays_sampling.load(Ordering::SeqCst), 100 * self.num_rays_sampling.load(Ordering::SeqCst) / num_pixels as u64);
-        if self.num_rays_sampling.load(Ordering::SeqCst) > 0 {
-            println!("reflection: {} rays {}%", self.num_rays_reflection.load(Ordering::SeqCst), 100 * self.num_rays_reflection.load(Ordering::SeqCst) / self.num_rays_sampling.load(Ordering::SeqCst));
-            println!("{} sample rays hit max-depth {}%", self.hit_max_level.load(Ordering::SeqCst), 100 * self.hit_max_level.load(Ordering::SeqCst) / self.num_rays_sampling.load(Ordering::SeqCst));
+        let num_rays_sampling = self.num_rays_sampling.load(Ordering::SeqCst);
+        let num_rays_reflection = self.num_rays_reflection.load(Ordering::SeqCst);
+        let hit_max_level = self.hit_max_level.load(Ordering::SeqCst);
+        println!("sampling: {} rays {}%", num_rays_sampling, 100 * num_rays_sampling / num_pixels as u64);
+        if num_rays_sampling > 0 {
+            println!("reflection: {} rays {}%", num_rays_reflection, 100 * num_rays_reflection / num_rays_sampling);
+            println!("{} sample rays hit max-depth {}%", hit_max_level, 100 * hit_max_level / num_rays_sampling);
+            println!("{:.2} usec per ray", elapsed.as_micros() as f64 / (num_rays_sampling + num_rays_reflection) as f64);
         }
     }
+
+    fn render_box(&self, x0: u32, y0: u32, nx: u32, ny: u32) {
+        let u = 1.0;
+        let v = 1.0;
+        let du = u / self.opt.res_x as f64;
+        let dv = v / self.opt.res_y as f64;
+        let ymax = std::cmp::min(y0 + ny, self.opt.res_y);
+        let xmax = std::cmp::min(x0 + nx, self.opt.res_x);
+
+        for y in y0..ymax {
+            let pos_v = v / 2.0 - (y as f64) * dv;
+            for x in x0..xmax {
+                let pos_u = u / 2.0 - (x as f64) * du;
+                let c = self.calc_ray_box(pos_u, pos_v, du, dv, 0);
+
+                self.image.lock().unwrap().push_pixel(x, y, c);
+            }
+        }
+    }
+
+    pub fn render_scene(&mut self) {
+        self.image = Mutex::new(Image::new(self.opt.res_x, self.opt.res_y));
+        let start_time = Instant::now();
+        assert!(self.camera.is_some());
+
+        let step = 64;
+        let ny = self.opt.res_y / step;
+        let nx = self.opt.res_x / step;
+        let pb = ProgressBar::new((nx * ny) as u64);
+        (0..ny).into_par_iter().for_each(|y| {
+            (0..nx).into_par_iter().for_each(|x| {
+                self.render_box(x * step, y * step, step, step);
+                pb.inc(1);
+            });
+        });
+
+        pb.finish_with_message("done");
+        self.print_stats(start_time);
+    }
+
     fn get_json_reflectivity(json: &serde_json::Value, key: String) -> f32 {
         let mut r : f32 = 0.0;
         if let Some(v) = json[&key].as_f64() {
