@@ -267,18 +267,14 @@ impl RenderJob {
 
     fn print_stats(&self, start_time: Instant, stats: RenderStats) {
         let elapsed = start_time.elapsed();
-        println!("duration: {} sec", elapsed.as_millis() as f64 / 1000.0);
+        println!("duration: {} sec -- {:.2} usec per ray", elapsed.as_millis() as f64 / 1000.0, elapsed.as_micros() as f64 / (stats.num_rays_sampling + stats.num_rays_reflection) as f64);
         println!("num_intersects Sphere: {:10}", stats.num_intersects_sphere);
         println!("num_intersects Plane:  {:10}", stats.num_intersects_plane);
 
         let num_pixels = (self.opt.res_x * self.opt.res_y) as u64;
-        let num_rays_sampling = stats.num_rays_sampling;
-        let num_rays_reflection = stats.num_rays_reflection;
-        let num_rays_hit_max_level = stats.num_rays_hit_max_level;
-        println!("num_rays_sampling:   {:12} {}%", num_rays_sampling, 100 * num_rays_sampling / num_pixels);
-        println!("num_rays_reflection: {:12} {}%", num_rays_reflection, 100 * num_rays_reflection / num_rays_sampling);
-        println!("num_rays_max_level:  {:12} {}%", num_rays_hit_max_level, 100 * num_rays_hit_max_level / num_rays_sampling);
-        println!("{:.2} usec per ray", elapsed.as_micros() as f64 / (num_rays_sampling + num_rays_reflection) as f64);
+        println!("num_rays_sampling:   {:12} {}%", stats.num_rays_sampling, 100 * stats.num_rays_sampling / num_pixels);
+        println!("num_rays_reflection: {:12} {}%", stats.num_rays_reflection, 100 * stats.num_rays_reflection / stats.num_rays_sampling);
+        println!("num_rays_max_level:  {:12} {}%", stats.num_rays_hit_max_level, 100 * stats.num_rays_hit_max_level / stats.num_rays_sampling);
     }
 
     fn render_pixel_box(&self, x0: u32, y0: u32, nx: u32, ny: u32, stats: &mut RenderStats) {
@@ -458,13 +454,13 @@ impl RenderJob {
         {
             num_spheres = json["num_spheres"].as_u64().unwrap();
             for i in 0..num_spheres {
-                let name  = format!("sphere.{}.center", i);
-                let rname = format!("sphere.{}.radius", i);
-                let cname = format!("sphere.{}.color", i);
-                let aname = format!("sphere.{}.albedo", i);
-                let tname = format!("sphere.{}.checkered", i);
+                let name    = format!("sphere.{}.center", i);
+                let rname   = format!("sphere.{}.radius", i);
+                let cname   = format!("sphere.{}.color", i);
+                let aname   = format!("sphere.{}.albedo", i);
+                let tname   = format!("sphere.{}.checkered", i);
                 let refname = format!("sphere.{}.reflectivity", i);
-                let oname = format!("sphere.{}", i);
+                let oname   = format!("sphere.{}", i);
                 let radius = json[&rname].as_f64().unwrap();
                 let center    = Self::get_json_vec3(&json, name);
                 let rgb       = Self::get_json_color(&json, cname);
@@ -475,8 +471,8 @@ impl RenderJob {
                 self.objects.push(Arc::new(Box::new(Sphere::new(oname, center, radius, material))));
             }
         }
-        println!("resolution: {}x{}", self.opt.res_x, self.opt.res_y);
-        println!("Scene has {} objects: num_spheres={} num_planes={}", self.objects.len(), num_spheres, num_planes);
+        println!("img resolution: {}x{}", self.opt.res_x, self.opt.res_y);
+        println!("{} objects: num_spheres={} num_planes={}", self.objects.len(), num_spheres, num_planes);
         self.camera.as_ref().unwrap().display();
         for light in &self.lights {
             light.display();

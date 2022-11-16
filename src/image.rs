@@ -24,7 +24,6 @@ impl Image {
     }
     pub fn save_image(&mut self, file: PathBuf, use_gamma: bool) -> std::io::Result<()> {
         let start_time = Instant::now();
-        println!("saving result to {:?}", file);
 
         let mut img = RgbImage::new(self.res_x, self.res_y);
 
@@ -47,9 +46,9 @@ impl Image {
                 img.put_pixel(j, i, Rgb([r, g, b]));
 	    }
 	}
-        img.save(file).expect("png write");
+        img.save(file.clone()).expect("png write");
         let elapsed = start_time.elapsed();
-        println!("writing img took {} sec", elapsed.as_millis() as f64 / 1000.0);
+        println!("writing '{}' took {} sec", file.display(), elapsed.as_millis() as f64 / 1000.0);
         Ok(())
     }
 }
