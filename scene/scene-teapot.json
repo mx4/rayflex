@@ -1,0 +1,79 @@
+{
+  "ambient": {
+    "intensity": 0.10000000149011612,
+    "name": "ambient",
+    "rgb": {
+      "b": 1.0,
+      "g": 1.0,
+      "r": 1.0
+    }
+  },
+  "camera": {
+    "dir": {
+      "x": 0.9950371902099893,
+      "y": 0.0,
+      "z": -0.3
+    },
+    "pos": {
+      "x": 0.5,
+      "y": -0.5,
+      "z": 3.0
+    }
+  },
+  "num_objs": 1,
+  "num_planes": 0,
+  "num_spheres": 0,
+  "num_spot_lights": 2,
+  "num_triangles": 0,
+  "num_vec_lights": 1,
+  "obj.0.path": "obj/teapot.obj",
+  "obj.0.rotx": -1.5,
+  "obj.0.roty": 0,
+  "obj.0.rotz": 0,
+  "resolution": [
+    400,
+    400
+  ],
+  "spot-light.0": {
+    "intensity": 500.0,
+    "name": "spot-light.0",
+    "pos": {
+      "x": 0,
+      "y": 4,
+      "z": 0.0
+    },
+    "rgb": {
+      "b": 0.8,
+      "g": 0.8,
+      "r": 1.0
+    }
+  },
+  "spot-light.1": {
+    "intensity": 600.0,
+    "name": "spot-light.1",
+    "pos": {
+      "x": 0,
+      "y": -4.0,
+      "z": 6.0
+    },
+    "rgb": {
+      "b": 0.800000011920929,
+      "g": 0.30000001192092896,
+      "r": 0.800000011920929
+    }
+  },
+  "vec-light.0": {
+    "dir": {
+      "x": 0.5,
+      "y": 0.5,
+      "z": -0.5
+    },
+    "intensity": 3.5,
+    "name": "vec-light.0",
+    "rgb": {
+      "b": 1.0,
+      "g": 1.0,
+      "r": 1.0
+    }
+  }
+}

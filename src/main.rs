@@ -28,7 +28,7 @@ static CTRLC_HIT : AtomicBool = AtomicBool::new(false);
 struct Options {
     #[structopt(long, default_value = "pic.png")]
     img_file: PathBuf,
-    #[structopt(long, default_value = "scene.json")]
+    #[structopt(short="l", long, default_value = "scene.json")]
     scene_file: PathBuf,
      #[structopt(short="x", long, default_value = "0")]
     res_x: u32,
