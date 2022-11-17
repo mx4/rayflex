@@ -114,36 +114,27 @@ impl RenderJob {
                 hit_text2d = hit_obj.clone().unwrap().get_texture_2d(hit_point);
             }
             let mut c = self.lights.iter().fold(RGB::new(), |acc, light| {
-                let mut c_light = RGB::new();
-                let c_res = hit_material.rgb * light.get_color() * light.get_intensity();
+                let c_light;
 
-                if light.is_ambient() {
-                    c_light = c_res;
-                } else if light.is_vector() {
-                    let light_vec = light.get_vector(hit_point) * -1.0;
-                    let mut v_prod = hit_normal.dot(light_vec) as f32;
-                    v_prod = v_prod.min(0.0); // only show visible side
-                    c_light = c_res * v_prod.powi(4);
+                if ! light.is_spot() {
+                    c_light = light.get_contrib(&hit_material, hit_point, hit_normal);
                 } else {
-                    assert!(light.is_spot());
                     let light_vec = light.get_vector(hit_point) * -1.0;
-                    let light_vec_norm = light_vec.normalize();
                     let light_ray = Ray{orig: hit_point, dir: light_vec};
                     let mut t = 1.0;
                     let shadow = self.objects.iter().find(|obj| obj.intercept(&light_ray, 0.0001, &mut t)).is_some();
 
-                    if !shadow {
-                        let dist_sq = light_vec.dot(light_vec) as f32;
-                        let mut v_prod = hit_normal.dot(light_vec_norm) as f32;
-                        v_prod = v_prod.max(0.0); // only show visible side
-                        let pi = std::f32::consts::PI;
-                        c_light = c_res * v_prod.powi(4) / (1.0 + 4.0 * pi * dist_sq);
+                    if shadow {
+                        c_light = RGB::new();
+                    } else {
+                        c_light = light.get_contrib(&hit_material, hit_point, hit_normal);
                     }
                 }
-                assert!(hit_material.albedo >= 0.0);
                 acc + c_light * hit_material.albedo
             });
+
             c = hit_material.do_checker(c, hit_text2d);
+
             if self.cfg.use_reflection && hit_material.reflectivity > 0.0 {
                 stats.num_rays_reflection += 1;
                 let reflected_vec = ray.dir.reflect(hit_normal);
@@ -153,12 +144,9 @@ impl RenderJob {
             }
             c
         } else {
-	    let mut z = (ray.dir.z + 0.5) as f32;
-            z = z.clamp(0.0, 1.0);
+	    let z = (ray.dir.z + 0.5).clamp(0.0, 1.0) as f32;
 	    let cmax = RGB{ r: 1.0, g: 1.0, b: 1.0 };
 	    let cyan = RGB{ r: 0.4, g: 0.6, b: 0.9 };
-            assert!(z >= 0.0);
-            assert!(z <= 1.0);
             cmax * (1.0 - z) + cyan * z
         }
     }
