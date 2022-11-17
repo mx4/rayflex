@@ -315,6 +315,7 @@ impl RenderJob {
         let num_planes;
         let num_spheres;
         let num_triangles;
+        let mut num_obj_triangles = 0;
 
         if self.cfg.res_x == 0 && self.cfg.res_y == 0 {
             if let Some(array) = json[&"resolution".to_string()].as_array() {
@@ -322,6 +323,12 @@ impl RenderJob {
                 self.cfg.res_y = array[1].as_u64().unwrap() as u32;
             }
         }
+        let res_str = format!("{}x{}", self.cfg.res_x, self.cfg.res_y).bold();
+        let mut smp_str = format!("").cyan();
+        if self.cfg.use_adaptive_sampling {
+            smp_str = format!(" w/ adaptive sampling").cyan();
+        }
+        println!("-- img resolution: {}{}", res_str, smp_str);
         {
             let mut camera : Camera = serde_json::from_value(json["camera"].clone()).unwrap();
             camera.calc_uv_after_deserialize();
@@ -395,6 +402,22 @@ impl RenderJob {
                 let name    = format!("obj.{}.path", i);
                 let path = json[&name].as_str().unwrap();
                 let model = wavefront::Obj::from_file(path).unwrap();
+                let mut angle_x = 0.0;
+                let mut angle_y = 0.0;
+                let mut angle_z = 0.0;
+                let rname = format!("obj.{}.rotx", i);
+                if let Some(v) = json[&rname].as_f64() {
+                    angle_x = v;
+                }
+                let rname = format!("obj.{}.roty", i);
+                if let Some(v) = json[&rname].as_f64() {
+                    angle_y = v;
+                }
+                let rname = format!("obj.{}.rotz", i);
+                if let Some(v) = json[&rname].as_f64() {
+                    angle_z = v;
+                }
+                let path = json[&name].as_str().unwrap();
                 let mut n = 0;
                 let material = Material {
                     rgb: RGB{ r: 1.0, g: 1.0, b: 1.0 },
@@ -406,21 +429,25 @@ impl RenderJob {
                     let a0 = a.position();
                     let b0 = b.position();
                     let c0 = c.position();
-                    let p0 = Point{ x: a0[0] as f64, y: a0[1] as f64, z: a0[2] as f64};
-                    let p1 = Point{ x: b0[0] as f64, y: b0[1] as f64, z: b0[2] as f64};
-                    let p2 = Point{ x: c0[0] as f64, y: c0[1] as f64, z: c0[2] as f64};
-                    let s = format!("obj.{}.triangle.{}", i, n);
+                    let mut p0 = Point{ x: a0[0] as f64, y: a0[1] as f64, z: a0[2] as f64};
+                    let mut p1 = Point{ x: b0[0] as f64, y: b0[1] as f64, z: b0[2] as f64};
+                    let mut p2 = Point{ x: c0[0] as f64, y: c0[1] as f64, z: c0[2] as f64};
+                    p0 = p0.rotx(angle_x).roty(angle_y).rotz(angle_z);
+                    p1 = p1.rotx(angle_x).roty(angle_y).rotz(angle_z);
+                    p2 = p2.rotx(angle_x).roty(angle_y).rotz(angle_z);
                     n += 1;
                     let mut triangle = Triangle {
-                        name : s,
+                        name : format!("obj.{}.triangle.{}", i, n),
                         points: [ p0, p1, p2 ],
                         material: material.clone(),
                         has_normal: false, normal: Vec3::new(),
                     };
                     triangle.calc_normal();
+                    num_obj_triangles += 1;
                     self.objects.push(Arc::new(Box::new(triangle)));
                 }
-                println!("-- loaded {} w/ {} triangles", path, n);
+                println!("-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
+                        path.green(), n, angle_x, angle_y, angle_z);
             }
         }
         {
@@ -431,13 +458,7 @@ impl RenderJob {
                 self.objects.push(Arc::new(Box::new(triangle)));
             }
         }
-        let res_str = format!("{}x{}", self.cfg.res_x, self.cfg.res_y).bold();
-        let mut smp_str = format!("").cyan();
-        if self.cfg.use_adaptive_sampling {
-            smp_str = format!(" w/ adaptive sampling").cyan();
-        }
-        println!("img resolution: {}{}", res_str, smp_str);
-        println!("{} objects: num_triangles={} num_spheres={} num_planes={}", self.objects.len(), num_triangles, num_spheres, num_planes);
+        println!("-- {} objects: num_triangles={} num_spheres={} num_planes={}", self.objects.len(), num_triangles + num_obj_triangles, num_spheres, num_planes);
         self.camera.as_ref().unwrap().display();
 
         self.lights.iter().for_each(|light| light.display());

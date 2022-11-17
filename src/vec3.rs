@@ -76,6 +76,18 @@ impl Vec2 {
     }
 }
 
+pub struct Matrix3 {
+    mat: [f64; 9],
+}
+
+impl Matrix3 {
+    pub fn new() -> Matrix3 {
+        Matrix3 { mat : [1.0, 0.0, 0.0,
+                         0.0, 1.0, 0.0,
+                         0.0, 0.0, 1.0] }
+    }
+}
+
 impl Vec3 {
     pub fn new() -> Vec3 {
        Vec3{ x: 0.0, y: 0.0, z: 0.0 }
@@ -100,5 +112,45 @@ impl Vec3 {
             y : self.z * rhs.x - self.x * rhs.z,
             z : self.x * rhs.y - self.y * rhs.x,
         }
+    }
+    pub fn multiply(self, matrix: Matrix3) -> Vec3 {
+        let v0 = [ self.x, self.y , self.z];
+        let mut v = [ 0.0, 0.0, 0.0];
+        for i in 0..3 {
+            for j in 0..3 {
+                v[i] += v0[j] * matrix.mat[i + j * 3];
+            }
+        }
+        Vec3{ x: v[0], y: v[1], z: v[2] }
+    }
+    pub fn rotx(self, alpha: f64) -> Vec3 {
+        let cos = alpha.cos();
+        let sin = alpha.sin();
+        let m = Matrix3 {
+            mat : [1.0,  0.0, 0.0,
+                   0.0,  cos, -sin,
+                   0.0,  sin, cos]
+        };
+        self.multiply(m)
+    }
+    pub fn roty(self, alpha: f64) -> Vec3 {
+        let cos = alpha.cos();
+        let sin = alpha.sin();
+        let m = Matrix3 {
+            mat : [cos,  0.0, sin,
+                   0.0,  1.0, 0.0,
+                  -sin,  0.0, cos]
+        };
+        self.multiply(m)
+    }
+    pub fn rotz(self, alpha: f64) -> Vec3 {
+        let cos = alpha.cos();
+        let sin = alpha.sin();
+        let m = Matrix3 {
+            mat : [cos, -sin, 0.0,
+                   sin,  cos, 0.0,
+                   0.0,  0.0, 1.0]
+        };
+        self.multiply(m)
     }
 }
