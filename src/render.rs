@@ -1,4 +1,5 @@
 use std::sync::atomic::Ordering;
+use wavefront;
 use colored::Colorize;
 use serde_json;
 use std::fs;
@@ -11,6 +12,7 @@ use rayon::prelude::*;
 
 use raymax::color::RGB;
 use raymax::vec3::Vec3;
+use raymax::vec3::Point;
 use raymax::vec3::Vec2;
 use raymax::light::Light;
 use raymax::light::VectorLight;
@@ -379,6 +381,40 @@ impl RenderJob {
                 let r         = Self::get_json_reflectivity(&json, refname);
                 let material = Material { rgb: rgb, albedo: albedo, checkered: checkered, reflectivity: r };
                 self.objects.push(Arc::new(Box::new(Sphere::new(oname, center, radius, material))));
+            }
+        }
+        {
+            let num_objs = json["num_objs"].as_u64().unwrap();
+            for i in 0..num_objs {
+                let name    = format!("obj.{}.path", i);
+                let path = json[&name].as_str().unwrap();
+                let model = wavefront::Obj::from_file(path).unwrap();
+                let mut n = 0;
+                let material = Material {
+                    rgb: RGB{ r: 1.0, g: 1.0, b: 1.0 },
+                    albedo: 0.9,
+                    checkered: false,
+                    reflectivity: 0.0,
+                };
+                for [a, b, c] in model.triangles() {
+                    let a0 = a.position();
+                    let b0 = b.position();
+                    let c0 = c.position();
+                    let p0 = Point{ x: a0[0] as f64, y: a0[1] as f64, z: a0[2] as f64};
+                    let p1 = Point{ x: b0[0] as f64, y: b0[1] as f64, z: b0[2] as f64};
+                    let p2 = Point{ x: c0[0] as f64, y: c0[1] as f64, z: c0[2] as f64};
+                    let s = format!("obj.{}.triangle.{}", i, n);
+                    n += 1;
+                    let mut triangle = Triangle {
+                        name : s,
+                        points: [ p0, p1, p2 ],
+                        material: material.clone(),
+                        has_normal: false, normal: Vec3::new(),
+                    };
+                    triangle.calc_normal();
+                    self.objects.push(Arc::new(Box::new(triangle)));
+                }
+                println!("-- loaded {} w/ {} triangles", path, n);
             }
         }
         {

@@ -60,6 +60,17 @@ pub struct Triangle {
     pub name: String,
     pub points: [Point; 3],
     pub material: Material,
+    #[serde(skip)]
+    pub normal: Vec3,
+    #[serde(skip)]
+    pub has_normal: bool,
+}
+
+impl Triangle {
+    pub fn calc_normal(&mut self) {
+        self.normal = self.get_normal(Point::new());
+        self.has_normal = true;
+    }
 }
 
 impl Plane {
@@ -173,6 +184,9 @@ impl Object for Triangle {
         println!("{}: {:?} {:?} {:?}", self.name, self.points[0], self.points[1], self.points[2]);
     }
     fn get_normal(&self, _point: Point) -> Vec3 {
+        if self.has_normal {
+            return self.normal
+        }
         let edge1 = self.points[1] - self.points[0];
         let edge2 = self.points[2] - self.points[0];
         edge1.cross(edge2).normalize()

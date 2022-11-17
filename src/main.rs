@@ -65,6 +65,8 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
         "sphere.0.color": [ 0.8, 0.7, 0.9],
         "sphere.0.checkered": true,
         "sphere.0.reflectivity" : 0.5,
+        "num_objs": 1,
+        "obj.0.path" : "obj/teapot.obj",
         "num_planes" : 0
     });
 
@@ -135,51 +137,61 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
             name: "t0".to_owned(),
             material : material.clone(),
             points : [ a.clone(), b.clone(), c.clone() ],
+            has_normal: false, normal: Vec3::new(),
         };
         let t1 = Triangle {
             name: "t1".to_owned(),
             material : material.clone(),
             points : [ a.clone(), c.clone(), d.clone() ],
+            has_normal: false, normal: Vec3::new(),
         };
         let t2 = Triangle {
             name: "t2".to_owned(),
             material : material.clone(),
             points : [ a.clone(), d.clone(), dp.clone() ],
+            has_normal: false, normal: Vec3::new(),
         };
         let t3 = Triangle {
             name: "t3".to_owned(),
             material : material.clone(),
             points : [ ap.clone(), a.clone(), dp.clone() ],
+            has_normal: false, normal: Vec3::new(),
         };
         let t4 = Triangle {
             name: "t4".to_owned(),
             material : material.clone(),
             points : [ ap.clone(), bp.clone(), cp.clone() ],
+            has_normal: false, normal: Vec3::new(),
         };
         let t5 = Triangle {
             name: "t5".to_owned(),
             material : material.clone(),
             points : [ ap.clone(), cp.clone(), dp.clone() ],
+            has_normal: false, normal: Vec3::new(),
         };
         let t6 = Triangle {
             name: "t6".to_owned(),
             material : material.clone(),
             points : [ d.clone(), c.clone(), cp.clone() ],
+            has_normal: false, normal: Vec3::new(),
         };
         let t7 = Triangle {
             name: "t7".to_owned(),
             material : material.clone(),
             points : [ d.clone(), cp.clone(), dp.clone() ],
+            has_normal: false, normal: Vec3::new(),
         };
         let t8 = Triangle {
             name: "t8".to_owned(),
             material : material.clone(),
             points : [ a.clone(), bp.clone(), b.clone() ],
+            has_normal: false, normal: Vec3::new(),
         };
         let t9 = Triangle {
             name: "t9".to_owned(),
             material : material.clone(),
             points : [ a.clone(), ap.clone(), bp.clone() ],
+            has_normal: false, normal: Vec3::new(),
         };
         json[t0.name] = serde_json::to_value(&t0).unwrap();
         json[t1.name] = serde_json::to_value(&t1).unwrap();

@@ -19,3 +19,4 @@ rayon = "1.5.3"
 serde = { version = "1.0.147", features = ["derive"] }
 serde_json = "1.0.87"
 structopt = "0.3.26"
+wavefront = "0.2.3"
