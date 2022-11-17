@@ -1,18 +1,25 @@
+use serde::{Deserialize, Serialize};
 use colored::Colorize;
 use crate::vec3::Vec3;
 use crate::vec3::Point;
 use crate::Ray;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Camera {
     pub pos: Point,
     pub dir: Vec3,
+    #[serde(skip)]
     pub screen_u: Vec3,
+    #[serde(skip)]
     pub screen_v: Vec3,
 }
 
 
 impl Camera {
+    pub fn calc_uv_after_deserialize(&mut self) {
+        self.screen_u = Vec3{ x: -self.dir.y, y: self.dir.x, z: 0.0 };
+        self.screen_v = self.dir.vector_product(self.screen_u);
+    }
     pub fn new(pos: Point, dir: Vec3) -> Self {
         let d = dir.normalize();
         let sc_u = Vec3{ x: -d.y, y: d.x, z: 0.0 };

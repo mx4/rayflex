@@ -12,7 +12,6 @@ use rayon::prelude::*;
 use raymax::color::RGB;
 use raymax::vec3::Vec3;
 use raymax::vec3::Vec2;
-use raymax::vec3::Point;
 use raymax::light::Light;
 use raymax::light::VectorLight;
 use raymax::light::SpotLight;
@@ -286,25 +285,15 @@ impl RenderJob {
         albedo
     }
     fn get_json_color(json: &serde_json::Value, key: String) -> RGB {
-        let mut cr : f32 = 1.0;
-        let mut cg : f32 = 1.0;
-        let mut cb : f32 = 1.0;
-        if let Some(array) = json[&key].as_array() {
-            cr = array[0].as_f64().unwrap() as f32;
-            cg = array[1].as_f64().unwrap() as f32;
-            cb = array[2].as_f64().unwrap() as f32;
+        let v = &json[&key];
+        if ! v.is_null() {
+            return serde_json::from_value(v.clone()).unwrap()
         }
-        assert!(cr >= 0.0);
-        assert!(cg >= 0.0);
-        assert!(cb >= 0.0);
-        RGB{ r: cr, g: cg, b: cb }
+        RGB{ r: 1.0, g: 1.0, b: 1.0 }
     }
     fn get_json_vec3(json: &serde_json::Value, key: String) -> Vec3 {
-        Point {
-            x: json[&key][0].as_f64().unwrap(),
-            y: json[&key][1].as_f64().unwrap(),
-            z: json[&key][2].as_f64().unwrap()
-        }
+        let v = &json[&key];
+        serde_json::from_value(v.clone()).unwrap()
     }
     pub fn load_scene(&mut self, scene_file: PathBuf) -> std::io::Result<()> {
         if ! scene_file.is_file() {
@@ -324,44 +313,29 @@ impl RenderJob {
             }
         }
         {
-            let p = Self::get_json_vec3(&json, "camera.position".to_string());
-            let v = Self::get_json_vec3(&json, "camera.direction".to_string());
-            self.camera = Some(Camera::new(p, v));
+            let mut camera : Camera = serde_json::from_value(json["camera"].clone()).unwrap();
+            camera.calc_uv_after_deserialize();
+            self.camera = Some(camera);
         }
         {
-            let c = Self::get_json_color(&json, "ambient.color".to_string());
-            let name = "ambient.intensity";
-            let r = json[&name].as_f64().unwrap() as f32;
-            assert!(r >= 0.0);
-            self.lights.push(Arc::new(Box::new(AmbientLight{ name: "ambient".to_string(), rgb: c, intensity: r })));
+            let ambient : AmbientLight = serde_json::from_value(json["ambient"].clone()).unwrap();
+            self.lights.push(Arc::new(Box::new(ambient)));
         }
         {
             let num_spot_lights = json["num_spot_lights"].as_u64().unwrap();
             for i in 0..num_spot_lights {
-                let name  = format!("spot-light.{}.position", i);
-                let cname = format!("spot-light.{}.color", i);
-                let iname = format!("spot-light.{}.intensity", i);
-                let sname = format!("spot-light.{}", i);
-                let c = Self::get_json_color(&json, cname);
-                let p = Self::get_json_vec3(&json, name);
-                let i = json[&iname].as_f64().unwrap() as f32;
-                assert!(i >= 0.0);
-                self.lights.push(Arc::new(Box::new(SpotLight{ name: sname, pos: p, rgb: c, intensity: i })));
+                let s = format!("spot-light.{}", i);
+                let spot : SpotLight = serde_json::from_value(json[&s].clone()).unwrap();
+                self.lights.push(Arc::new(Box::new(spot)));
             }
         }
         {
             let num_vec_lights = json["num_vec_lights"].as_u64().unwrap();
             for i in 0..num_vec_lights {
-                let name  = format!("vec-light.{}.vector", i);
-                let iname = format!("vec-light.{}.intensity", i);
-                let cname = format!("vec-light.{}.color", i);
-                let sname = format!("vec-light.{}", i);
-                let c     = Self::get_json_color(&json, cname);
-                let mut v = Self::get_json_vec3(&json, name);
-                v = v.normalize();
-                let i = json[&iname].as_f64().unwrap() as f32;
-                assert!(i >= 0.0);
-                self.lights.push(Arc::new(Box::new(VectorLight{ name: sname, dir: v, rgb: c, intensity: i })));
+                let s = format!("vec-light.{}", i);
+                let mut vec : VectorLight = serde_json::from_value(json[&s].clone()).unwrap();
+                vec.dir = vec.dir.normalize();
+                self.lights.push(Arc::new(Box::new(vec)));
             }
         }
 

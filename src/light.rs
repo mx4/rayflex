@@ -1,15 +1,18 @@
+use serde::{Deserialize, Serialize};
 use colored::Colorize;
 use crate::color::RGB;
 use crate::vec3::Vec3;
 use crate::vec3::Point;
 use crate::three_d::Material;
 
+#[derive(Serialize, Deserialize)]
 pub struct AmbientLight {
     pub name: String,
     pub rgb: RGB,
     pub intensity: f32,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct SpotLight {
     pub name: String,
     pub pos: Point,
@@ -17,6 +20,7 @@ pub struct SpotLight {
     pub intensity: f32,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct VectorLight {
     pub name: String,
     pub dir: Vec3,

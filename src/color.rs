@@ -1,7 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::ops::{Add, AddAssign, Mul, Div};
 use std::fmt;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct RGB {
     pub r: f32,
     pub g: f32,

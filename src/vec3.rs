@@ -1,7 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::ops::{Add, AddAssign, Sub, Mul, Div};
 use std::fmt;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Vec3 {
     pub x: f64,
     pub y: f64,
@@ -16,6 +17,12 @@ pub struct Vec2 {
 
 pub type Point = Vec3;
 pub type Point2 = Vec2;
+
+impl Default for Vec3 {
+    fn default() -> Self {
+        Vec3 { x: 0.0, y: 0.0, z: 0.0 }
+    }
+}
 
 impl fmt::Debug for Vec3 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -6,6 +6,14 @@ use std::fs;
 use serde_json;
 use rand::Rng;
 
+use raymax::vec3::Point;
+use raymax::vec3::Vec3;
+use raymax::color::RGB;
+use raymax::camera::Camera;
+use raymax::light::VectorLight;
+use raymax::light::SpotLight;
+use raymax::light::AmbientLight;
+
 mod render;
 use render::RenderJob;
 use render::RenderConfig;
@@ -48,21 +56,8 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
     println!("Generating scene w/ {} spheres", num_spheres_to_generate);
     json = serde_json::json!({
         "resolution": [ 400, 400 ],
-        "camera.position": [ -3, 0.0, 1.0 ],
-        "camera.direction": [ 1, 0, -0.10 ],
-        "ambient.color": [ 1, 1, 1 ],
-        "ambient.intensity": 0.2,
         "num_vec_lights": 1,
         "num_spot_lights": 2,
-        "vec-light.0.vector": [ 0.5, 0.5, -0.5],
-        "vec-light.0.intensity": 1.5,
-        "vec-light.0.color": [ 1, 1, 1],
-        "spot-light.0.position": [ 0.5, 2.5, 1],
-        "spot-light.0.intensity": 150,
-        "spot-light.0.color": [ 1, 1, 1],
-        "spot-light.1.position": [ 0.5, -2, 0],
-        "spot-light.1.intensity": 80,
-        "spot-light.1.color": [ 0.8, 0.3, 0.8],
         "sphere.0.center" : [3, 0, -0.5],
         "sphere.0.radius" : 1.3,
         "sphere.0.color": [ 0.8, 0.7, 0.9],
@@ -70,6 +65,51 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
         "sphere.0.reflectivity" : 0.5,
         "num_planes" : 0
     });
+
+    {
+        let sname = "spot-light.0";
+        let spot0 = SpotLight {
+            name: sname.to_string(),
+            pos: Vec3 { x: 0.5, y: 2.5, z: 1.0 },
+            rgb: RGB { r: 1.0, g: 1.0, b: 1.0 },
+            intensity: 150.0,
+        };
+        json[&sname] = serde_json::to_value(spot0).unwrap();
+    }
+    {
+        let sname = "spot-light.1";
+        let spot0 = SpotLight {
+            name: sname.to_string(),
+            pos: Vec3 { x: 0.5, y: -2.0, z: 0.0 },
+            rgb: RGB { r: 0.8, g: 0.3, b: 0.8 },
+            intensity: 80.0,
+        };
+        json[&sname] = serde_json::to_value(spot0).unwrap();
+    }
+    {
+        let ambient = AmbientLight{
+            name: "ambient".to_owned(),
+            rgb: RGB { r: 1.0, g: 1.0, b: 1.0 },
+            intensity: 0.1
+        };
+        json["ambient"] = serde_json::to_value(ambient).unwrap();
+    }
+    {
+        let vec0 = VectorLight{
+            name: "vec-light.0".to_owned(),
+            rgb: RGB  { r: 1.0, g: 1.0, b: 1.0 },
+            dir: Vec3 { x: 0.5, y: 0.5, z: -0.5 },
+            intensity: 1.5
+        };
+        json["vec-light.0"] = serde_json::to_value(vec0).unwrap();
+    }
+    {
+        let camera = Camera::new(
+            Point { x: -3.0, y: 0.0, z: 1.0 },
+            Vec3  { x: 1.0,  y: 0.0, z: -0.1 }
+        );
+        json["camera"] = serde_json::to_value(camera).unwrap();
+    }
     json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
 
     if use_box {
@@ -96,19 +136,23 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
 
     let line = false;
     for i in 1..num_spheres_to_generate {
-        let mut x = rng.gen_range(2.0..5.0);
-        let mut y = rng.gen_range(-2.0..2.0);
-        let mut z = rng.gen_range(-2.0..2.0);
+        let mut vec = Point {
+            x : rng.gen_range(2.0..5.0),
+            y : rng.gen_range(-2.0..2.0),
+            z : rng.gen_range(-2.0..2.0),
+        };
         let mut r = rng.gen_range(0.2..0.4);
         if line {
-            x = i as f64 * 2.0;
-            y = -1.0;
-            z = -0.5;
+            vec.x = i as f64 * 2.0;
+            vec.y = -1.0;
+            vec.z = -0.5;
             r = 0.7;
         }
-        let cr = rng.gen_range(0.3..1.0);
-        let cg = rng.gen_range(0.3..1.0);
-        let cb = rng.gen_range(0.3..1.0);
+        let rgb = RGB {
+            r : rng.gen_range(0.3..1.0),
+            g : rng.gen_range(0.3..1.0),
+            b : rng.gen_range(0.3..1.0),
+        };
         let albedo = rng.gen_range(0.5..1.0);
         let reflectivity = rng.gen_range(0.0..1.0);
         let checkered = rng.gen_range(0..100) % 2;
@@ -118,9 +162,9 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
         let aname = format!("sphere.{}.albedo", i);
         let tname = format!("sphere.{}.checkered", i);
         let refname = format!("sphere.{}.reflectivity", i);
-        json[name]  = serde_json::json!([x, y, z ]);
+        json[name]  = serde_json::to_value(vec).unwrap();
         json[rname] = serde_json::json!(r);
-        json[cname] = serde_json::json!([cr, cg, cb]);
+        json[cname] = serde_json::to_value(rgb).unwrap();
         json[aname] = serde_json::json!(albedo);
         json[tname] = serde_json::json!(checkered > 0);
         json[refname] = serde_json::json!(reflectivity);
@@ -139,6 +183,8 @@ fn print_opt(opt: &Options) {
 fn main() -> std::io::Result<()> {
     let opt = Options::from_args();
 
+     ctrlc::set_handler(|| { CTRLC_HIT.store(true, Ordering::SeqCst); }).expect("ctrl-c");
+
     let cfg = RenderConfig {
         use_reflection: opt.use_reflection > 0,
         use_adaptive_sampling: opt.adaptive_sampling > 0,
@@ -149,19 +195,13 @@ fn main() -> std::io::Result<()> {
         res_y: opt.res_y,
     };
 
-
-    let mut job = RenderJob::new(cfg);
-
-     ctrlc::set_handler(move || {
-         CTRLC_HIT.store(true, Ordering::SeqCst);
-     })
-     .expect("Error setting Ctrl-C handler");
-
     if opt.num_spheres_to_generate != 0 {
         return generate_scene(opt.num_spheres_to_generate, opt.scene_file, opt.use_box > 0);
     }
 
     print_opt(&opt);
+
+    let mut job = RenderJob::new(cfg);
 
     job.load_scene(opt.scene_file)?;
     job.render_scene();
