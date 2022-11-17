@@ -137,8 +137,7 @@ impl RenderJob {
 
             if self.cfg.use_reflection && hit_material.reflectivity > 0.0 {
                 stats.num_rays_reflection += 1;
-                let reflected_vec = ray.dir.reflect(hit_normal);
-                let reflected_ray = Ray{orig: hit_point, dir: reflected_vec};
+                let reflected_ray = ray.get_reflection(hit_point, hit_normal);
                 let c_reflect = self.calc_ray_color(stats, reflected_ray, depth + 1);
                 c = c * (1.0 - hit_material.reflectivity) + c_reflect * hit_material.reflectivity;
             }
