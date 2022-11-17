@@ -11,6 +11,7 @@ use rayon::prelude::*;
 
 use raymax::color::RGB;
 use raymax::vec3::Vec3;
+use raymax::vec3::Vec2;
 use raymax::vec3::Point;
 use raymax::light::Light;
 use raymax::light::VectorLight;
@@ -108,9 +109,9 @@ impl RenderJob {
             let hit_point = ray.orig + ray.dir * t;
             let hit_normal = hit_obj.clone().unwrap().get_normal(hit_point);
             let hit_material = hit_obj.clone().unwrap().get_material();
-            let (mut hitx, mut hity) = (0.0, 0.0);
+            let mut hit_text2d = Vec2::new();
             if hit_material.checkered {
-                (hitx, hity) = hit_obj.clone().unwrap().get_texture_2d(hit_point);
+                hit_text2d = hit_obj.clone().unwrap().get_texture_2d(hit_point);
             }
             let mut c = self.lights.iter().fold(RGB::new(), |acc, light| {
                 let mut c_light = RGB::new();
@@ -139,15 +140,10 @@ impl RenderJob {
                         c_light = c_res * v_prod.powi(4) / (1.0 + 4.0 * pi * dist_sq);
                     }
                 }
-                if hit_material.checkered {
-                    let pattern = ((hitx * 4.0).fract() > 0.5) ^ ((hity * 4.0).fract() > 0.5);
-                    if pattern {
-                        c_light = c_light * (1.0 / 3.0);
-                    }
-                }
                 assert!(hit_material.albedo >= 0.0);
                 acc + c_light * hit_material.albedo
             });
+            c = hit_material.do_checker(c, hit_text2d);
             if self.cfg.use_reflection && hit_material.reflectivity > 0.0 {
                 stats.num_rays_reflection += 1;
                 let reflected_vec = ray.dir.reflect(hit_normal);

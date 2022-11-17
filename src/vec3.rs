@@ -8,7 +8,14 @@ pub struct Vec3 {
     pub z: f64,
 }
 
+#[derive(Clone, Copy)]
+pub struct Vec2 {
+    pub x: f32,
+    pub y: f32,
+}
+
 pub type Point = Vec3;
+pub type Point2 = Vec2;
 
 impl fmt::Debug for Vec3 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -56,6 +63,11 @@ impl AddAssign<Vec3> for Vec3 {
     }
 }
 
+impl Vec2 {
+    pub fn new() -> Vec2 {
+       Vec2{ x: 0.0, y: 0.0 }
+    }
+}
 
 impl Vec3 {
     pub fn new() -> Vec3 {

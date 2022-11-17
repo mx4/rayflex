@@ -1,5 +1,6 @@
 use crate::color::RGB;
 use crate::vec3::Vec3;
+use crate::vec3::Vec2;
 use crate::vec3::Point;
 use crate::Ray;
 
@@ -15,13 +16,24 @@ impl Material {
     pub fn new() -> Material {
         Material{ albedo: 0.0, rgb: RGB::new(), checkered : false, reflectivity: 0.0 }
     }
+    pub fn do_checker(&self, c: RGB, text2d: Vec2) -> RGB {
+        if ! self.checkered {
+            return c
+        }
+        let pattern = ((text2d.x * 4.0).fract() > 0.5) ^ ((text2d.y * 4.0).fract() > 0.5);
+        if pattern {
+            c / 3.0
+        } else {
+            c
+        }
+    }
 }
 
 pub trait Object {
     fn display(&self);
     fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool;
     fn get_normal(&self, point: Point) -> Vec3;
-    fn get_texture_2d(&self, point: Point) -> (f64, f64);
+    fn get_texture_2d(&self, point: Point) -> Vec2;
     fn get_material(&self) -> Material;
     fn is_sphere(&self) -> bool;
 }
@@ -71,8 +83,8 @@ impl Object for Plane {
     fn get_normal(&self, _point: Point) -> Vec3 {
         self.normal
     }
-    fn get_texture_2d(&self, _point: Point) -> (f64, f64) {
-        (0.0, 0.0)
+    fn get_texture_2d(&self, _point: Point) -> Vec2 {
+        Vec2{ x: 0.0, y: 0.0 }
     }
     fn get_material(&self) -> Material {
         self.material.clone()
@@ -99,11 +111,14 @@ impl Object for Sphere {
         let normal = point - self.center;
         normal / self.radius
     }
-    fn get_texture_2d(&self, point: Point) -> (f64, f64) {
+    fn get_texture_2d(&self, point: Point) -> Vec2 {
         let v = (point - self.center) / self.radius;
         let x = (1.0 + v.y.atan2(v.x) / std::f64::consts::PI) * 0.5;
         let y = v.z.acos() / std::f64::consts::PI;
-        ( x, y )
+        Vec2{
+            x: x as f32,
+            y: y as f32,
+        }
     }
 
     fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
