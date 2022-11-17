@@ -37,6 +37,7 @@ pub trait Object {
     fn get_texture_2d(&self, point: Point) -> Vec2;
     fn get_material(&self) -> Material;
     fn is_sphere(&self) -> bool;
+    fn is_triangle(&self) -> bool;
 }
 
 #[derive(Debug)]
@@ -80,6 +81,9 @@ impl Plane {
     }
 }
 impl Object for Plane {
+    fn is_triangle(&self) -> bool {
+        false
+    }
     fn is_sphere(&self) -> bool {
         false
     }
@@ -117,6 +121,9 @@ impl Sphere {
 }
 
 impl Object for Sphere {
+    fn is_triangle(&self) -> bool {
+        false
+    }
     fn is_sphere(&self) -> bool {
         true
     }
@@ -176,6 +183,9 @@ impl Object for Sphere {
 impl Object for Triangle {
     fn is_sphere(&self) -> bool {
         false
+    }
+    fn is_triangle(&self) -> bool {
+        true
     }
     fn get_material(&self) -> Material {
         self.material.clone()

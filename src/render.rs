@@ -35,6 +35,7 @@ struct RenderStats {
     num_rays_hit_max_level: u64,
     num_intersects_plane: u64,
     num_intersects_sphere: u64,
+    num_intersects_triangle: u64,
 }
 
 impl RenderStats {
@@ -45,21 +46,25 @@ impl RenderStats {
             num_rays_hit_max_level: 0,
             num_intersects_plane: 0,
             num_intersects_sphere: 0,
+            num_intersects_triangle: 0,
         }
     }
-    fn intersect_obj(&mut self, is_sphere: bool) {
-        if is_sphere {
+    fn intersect_obj(&mut self, is_sphere: bool, is_triangle: bool) {
+        if is_triangle {
+            self.num_intersects_triangle += 1;
+        } else if is_sphere {
             self.num_intersects_sphere += 1;
         } else {
             self.num_intersects_plane += 1;
         }
     }
     fn add(&mut self, other: RenderStats) {
-        self.num_rays_sampling      = self.num_rays_sampling + other.num_rays_sampling;
-        self.num_rays_reflection    = self.num_rays_reflection + other.num_rays_reflection;
-        self.num_rays_hit_max_level = self.num_rays_hit_max_level + other.num_rays_hit_max_level;
-        self.num_intersects_sphere  = self.num_intersects_sphere + other.num_intersects_sphere;
-        self.num_intersects_plane   = self.num_intersects_plane + other.num_intersects_plane;
+        self.num_rays_sampling       += other.num_rays_sampling;
+        self.num_rays_reflection     += other.num_rays_reflection;
+        self.num_rays_hit_max_level  += other.num_rays_hit_max_level;
+        self.num_intersects_sphere   += other.num_intersects_sphere;
+        self.num_intersects_plane    += other.num_intersects_plane;
+        self.num_intersects_triangle += other.num_intersects_triangle;
     }
 }
 
@@ -103,7 +108,7 @@ impl RenderJob {
         }
 
         let hit_obj = self.objects.iter().filter(|obj| {
-            stats.intersect_obj(obj.is_sphere());
+            stats.intersect_obj(obj.is_sphere(), obj.is_triangle());
             obj.intercept(&ray, tmin, &mut t)
         }).fold(None, |_acc, obj| Some(obj));
 
@@ -205,8 +210,9 @@ impl RenderJob {
         let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as f64 / 1000.0);
         let ray_lat_str = format!("{:.3} usec", elapsed.as_micros() as f64 / (stats.num_rays_sampling + stats.num_rays_reflection) as f64);
         println!("duration: {} -- {} per ray", tot_lat_str.bold(), ray_lat_str.bold());
-        println!("num_intersects Sphere: {:10}", stats.num_intersects_sphere);
-        println!("num_intersects Plane:  {:10}", stats.num_intersects_plane);
+        println!("num_intersects Sphere:   {:10}", stats.num_intersects_sphere);
+        println!("num_intersects Plane:    {:10}", stats.num_intersects_plane);
+        println!("num_intersects Triangle: {:10}", stats.num_intersects_triangle);
 
         let num_pixels = (self.cfg.res_x * self.cfg.res_y) as u64;
         println!("num_rays_sampling:   {:12} {}%", stats.num_rays_sampling, 100 * stats.num_rays_sampling / num_pixels);
