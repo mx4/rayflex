@@ -13,6 +13,8 @@ use raymax::camera::Camera;
 use raymax::light::VectorLight;
 use raymax::light::SpotLight;
 use raymax::light::AmbientLight;
+use raymax::three_d::Triangle;
+use raymax::three_d::Material;
 
 mod render;
 use render::RenderJob;
@@ -92,7 +94,7 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
             rgb: RGB { r: 1.0, g: 1.0, b: 1.0 },
             intensity: 0.1
         };
-        json["ambient"] = serde_json::to_value(ambient).unwrap();
+        json["ambient"] = serde_json::to_value(&ambient).unwrap();
     }
     {
         let vec0 = VectorLight{
@@ -111,6 +113,86 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
         json["camera"] = serde_json::to_value(camera).unwrap();
     }
     json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
+    {
+        let material = Material {
+            albedo: 0.8,
+            reflectivity: 0.4,
+            rgb: RGB { r: 0.9, g: 0.8, b: 0.7 },
+            checkered: false,
+        };
+        let orig = Vec3{ x: 0.5, y: -1.0, z: -0.5 };
+        let sz = 0.5;
+        let a  = Point{ x: 0.0, y: 0.0, z: 0.0 } * sz + orig; // a
+        let b  = Point{ x: 1.0, y: 0.0, z: 0.0 } * sz + orig; // b
+        let d  = Point{ x: 0.0, y: 0.0, z: 1.0 } * sz + orig; // d
+        let c  = Point{ x: 1.0, y: 0.0, z: 1.0 } * sz + orig; // c
+        let ap = Point{ x: 0.0, y: 1.0, z: 0.0 } * sz + orig; //
+        let bp = Point{ x: 1.0, y: 1.0, z: 0.0 } * sz + orig; //
+        let dp = Point{ x: 0.0, y: 1.0, z: 1.0 } * sz + orig; //
+        let cp = Point{ x: 1.0, y: 1.0, z: 1.0 } * sz + orig; //
+
+        let t0 = Triangle {
+            name: "t0".to_owned(),
+            material : material.clone(),
+            points : [ a.clone(), b.clone(), c.clone() ],
+        };
+        let t1 = Triangle {
+            name: "t1".to_owned(),
+            material : material.clone(),
+            points : [ a.clone(), c.clone(), d.clone() ],
+        };
+        let t2 = Triangle {
+            name: "t2".to_owned(),
+            material : material.clone(),
+            points : [ a.clone(), d.clone(), dp.clone() ],
+        };
+        let t3 = Triangle {
+            name: "t3".to_owned(),
+            material : material.clone(),
+            points : [ ap.clone(), a.clone(), dp.clone() ],
+        };
+        let t4 = Triangle {
+            name: "t4".to_owned(),
+            material : material.clone(),
+            points : [ ap.clone(), bp.clone(), cp.clone() ],
+        };
+        let t5 = Triangle {
+            name: "t5".to_owned(),
+            material : material.clone(),
+            points : [ ap.clone(), cp.clone(), dp.clone() ],
+        };
+        let t6 = Triangle {
+            name: "t6".to_owned(),
+            material : material.clone(),
+            points : [ d.clone(), c.clone(), cp.clone() ],
+        };
+        let t7 = Triangle {
+            name: "t7".to_owned(),
+            material : material.clone(),
+            points : [ d.clone(), cp.clone(), dp.clone() ],
+        };
+        let t8 = Triangle {
+            name: "t8".to_owned(),
+            material : material.clone(),
+            points : [ a.clone(), bp.clone(), b.clone() ],
+        };
+        let t9 = Triangle {
+            name: "t9".to_owned(),
+            material : material.clone(),
+            points : [ a.clone(), ap.clone(), bp.clone() ],
+        };
+        json[t0.name] = serde_json::to_value(&t0).unwrap();
+        json[t1.name] = serde_json::to_value(&t1).unwrap();
+        json[t2.name] = serde_json::to_value(&t2).unwrap();
+        json[t3.name] = serde_json::to_value(&t3).unwrap();
+        json[t4.name] = serde_json::to_value(&t4).unwrap();
+        json[t5.name] = serde_json::to_value(&t5).unwrap();
+        json[t6.name] = serde_json::to_value(&t6).unwrap();
+        json[t7.name] = serde_json::to_value(&t7).unwrap();
+        json[t8.name] = serde_json::to_value(&t8).unwrap();
+        json[t9.name] = serde_json::to_value(&t9).unwrap();
+        json["num_triangles"] = serde_json::json!(10);
+    }
 
     if use_box {
         println!("using box!");

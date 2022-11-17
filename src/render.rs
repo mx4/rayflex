@@ -23,6 +23,7 @@ use raymax::Ray;
 use raymax::three_d::Material;
 use raymax::three_d::Object;
 use raymax::three_d::Sphere;
+use raymax::three_d::Triangle;
 use raymax::three_d::Plane;
 
 #[derive(Clone, Copy)]
@@ -305,6 +306,7 @@ impl RenderJob {
         let json: serde_json::Value = serde_json::from_str(&data)?;
         let num_planes;
         let num_spheres;
+        let num_triangles;
 
         if self.cfg.res_x == 0 && self.cfg.res_y == 0 {
             if let Some(array) = json[&"resolution".to_string()].as_array() {
@@ -379,13 +381,21 @@ impl RenderJob {
                 self.objects.push(Arc::new(Box::new(Sphere::new(oname, center, radius, material))));
             }
         }
+        {
+            num_triangles = json["num_triangles"].as_u64().unwrap();
+            for i in 0..num_triangles {
+                let s = format!("t{}", i);
+                let triangle : Triangle = serde_json::from_value(json[&s].clone()).unwrap();
+                self.objects.push(Arc::new(Box::new(triangle)));
+            }
+        }
         let res_str = format!("{}x{}", self.cfg.res_x, self.cfg.res_y).bold();
         let mut smp_str = format!("").cyan();
         if self.cfg.use_adaptive_sampling {
             smp_str = format!(" w/ adaptive sampling").cyan();
         }
         println!("img resolution: {}{}", res_str, smp_str);
-        println!("{} objects: num_spheres={} num_planes={}", self.objects.len(), num_spheres, num_planes);
+        println!("{} objects: num_triangles={} num_spheres={} num_planes={}", self.objects.len(), num_triangles, num_spheres, num_planes);
         self.camera.as_ref().unwrap().display();
 
         self.lights.iter().for_each(|light| light.display());

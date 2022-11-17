@@ -16,14 +16,22 @@ pub struct Camera {
 
 
 impl Camera {
+    pub fn calc_uv(dir: Vec3, u: &mut Vec3, v: &mut Vec3) {
+        *u = Vec3{ x: -dir.y, y: dir.x, z: 0.0 };
+        let v0 = dir.cross(*u);
+        *v = v0.normalize();
+    }
     pub fn calc_uv_after_deserialize(&mut self) {
-        self.screen_u = Vec3{ x: -self.dir.y, y: self.dir.x, z: 0.0 };
-        self.screen_v = self.dir.vector_product(self.screen_u);
+        self.dir = self.dir.normalize();
+        Self::calc_uv(self.dir, &mut self.screen_u, &mut self.screen_v);
     }
     pub fn new(pos: Point, dir: Vec3) -> Self {
         let d = dir.normalize();
-        let sc_u = Vec3{ x: -d.y, y: d.x, z: 0.0 };
-        let sc_v = dir.vector_product(sc_u);
+
+        let mut sc_u = Vec3::new();
+        let mut sc_v = Vec3::new();
+
+        Self::calc_uv(d, &mut sc_u, &mut sc_v);
 
         Self { pos: pos, dir: d, screen_u: sc_u, screen_v: sc_v }
     }

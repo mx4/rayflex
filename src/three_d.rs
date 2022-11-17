@@ -1,10 +1,11 @@
+use serde::{Deserialize, Serialize};
 use crate::color::RGB;
 use crate::vec3::Vec3;
 use crate::vec3::Vec2;
 use crate::vec3::Point;
 use crate::Ray;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Material {
     pub albedo: f32,
     pub reflectivity: f32,
@@ -51,6 +52,13 @@ pub struct Plane {
     pub name: String,
     pub point: Point,
     pub normal: Vec3,
+    pub material: Material,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Triangle {
+    pub name: String,
+    pub points: [Point; 3],
     pub material: Material,
 }
 
@@ -151,5 +159,60 @@ impl Object for Sphere {
 
         *tmax = t0;
         true
+    }
+}
+
+impl Object for Triangle {
+    fn is_sphere(&self) -> bool {
+        false
+    }
+    fn get_material(&self) -> Material {
+        self.material.clone()
+    }
+    fn display(&self) {
+        println!("{}: {:?} {:?} {:?}", self.name, self.points[0], self.points[1], self.points[2]);
+    }
+    fn get_normal(&self, _point: Point) -> Vec3 {
+        let edge1 = self.points[1] - self.points[0];
+        let edge2 = self.points[2] - self.points[0];
+        edge1.cross(edge2)
+    }
+    fn get_texture_2d(&self, _point: Point) -> Vec2 {
+        Vec2{ x: 0.0, y: 0.0 }
+    }
+
+    // cf wikipedia
+    fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
+        let epsilon = 0.000001;
+        let edge1 = self.points[1] - self.points[0];
+        let edge2 = self.points[2] - self.points[0];
+        let h = ray.dir.cross(edge2);
+        let a = edge1.dot(h);
+        if a.abs() < epsilon {
+            return false
+        }
+
+        let f = 1.0 / a;
+        let s = ray.orig - self.points[0];
+        let u = f * s.dot(h);
+        if u < 0.0 || u > 1.0 {
+            return false
+        }
+
+        let q = s.cross(edge1);
+        let v = f * ray.dir.dot(q);
+        if v < 0.0 || u + v > 1.0 {
+            return false
+        }
+
+        let t = f * edge2.dot(q);
+        if t < epsilon {
+            return false
+        }
+        if t <= tmin || t >= *tmax {
+            return false
+        }
+        *tmax = t;
+        return true
     }
 }
