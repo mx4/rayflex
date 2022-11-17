@@ -107,7 +107,7 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
     }
     {
         let camera = Camera::new(
-            Point { x: -3.0, y: 0.0, z: 1.0 },
+            Point { x: -5.0, y: 0.0, z: 1.0 },
             Vec3  { x: 1.0,  y: 0.0, z: -0.1 }
         );
         json["camera"] = serde_json::to_value(camera).unwrap();
@@ -116,11 +116,11 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
     {
         let material = Material {
             albedo: 0.8,
-            reflectivity: 0.4,
-            rgb: RGB { r: 0.9, g: 0.8, b: 0.7 },
+            reflectivity: 0.1,
+            rgb: RGB { r: 0.1, g: 1.0, b: 0.1 },
             checkered: false,
         };
-        let orig = Vec3{ x: 0.5, y: -1.0, z: -0.5 };
+        let orig = Vec3{ x: 1.5, y: -1.5, z: -1.0};
         let sz = 0.5;
         let a  = Point{ x: 0.0, y: 0.0, z: 0.0 } * sz + orig; // a
         let b  = Point{ x: 1.0, y: 0.0, z: 0.0 } * sz + orig; // b
@@ -196,7 +196,7 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
 
     if use_box {
         println!("using box!");
-        json["num_planes"]        = serde_json::json!(6);
+        json["num_planes"]        = serde_json::json!(5);
         json["plane.0.position" ] = serde_json::json!([0, 0, -1]); // bottom
         json["plane.0.normal" ]   = serde_json::json!([0, 0, 1]);
         json["plane.0.reflectivity" ] = serde_json::json!(0.1);
@@ -204,16 +204,16 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
         json["plane.1.normal" ]   = serde_json::json!([0, 0, -1]);
         json["plane.2.position" ] = serde_json::json!([4.5, 0, 0]); // front
         json["plane.2.normal" ]   = serde_json::json!([-1, 0, 0]);
-        json["plane.2.color"]     = serde_json::json!([ 0.5, 0.9, 0.5]);
+        json["plane.2.color"]     = serde_json::json!([ 1.0, 1.0, 1.0]);
         json["plane.3.position" ] = serde_json::json!([0, 3, 0]); // left
         json["plane.3.normal" ]   = serde_json::json!([0, -1, 0]);
         json["plane.3.color"]     = serde_json::json!([ 1, 0.1, 0.1]);
         json["plane.4.position" ] = serde_json::json!([0, -3, 0]); // right
         json["plane.4.normal" ]   = serde_json::json!([0, 1, 0]);
         json["plane.4.color"]     = serde_json::json!([ 0.2, 1, 0.2]);
-        json["plane.5.position" ] = serde_json::json!([-3, 0, 0]); // back
-        json["plane.5.normal" ]   = serde_json::json!([1, 0, 0]);
-        json["plane.5.color"]     = serde_json::json!([ 1, 1, 1]);
+//        json["plane.5.position" ] = serde_json::json!([-3, 0, 0]); // back
+//        json["plane.5.normal" ]   = serde_json::json!([1, 0, 0]);
+//        json["plane.5.color"]     = serde_json::json!([ 1, 1, 1]);
     }
 
     let line = false;

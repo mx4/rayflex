@@ -175,7 +175,7 @@ impl Object for Triangle {
     fn get_normal(&self, _point: Point) -> Vec3 {
         let edge1 = self.points[1] - self.points[0];
         let edge2 = self.points[2] - self.points[0];
-        edge1.cross(edge2)
+        edge1.cross(edge2).normalize()
     }
     fn get_texture_2d(&self, _point: Point) -> Vec2 {
         Vec2{ x: 0.0, y: 0.0 }
