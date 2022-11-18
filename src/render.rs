@@ -366,8 +366,8 @@ impl RenderJob {
             if let Some(v) = json[&rname].as_f64() {
                 angle_z = v;
             }
-            let mut n = 0;
-            for [_a, _b, _c] in model.triangles() { n += 1; }
+            let n = model.triangles().count();
+            num_obj_triangles += n;
             let mut triangles = Vec::with_capacity(n);
             for [a, b, c] in model.triangles() {
                 let a0 = a.position();
@@ -381,7 +381,6 @@ impl RenderJob {
                 p2 = p2.rotx(angle_x).roty(angle_y).rotz(angle_z);
                 let mut triangle = Triangle::new([ p0, p1, p2 ], 0);
                 triangle.calc_normal();
-                num_obj_triangles += 1;
                 triangles.push(triangle);
             }
             let mesh = Mesh { triangles: triangles, material_id: 0, };

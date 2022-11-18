@@ -40,21 +40,21 @@ pub trait Object {
     fn get_material_id(&self) -> usize;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Sphere {
     pub center: Point,
     pub radius: f64,
     pub material_id: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Plane {
     pub point: Point,
     pub normal: Vec3,
     pub material_id: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Triangle {
     pub points: [Point; 3],
     pub material_id: usize,
@@ -250,7 +250,6 @@ impl Object for Mesh {
         let mut oid0 : usize = 0;
 
         let hit_triangle = self.triangles.iter().filter(|triangle| {
-            stats.num_intersects_triangle += 1;
             let res = triangle.intercept(stats, &ray, tmin, tmax, &mut oid0);
             if res { *oid = n; }
             n += 1;
