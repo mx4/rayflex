@@ -35,7 +35,7 @@ pub trait Object {
     fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool;
     fn get_normal(&self, point: Point) -> Vec3;
     fn get_texture_2d(&self, point: Point) -> Vec2;
-    fn get_material_id(&self) -> u32;
+    fn get_material_id(&self) -> usize;
     fn is_sphere(&self) -> bool;
     fn is_triangle(&self) -> bool;
 }
@@ -44,20 +44,20 @@ pub trait Object {
 pub struct Sphere {
     pub center: Point,
     pub radius: f64,
-    pub material_id: u32,
+    pub material_id: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Plane {
     pub point: Point,
     pub normal: Vec3,
-    pub material_id: u32,
+    pub material_id: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Triangle {
     pub points: [Point; 3],
-    pub material_id: u32,
+    pub material_id: usize,
     #[serde(skip)]
     pub normal: Vec3,
     #[serde(skip)]
@@ -72,7 +72,7 @@ impl Triangle {
 }
 
 impl Plane {
-    pub fn new(point: Point, normal: Vec3, material_id: u32) -> Self {
+    pub fn new(point: Point, normal: Vec3, material_id: usize) -> Self {
         let n = normal.normalize();
         Self { point: point, normal: n, material_id: material_id }
     }
@@ -106,13 +106,13 @@ impl Object for Plane {
     fn get_texture_2d(&self, _point: Point) -> Vec2 {
         Vec2{ x: 0.0, y: 0.0 }
     }
-    fn get_material_id(&self) -> u32 {
+    fn get_material_id(&self) -> usize {
         self.material_id
     }
 }
 
 impl Sphere {
-    pub fn new(center: Point, radius: f64, material_id: u32) -> Self {
+    pub fn new(center: Point, radius: f64, material_id: usize) -> Self {
         Self { center: center, radius: radius, material_id: material_id }
     }
 }
@@ -124,7 +124,7 @@ impl Object for Sphere {
     fn is_sphere(&self) -> bool {
         true
     }
-    fn get_material_id(&self) -> u32 {
+    fn get_material_id(&self) -> usize {
         self.material_id
     }
     fn display(&self) {
@@ -184,9 +184,9 @@ impl Object for Triangle {
     fn is_triangle(&self) -> bool {
         true
     }
-    fn get_material_id(&self) -> u32 {
+    fn get_material_id(&self) -> usize {
         self.material_id
-    }
+    } 
     fn display(&self) {
         println!("triangle: {:?} {:?} {:?}", self.points[0], self.points[1], self.points[2]);
     }

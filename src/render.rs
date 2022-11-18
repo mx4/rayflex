@@ -1,7 +1,4 @@
 use std::sync::atomic::Ordering;
-use wavefront;
-use colored::Colorize;
-use serde_json;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -9,6 +6,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
+use colored::Colorize;
+use serde_json;
+use wavefront;
 
 use raymax::color::RGB;
 use raymax::vec3::Vec3;
@@ -118,7 +118,7 @@ impl RenderJob {
             let hit_point = ray.orig + ray.dir * t;
             let hit_normal = hit_obj.clone().unwrap().get_normal(hit_point);
             let hit_mat_id = hit_obj.clone().unwrap().get_material_id();
-            let hit_material = &self.materials[hit_mat_id as usize];
+            let hit_material = &self.materials[hit_mat_id];
             let mut hit_text2d = Vec2::new();
             if hit_material.checkered {
                 hit_text2d = hit_obj.clone().unwrap().get_texture_2d(hit_point);
