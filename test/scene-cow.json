@@ -1,0 +1,70 @@
+{
+    "material.0": {
+      "albedo": 0.8,
+      "checkered": false,
+      "reflectivity": 0.1,
+      "rgb": {
+        "b": 0.1,
+        "g": 1.0,
+        "r": 0.1
+      }
+    },
+  "ambient": {
+    "intensity": 0.10000000149011612,
+    "name": "ambient",
+    "rgb": {
+      "b": 1.0,
+      "g": 1.0,
+      "r": 1.0
+    }
+  },
+  "camera": {
+    "dir": {
+      "x": -0.9950371902099893,
+      "y": 0.5,
+      "z": -0.3
+    },
+    "pos": {
+      "x": 12,
+      "y": -5,
+      "z": 4.0
+    }
+  },
+  "obj.0.path": "obj/cow.obj",
+  "obj.0.rotx": -1.6,
+  "obj.0.roty": 0,
+  "obj.0.rotz": 0,
+  "obj.0.material": 0,
+  "resolution": [
+    400,
+    400
+  ],
+  "spot-light.0": {
+    "intensity": 800.0,
+    "name": "spot-light.0",
+    "pos": {
+      "x": 0,
+      "y": -5,
+      "z": 4
+    },
+    "rgb": {
+      "b": 0.8,
+      "g": 0.8,
+      "r": 1.0
+    }
+  },
+  "spot-light.1": {
+    "intensity": 1000.0,
+    "name": "spot-light.1",
+    "pos": {
+      "x": 8,
+      "y": -4.0,
+      "z": 0.0
+    },
+    "rgb": {
+      "b": 0.800000011920929,
+      "g": 0.30000001192092896,
+      "r": 0.800000011920929
+    }
+  }
+}
