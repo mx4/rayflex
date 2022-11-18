@@ -35,32 +35,29 @@ pub trait Object {
     fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool;
     fn get_normal(&self, point: Point) -> Vec3;
     fn get_texture_2d(&self, point: Point) -> Vec2;
-    fn get_material(&self) -> Material;
+    fn get_material_id(&self) -> u32;
     fn is_sphere(&self) -> bool;
     fn is_triangle(&self) -> bool;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Sphere {
-    pub name: String,
     pub center: Point,
     pub radius: f64,
-    pub material: Material,
+    pub material_id: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Plane {
-    pub name: String,
     pub point: Point,
     pub normal: Vec3,
-    pub material: Material,
+    pub material_id: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Triangle {
-    pub name: String,
     pub points: [Point; 3],
-    pub material: Material,
+    pub material_id: u32,
     #[serde(skip)]
     pub normal: Vec3,
     #[serde(skip)]
@@ -75,9 +72,9 @@ impl Triangle {
 }
 
 impl Plane {
-    pub fn new(name: String, point: Point, normal: Vec3, material: Material) -> Self {
+    pub fn new(point: Point, normal: Vec3, material_id: u32) -> Self {
         let n = normal.normalize();
-        Self { name: name, point: point, normal: n, material: material }
+        Self { point: point, normal: n, material_id: material_id }
     }
 }
 impl Object for Plane {
@@ -88,7 +85,7 @@ impl Object for Plane {
         false
     }
     fn display(&self) {
-        println!("{}: {:?} normal={:?}", self.name, self.point, self.normal);
+        println!("plane: {:?} normal={:?}", self.point, self.normal);
     }
     fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
         let d = ray.dir.dot(self.normal);
@@ -109,14 +106,14 @@ impl Object for Plane {
     fn get_texture_2d(&self, _point: Point) -> Vec2 {
         Vec2{ x: 0.0, y: 0.0 }
     }
-    fn get_material(&self) -> Material {
-        self.material.clone()
+    fn get_material_id(&self) -> u32 {
+        self.material_id
     }
 }
 
 impl Sphere {
-    pub fn new(name: String, center: Point, radius: f64, material: Material) -> Self {
-        Self { name: name, center: center, radius: radius, material: material }
+    pub fn new(center: Point, radius: f64, material_id: u32) -> Self {
+        Self { center: center, radius: radius, material_id: material_id }
     }
 }
 
@@ -127,11 +124,11 @@ impl Object for Sphere {
     fn is_sphere(&self) -> bool {
         true
     }
-    fn get_material(&self) -> Material {
-        self.material.clone()
+    fn get_material_id(&self) -> u32 {
+        self.material_id
     }
     fn display(&self) {
-        println!("{}: {:?} radius={:?}", self.name, self.center, self.radius);
+        println!("sphere: {:?} radius={:?}", self.center, self.radius);
     }
     fn get_normal(&self, point: Point) -> Vec3 {
         let normal = point - self.center;
@@ -187,11 +184,11 @@ impl Object for Triangle {
     fn is_triangle(&self) -> bool {
         true
     }
-    fn get_material(&self) -> Material {
-        self.material.clone()
+    fn get_material_id(&self) -> u32 {
+        self.material_id
     }
     fn display(&self) {
-        println!("{}: {:?} {:?} {:?}", self.name, self.points[0], self.points[1], self.points[2]);
+        println!("triangle: {:?} {:?} {:?}", self.points[0], self.points[1], self.points[2]);
     }
     fn get_normal(&self, _point: Point) -> Vec3 {
         if self.has_normal {
@@ -237,6 +234,6 @@ impl Object for Triangle {
             return false
         }
         *tmax = t;
-        return true
+        true
     }
 }

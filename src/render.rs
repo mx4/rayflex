@@ -82,6 +82,7 @@ pub struct RenderJob {
     camera: Option<Camera>,
     objects: Vec<Arc<Box<dyn Object + 'static + Send + Sync>>>,
     lights: Vec<Arc<Box<dyn Light + 'static + Send + Sync>>>,
+    materials: Vec<Arc<Box<Material>>>,
     image: Mutex<Image>,
     cfg: RenderConfig,
 }
@@ -94,6 +95,7 @@ impl RenderJob {
             image: Mutex::new(Image::new(0, 0)),
             objects: vec![],
             lights: vec![],
+            materials: vec![],
             cfg: cfg,
         }
     }
@@ -115,7 +117,8 @@ impl RenderJob {
         if hit_obj.is_some() {
             let hit_point = ray.orig + ray.dir * t;
             let hit_normal = hit_obj.clone().unwrap().get_normal(hit_point);
-            let hit_material = hit_obj.clone().unwrap().get_material();
+            let hit_mat_id = hit_obj.clone().unwrap().get_material_id();
+            let hit_material = &self.materials[hit_mat_id as usize];
             let mut hit_text2d = Vec2::new();
             if hit_material.checkered {
                 hit_text2d = hit_obj.clone().unwrap().get_texture_2d(hit_point);
@@ -210,9 +213,9 @@ impl RenderJob {
         let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as f64 / 1000.0);
         let ray_lat_str = format!("{:.3} usec", elapsed.as_micros() as f64 / (stats.num_rays_sampling + stats.num_rays_reflection) as f64);
         println!("duration: {} -- {} per ray", tot_lat_str.bold(), ray_lat_str.bold());
-        println!("num_intersects Sphere:   {:10}", stats.num_intersects_sphere);
-        println!("num_intersects Plane:    {:10}", stats.num_intersects_plane);
-        println!("num_intersects Triangle: {:10}", stats.num_intersects_triangle);
+        println!("num_intersects Sphere:   {:14}", stats.num_intersects_sphere);
+        println!("num_intersects Plane:    {:14}", stats.num_intersects_plane);
+        println!("num_intersects Triangle: {:14}", stats.num_intersects_triangle);
 
         let num_pixels = (self.cfg.res_x * self.cfg.res_y) as u64;
         println!("num_rays_sampling:   {:12} {}%", stats.num_rays_sampling, 100 * stats.num_rays_sampling / num_pixels);
@@ -271,39 +274,6 @@ impl RenderJob {
         self.print_stats(start_time, *total_stats.lock().unwrap());
     }
 
-    fn get_json_reflectivity(json: &serde_json::Value, key: String) -> f32 {
-        let mut r : f32 = 0.0;
-        if let Some(v) = json[&key].as_f64() {
-            r = v as f32;
-        }
-        r
-    }
-    fn get_json_checkered(json: &serde_json::Value, key: String) -> bool {
-        let mut checkered = false;
-        if let Some(v) = json[&key].as_bool() {
-            checkered = v;
-        }
-        checkered
-    }
-    fn get_json_albedo(json: &serde_json::Value, key: String) -> f32 {
-        let mut albedo: f32 = 1.0;
-        if let Some(v) = json[&key].as_f64() {
-            albedo = v as f32;
-        }
-        assert!(albedo >= 0.0);
-        albedo
-    }
-    fn get_json_color(json: &serde_json::Value, key: String) -> RGB {
-        let v = &json[&key];
-        if ! v.is_null() {
-            return serde_json::from_value(v.clone()).unwrap()
-        }
-        RGB{ r: 1.0, g: 1.0, b: 1.0 }
-    }
-    fn get_json_vec3(json: &serde_json::Value, key: String) -> Vec3 {
-        let v = &json[&key];
-        serde_json::from_value(v.clone()).unwrap()
-    }
     pub fn load_scene(&mut self, scene_file: PathBuf) -> std::io::Result<()> {
         if ! scene_file.is_file() {
              panic!("scene file {} not present.", scene_file.display());
@@ -329,14 +299,26 @@ impl RenderJob {
             smp_str = format!(" w/ adaptive sampling").cyan();
         }
         println!("-- img resolution: {}{}", res_str, smp_str);
+
+        let mut camera : Camera = serde_json::from_value(json["camera"].clone()).unwrap();
+        camera.calc_uv_after_deserialize();
+        self.camera = Some(camera);
+
+        let ambient : AmbientLight = serde_json::from_value(json["ambient"].clone()).unwrap();
+        self.lights.push(Arc::new(Box::new(ambient)));
+
         {
-            let mut camera : Camera = serde_json::from_value(json["camera"].clone()).unwrap();
-            camera.calc_uv_after_deserialize();
-            self.camera = Some(camera);
-        }
-        {
-            let ambient : AmbientLight = serde_json::from_value(json["ambient"].clone()).unwrap();
-            self.lights.push(Arc::new(Box::new(ambient)));
+            let mut i = 0;
+            loop {
+                let name = format!("material.{}", i);
+                if json[&name].is_null() {
+                    break;
+                }
+                let mat : Material = serde_json::from_value(json[&name].clone()).unwrap();
+                self.materials.push(Arc::new(Box::new(mat)));
+                i += 1;
+            }
+            println!("-- {} materials", i);
         }
         {
             let num_spot_lights = json["num_spot_lights"].as_u64().unwrap();
@@ -359,41 +341,17 @@ impl RenderJob {
         {
             num_planes = json["num_planes"].as_u64().unwrap();
             for i in 0..num_planes {
-                let name  = format!("plane.{}.position", i);
-                let nname = format!("plane.{}.normal", i);
-                let cname = format!("plane.{}.color", i);
-                let aname = format!("plane.{}.albedo", i);
-                let tname = format!("plane.{}.checkered", i);
-                let rname = format!("plane.{}.reflectivity", i);
-                let oname = format!("plane.{}", i);
-                let p         = Self::get_json_vec3(&json, name);
-                let normal    = Self::get_json_vec3(&json, nname);
-                let rgb       = Self::get_json_color(&json, cname);
-                let albedo    = Self::get_json_albedo(&json, aname);
-                let checkered = Self::get_json_checkered(&json, tname);
-                let r         = Self::get_json_reflectivity(&json, rname);
-                let material = Material { rgb: rgb, albedo: albedo, checkered: checkered, reflectivity: r };
-                self.objects.push(Arc::new(Box::new(Plane::new(oname, p, normal, material))));
+                let s = format!("plane.{}", i);
+                let p : Plane = serde_json::from_value(json[&s].clone()).unwrap();
+                self.objects.push(Arc::new(Box::new(p)));
             }
         }
         {
             num_spheres = json["num_spheres"].as_u64().unwrap();
             for i in 0..num_spheres {
-                let name    = format!("sphere.{}.center", i);
-                let rname   = format!("sphere.{}.radius", i);
-                let cname   = format!("sphere.{}.color", i);
-                let aname   = format!("sphere.{}.albedo", i);
-                let tname   = format!("sphere.{}.checkered", i);
-                let refname = format!("sphere.{}.reflectivity", i);
-                let oname   = format!("sphere.{}", i);
-                let radius = json[&rname].as_f64().unwrap();
-                let center    = Self::get_json_vec3(&json, name);
-                let rgb       = Self::get_json_color(&json, cname);
-                let albedo    = Self::get_json_albedo(&json, aname);
-                let checkered = Self::get_json_checkered(&json, tname);
-                let r         = Self::get_json_reflectivity(&json, refname);
-                let material = Material { rgb: rgb, albedo: albedo, checkered: checkered, reflectivity: r };
-                self.objects.push(Arc::new(Box::new(Sphere::new(oname, center, radius, material))));
+                let s = format!("sphere.{}", i);
+                let sphere : Sphere = serde_json::from_value(json[&s].clone()).unwrap();
+                self.objects.push(Arc::new(Box::new(sphere)));
             }
         }
         {
@@ -419,12 +377,6 @@ impl RenderJob {
                 }
                 let path = json[&name].as_str().unwrap();
                 let mut n = 0;
-                let material = Material {
-                    rgb: RGB{ r: 1.0, g: 1.0, b: 1.0 },
-                    albedo: 0.9,
-                    checkered: false,
-                    reflectivity: 0.0,
-                };
                 for [a, b, c] in model.triangles() {
                     let a0 = a.position();
                     let b0 = b.position();
@@ -437,9 +389,8 @@ impl RenderJob {
                     p2 = p2.rotx(angle_x).roty(angle_y).rotz(angle_z);
                     n += 1;
                     let mut triangle = Triangle {
-                        name : format!("obj.{}.triangle.{}", i, n),
                         points: [ p0, p1, p2 ],
-                        material: material.clone(),
+                        material_id: 0, // XXX
                         has_normal: false, normal: Vec3::new(),
                     };
                     triangle.calc_normal();

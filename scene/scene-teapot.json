@@ -1,4 +1,14 @@
 {
+    "material.0": {
+      "albedo": 0.8,
+      "checkered": false,
+      "reflectivity": 0.1,
+      "rgb": {
+        "b": 0.1,
+        "g": 1.0,
+        "r": 0.1
+      }
+    },
   "ambient": {
     "intensity": 0.10000000149011612,
     "name": "ambient",
@@ -30,6 +40,7 @@
   "obj.0.rotx": -1.5,
   "obj.0.roty": 0,
   "obj.0.rotz": 0,
+  "obj.0.material": 0,
   "resolution": [
     400,
     400
