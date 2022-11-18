@@ -12,7 +12,6 @@ use wavefront;
 
 use raymax::color::RGB;
 use raymax::vec3::Point;
-use raymax::vec3::Vec2;
 use raymax::light::Light;
 use raymax::light::VectorLight;
 use raymax::light::SpotLight;
@@ -65,26 +64,24 @@ impl RenderJob {
         if depth > self.cfg.reflection_max_depth {
             return RGB::new();
         }
+        let mut s_id: usize = 0;
         let mut t = f64::MAX;
         let mut tmin = EPSILON;
         if depth == 0 {
+            // look for intersection beyond the screen/sensor
             tmin = ray.dir.norm();
         }
-        let mut oid: usize = 0;
 
         let hit_obj = self.objects.iter().filter(|obj| {
-            obj.intercept(stats, &ray, tmin, &mut t, &mut oid)
+            obj.intercept(stats, &ray, tmin, &mut t, &mut s_id)
         }).fold(None, |_acc, obj| Some(obj));
 
         if hit_obj.is_some() {
             let hit_point = ray.orig + ray.dir * t;
-            let hit_normal = hit_obj.clone().unwrap().get_normal(hit_point, oid);
-            let hit_mat_id = hit_obj.clone().unwrap().get_material_id();
+            let hit_normal = hit_obj.unwrap().get_normal(hit_point, s_id);
+            let hit_mat_id = hit_obj.unwrap().get_material_id();
             let hit_material = &self.materials[hit_mat_id];
-            let mut hit_text2d = Vec2::new();
-            if hit_material.checkered {
-                hit_text2d = hit_obj.clone().unwrap().get_texture_2d(hit_point);
-            }
+
             let mut c = self.lights.iter().fold(RGB::new(), |acc, light| {
                 let c_light;
 
@@ -93,9 +90,9 @@ impl RenderJob {
                 } else {
                     let light_vec = light.get_vector(hit_point) * -1.0;
                     let light_ray = Ray{orig: hit_point, dir: light_vec};
-                    let mut t = 1.0;
+                    let mut t0 = 1.0;
                     let mut oid0 : usize = 0;
-                    let shadow = self.objects.iter().find(|obj| obj.intercept(stats, &light_ray, EPSILON, &mut t, &mut oid0)).is_some();
+                    let shadow = self.objects.iter().find(|obj| obj.intercept(stats, &light_ray, EPSILON, &mut t0, &mut oid0)).is_some();
 
                     if shadow {
                         c_light = RGB::new();
@@ -106,7 +103,10 @@ impl RenderJob {
                 acc + c_light * hit_material.albedo
             });
 
-            c = hit_material.do_checker(c, hit_text2d);
+            if hit_material.checkered {
+                let hit_text2d = hit_obj.unwrap().get_texture_2d(hit_point);
+                c = hit_material.do_checker(c, hit_text2d);
+            }
 
             if self.cfg.use_reflection && hit_material.reflectivity > 0.0 {
                 stats.num_rays_reflection += 1;
@@ -173,9 +173,12 @@ impl RenderJob {
 
     fn print_stats(&self, start_time: Instant, stats: RenderStats) {
         let pretty_print = |n| {
-            let mut suffix = "";
+            let suffix;
             let val;
-            if n > 1_000_000_000 {
+            if n > 1_000_000_000_000 {
+                val = n as f64 / 1_000_000_000_000.0;
+                suffix = "T";
+            } else if n > 1_000_000_000 {
                 val = n as f64 / 1_000_000_000.0;
                 suffix = "G";
             } else if n >= 1_000_000 {
@@ -183,11 +186,12 @@ impl RenderJob {
                 suffix = "M";
             } else if n >= 1_000 {
                 val = n as f64 / 1_000.0;
-                suffix = "M";
+                suffix = "K";
             } else {
-                val = n as f64
+                val = n as f64;
+                suffix = "";
             }
-            format!("{:.3}{suffix}", val)
+            format!("{:3.3} {suffix}", val)
         };
         let elapsed = start_time.elapsed();
         let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as f64 / 1000.0);

@@ -22,9 +22,7 @@ impl Material {
         Material{ albedo: 0.0, rgb: RGB::new(), checkered : false, reflectivity: 0.0 }
     }
     pub fn do_checker(&self, c: RGB, text2d: Vec2) -> RGB {
-        if ! self.checkered {
-            return c
-        }
+        assert!(self.checkered);
         let pattern = ((text2d.x * 4.0).fract() > 0.5) ^ ((text2d.y * 4.0).fract() > 0.5);
         if pattern {
             c / 3.0
@@ -249,9 +247,10 @@ impl Object for Mesh {
 
     fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, oid: &mut usize) -> bool {
         let mut n = 0;
+        let mut oid0 : usize = 0;
+
         let hit_triangle = self.triangles.iter().filter(|triangle| {
             stats.num_intersects_triangle += 1;
-            let mut oid0 : usize = 0;
             let res = triangle.intercept(stats, &ray, tmin, tmax, &mut oid0);
             if res { *oid = n; }
             n += 1;
