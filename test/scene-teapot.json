@@ -54,7 +54,7 @@
     }
   },
   "spot-light.1": {
-    "intensity": 600.0,
+    "intensity": 1500.0,
     "name": "spot-light.1",
     "pos": {
       "x": 0,
