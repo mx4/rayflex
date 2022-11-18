@@ -65,6 +65,9 @@ pub struct Triangle {
 }
 
 impl Triangle {
+    pub fn new(points: [Point; 3], material_id: usize) -> Self {
+        Self { points: points, normal: Vec3::new(), material_id: material_id, has_normal: false }
+    }
     pub fn calc_normal(&mut self) {
         self.normal = self.get_normal(Point::new());
         self.has_normal = true;

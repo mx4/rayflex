@@ -11,7 +11,6 @@ use serde_json;
 use wavefront;
 
 use raymax::color::RGB;
-use raymax::vec3::Vec3;
 use raymax::vec3::Point;
 use raymax::vec3::Vec2;
 use raymax::light::Light;
@@ -282,10 +281,14 @@ impl RenderJob {
 
         let data = fs::read_to_string(&scene_file)?;
         let json: serde_json::Value = serde_json::from_str(&data)?;
-        let num_planes;
-        let num_spheres;
-        let num_triangles;
+        let mut num_planes = 0;
+        let mut num_spheres = 0;
+        let mut num_triangles = 0;
         let mut num_obj_triangles = 0;
+        let mut num_materials = 0;
+        let mut num_vec_lights = 0;
+        let mut num_spot_lights = 0;
+        let mut num_objs = 0;
 
         if self.cfg.res_x == 0 && self.cfg.res_y == 0 {
             if let Some(array) = json[&"resolution".to_string()].as_array() {
@@ -304,112 +307,111 @@ impl RenderJob {
         camera.calc_uv_after_deserialize();
         self.camera = Some(camera);
 
-        let ambient : AmbientLight = serde_json::from_value(json["ambient"].clone()).unwrap();
-        self.lights.push(Arc::new(Box::new(ambient)));
-
-        {
-            let mut i = 0;
-            loop {
-                let name = format!("material.{}", i);
-                if json[&name].is_null() {
-                    break;
-                }
-                let mat : Material = serde_json::from_value(json[&name].clone()).unwrap();
-                self.materials.push(Arc::new(Box::new(mat)));
-                i += 1;
-            }
-            println!("-- {} materials", i);
-        }
-        {
-            let num_spot_lights = json["num_spot_lights"].as_u64().unwrap();
-            for i in 0..num_spot_lights {
-                let s = format!("spot-light.{}", i);
-                let spot : SpotLight = serde_json::from_value(json[&s].clone()).unwrap();
-                self.lights.push(Arc::new(Box::new(spot)));
-            }
-        }
-        {
-            let num_vec_lights = json["num_vec_lights"].as_u64().unwrap();
-            for i in 0..num_vec_lights {
-                let s = format!("vec-light.{}", i);
-                let mut vec : VectorLight = serde_json::from_value(json[&s].clone()).unwrap();
-                vec.dir = vec.dir.normalize();
-                self.lights.push(Arc::new(Box::new(vec)));
-            }
+        if ! json["ambient"].is_null() {
+            let ambient : AmbientLight = serde_json::from_value(json["ambient"].clone()).unwrap();
+            self.lights.push(Arc::new(Box::new(ambient)));
         }
 
-        {
-            num_planes = json["num_planes"].as_u64().unwrap();
-            for i in 0..num_planes {
-                let s = format!("plane.{}", i);
-                let p : Plane = serde_json::from_value(json[&s].clone()).unwrap();
-                self.objects.push(Arc::new(Box::new(p)));
+        loop {
+            let name = format!("material.{}", num_materials);
+            if json[&name].is_null() {
+                break;
             }
+            let mat : Material = serde_json::from_value(json[&name].clone()).unwrap();
+            self.materials.push(Arc::new(Box::new(mat)));
+            num_materials += 1;
         }
-        {
-            num_spheres = json["num_spheres"].as_u64().unwrap();
-            for i in 0..num_spheres {
-                let s = format!("sphere.{}", i);
-                let sphere : Sphere = serde_json::from_value(json[&s].clone()).unwrap();
-                self.objects.push(Arc::new(Box::new(sphere)));
+        loop {
+            let s = format!("spot-light.{}", num_spot_lights);
+            if json[&s].is_null() {
+                break;
             }
+            let spot : SpotLight = serde_json::from_value(json[&s].clone()).unwrap();
+            self.lights.push(Arc::new(Box::new(spot)));
+            num_spot_lights += 1;
         }
-        {
-            let num_objs = json["num_objs"].as_u64().unwrap();
-            for i in 0..num_objs {
-                let name    = format!("obj.{}.path", i);
-                let path = json[&name].as_str().unwrap();
-                let model = wavefront::Obj::from_file(path).unwrap();
-                let mut angle_x = 0.0;
-                let mut angle_y = 0.0;
-                let mut angle_z = 0.0;
-                let rname = format!("obj.{}.rotx", i);
-                if let Some(v) = json[&rname].as_f64() {
-                    angle_x = v;
-                }
-                let rname = format!("obj.{}.roty", i);
-                if let Some(v) = json[&rname].as_f64() {
-                    angle_y = v;
-                }
-                let rname = format!("obj.{}.rotz", i);
-                if let Some(v) = json[&rname].as_f64() {
-                    angle_z = v;
-                }
-                let path = json[&name].as_str().unwrap();
-                let mut n = 0;
-                for [a, b, c] in model.triangles() {
-                    let a0 = a.position();
-                    let b0 = b.position();
-                    let c0 = c.position();
-                    let mut p0 = Point{ x: a0[0] as f64, y: a0[1] as f64, z: a0[2] as f64};
-                    let mut p1 = Point{ x: b0[0] as f64, y: b0[1] as f64, z: b0[2] as f64};
-                    let mut p2 = Point{ x: c0[0] as f64, y: c0[1] as f64, z: c0[2] as f64};
-                    p0 = p0.rotx(angle_x).roty(angle_y).rotz(angle_z);
-                    p1 = p1.rotx(angle_x).roty(angle_y).rotz(angle_z);
-                    p2 = p2.rotx(angle_x).roty(angle_y).rotz(angle_z);
-                    n += 1;
-                    let mut triangle = Triangle {
-                        points: [ p0, p1, p2 ],
-                        material_id: 0, // XXX
-                        has_normal: false, normal: Vec3::new(),
-                    };
-                    triangle.calc_normal();
-                    num_obj_triangles += 1;
-                    self.objects.push(Arc::new(Box::new(triangle)));
-                }
-                println!("-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
-                        path.green(), n, angle_x, angle_y, angle_z);
+        loop {
+            let s = format!("vec-light.{}", num_vec_lights);
+            if json[&s].is_null() {
+                break;
             }
+            let mut vec : VectorLight = serde_json::from_value(json[&s].clone()).unwrap();
+            vec.dir = vec.dir.normalize();
+            self.lights.push(Arc::new(Box::new(vec)));
+            num_vec_lights += 1;
         }
-        {
-            num_triangles = json["num_triangles"].as_u64().unwrap();
-            for i in 0..num_triangles {
-                let s = format!("t{}", i);
-                let triangle : Triangle = serde_json::from_value(json[&s].clone()).unwrap();
+
+        loop {
+            let s = format!("plane.{}", num_planes);
+            if json[&s].is_null() {
+                break;
+            }
+            let p : Plane = serde_json::from_value(json[&s].clone()).unwrap();
+            self.objects.push(Arc::new(Box::new(p)));
+            num_planes += 1;
+        }
+        loop {
+            let s = format!("sphere.{}", num_spheres);
+            if json[&s].is_null() {
+                break;
+            }
+            let sphere : Sphere = serde_json::from_value(json[&s].clone()).unwrap();
+            self.objects.push(Arc::new(Box::new(sphere)));
+            num_spheres += 1;
+        }
+        loop {
+            let name = format!("obj.{}.path", num_objs);
+            if json[&name].is_null() {
+                break;
+            }
+            let path = json[&name].as_str().unwrap();
+            let model = wavefront::Obj::from_file(path).unwrap();
+            let mut angle_x = 0.0;
+            let mut angle_y = 0.0;
+            let mut angle_z = 0.0;
+            let rname = format!("obj.{}.rotx", num_objs);
+            if let Some(v) = json[&rname].as_f64() {
+                angle_x = v;
+            }
+            let rname = format!("obj.{}.roty", num_objs);
+            if let Some(v) = json[&rname].as_f64() {
+                angle_y = v;
+            }
+            let rname = format!("obj.{}.rotz", num_objs);
+            if let Some(v) = json[&rname].as_f64() {
+                angle_z = v;
+            }
+            let mut n = 0;
+            for [a, b, c] in model.triangles() {
+                let a0 = a.position();
+                let b0 = b.position();
+                let c0 = c.position();
+                let mut p0 = Point{ x: a0[0] as f64, y: a0[1] as f64, z: a0[2] as f64};
+                let mut p1 = Point{ x: b0[0] as f64, y: b0[1] as f64, z: b0[2] as f64};
+                let mut p2 = Point{ x: c0[0] as f64, y: c0[1] as f64, z: c0[2] as f64};
+                p0 = p0.rotx(angle_x).roty(angle_y).rotz(angle_z);
+                p1 = p1.rotx(angle_x).roty(angle_y).rotz(angle_z);
+                p2 = p2.rotx(angle_x).roty(angle_y).rotz(angle_z);
+                let mut triangle = Triangle::new([ p0, p1, p2 ], 0);
+                triangle.calc_normal();
+                num_obj_triangles += 1;
+                n += 1;
                 self.objects.push(Arc::new(Box::new(triangle)));
             }
+            num_objs += 1;
+            println!("-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}", path.green(), n, angle_x, angle_y, angle_z);
         }
-        println!("-- {} objects: num_triangles={} num_spheres={} num_planes={}", self.objects.len(), num_triangles + num_obj_triangles, num_spheres, num_planes);
+        loop {
+            let s = format!("triangle.{}", num_triangles);
+            if json[&s].is_null() {
+                break;
+            }
+            let triangle : Triangle = serde_json::from_value(json[&s].clone()).unwrap();
+            self.objects.push(Arc::new(Box::new(triangle)));
+            num_triangles += 1;
+        }
+        println!("-- {} surfaces: mesh={} triangles={} spheres={} planes={}", self.objects.len(), num_objs, num_triangles + num_obj_triangles, num_spheres, num_planes);
+        println!("-- materials={} vec_lights={} pot_lights={}", num_materials, num_vec_lights, num_vec_lights);
         self.camera.as_ref().unwrap().display();
 
         self.lights.iter().for_each(|light| light.display());

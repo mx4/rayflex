@@ -52,7 +52,7 @@ impl Light for SpotLight {
     }
     fn display(&self) {
         let s = format!("{:3} {:?} {:?}", self.intensity, self.pos, self.rgb).dimmed();
-        println!("{:12}: {s}", self.name.blue());
+        println!("-- {:12}: {s}", self.name.blue());
     }
     fn get_vector(&self, point: Point) -> Vec3 {
         point - self.pos
@@ -84,7 +84,7 @@ impl Light for AmbientLight {
     }
     fn display(&self) {
         let s = format!("{:3} {:?}", self.intensity, self.rgb).dimmed();
-        println!("{:12}: {s}", self.name.blue());
+        println!("-- {:12}: {s}", self.name.blue());
     }
     fn get_vector(&self, _point: Point) -> Vec3 {
         Vec3 { x: 0.0, y: 0.0, z: 0.0 }
@@ -119,7 +119,7 @@ impl Light for VectorLight {
     }
     fn display(&self) {
         let s = format!("{:3} {:?} {:?}", self.intensity, self.dir, self.rgb).dimmed();
-        println!("{:12}: {s}", self.name.blue());
+        println!("-- {:12}: {s}", self.name.blue());
     }
     fn get_vector(&self, _point: Point) -> Vec3 {
         self.dir

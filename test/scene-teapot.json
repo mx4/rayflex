@@ -30,12 +30,6 @@
       "z": 3.0
     }
   },
-  "num_objs": 1,
-  "num_planes": 0,
-  "num_spheres": 0,
-  "num_spot_lights": 2,
-  "num_triangles": 0,
-  "num_vec_lights": 1,
   "obj.0.path": "obj/teapot.obj",
   "obj.0.rotx": -1.5,
   "obj.0.roty": 0,

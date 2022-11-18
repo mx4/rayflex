@@ -61,13 +61,7 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
     println!("Generating scene w/ {} spheres {} materials", num_spheres_to_generate, num_materials);
     json = serde_json::json!({
         "resolution": [ 400, 400 ],
-        "num_vec_lights": 1,
-        "num_spot_lights": 2,
-        "num_objs": 0,
 //        "obj.0.path" : "obj/teapot.obj",
-        "num_planes" : 0,
-        "num_triangles" : 0,
-        "num_spheres" : 0
     });
 
     {
@@ -154,56 +148,17 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
         let dp = Point{ x: 0.0, y: 1.0, z: 1.0 } * sz + orig; //
         let cp = Point{ x: 1.0, y: 1.0, z: 1.0 } * sz + orig; //
 
-        let t0 = Triangle {
-            material_id : 0,
-            points : [ a.clone(), b.clone(), c.clone() ],
-            has_normal: false, normal: Vec3::new(),
-        };
-        let t1 = Triangle {
-            material_id : 0,
-            points : [ a.clone(), c.clone(), d.clone() ],
-            has_normal: false, normal: Vec3::new(),
-        };
-        let t2 = Triangle {
-            material_id : 0,
-            points : [ a.clone(), d.clone(), dp.clone() ],
-            has_normal: false, normal: Vec3::new(),
-        };
-        let t3 = Triangle {
-            material_id : 0,
-            points : [ ap.clone(), a.clone(), dp.clone() ],
-            has_normal: false, normal: Vec3::new(),
-        };
-        let t4 = Triangle {
-            material_id : 0,
-            points : [ ap.clone(), bp.clone(), cp.clone() ],
-            has_normal: false, normal: Vec3::new(),
-        };
-        let t5 = Triangle {
-            material_id : 0,
-            points : [ ap.clone(), cp.clone(), dp.clone() ],
-            has_normal: false, normal: Vec3::new(),
-        };
-        let t6 = Triangle {
-            material_id : 0,
-            points : [ d.clone(), c.clone(), cp.clone() ],
-            has_normal: false, normal: Vec3::new(),
-        };
-        let t7 = Triangle {
-            material_id : 0,
-            points : [ d.clone(), cp.clone(), dp.clone() ],
-            has_normal: false, normal: Vec3::new(),
-        };
-        let t8 = Triangle {
-            material_id : 0,
-            points : [ a.clone(), bp.clone(), b.clone() ],
-            has_normal: false, normal: Vec3::new(),
-        };
-        let t9 = Triangle {
-            material_id : 0,
-            points : [ a.clone(), ap.clone(), bp.clone() ],
-            has_normal: false, normal: Vec3::new(),
-        };
+        let t0 = Triangle::new([ a.clone(), b.clone(), c.clone() ], 0);
+        let t1 = Triangle::new([ a.clone(), c.clone(), d.clone() ], 0);
+        let t2 = Triangle::new([ a.clone(), d.clone(), dp.clone() ], 0);
+        let t3 = Triangle::new([ ap.clone(), a.clone(), dp.clone() ], 0);
+        let t4 = Triangle::new([ ap.clone(), bp.clone(), cp.clone() ], 0);
+        let t5 = Triangle::new([ ap.clone(), cp.clone(), dp.clone() ], 0);
+        let t6 = Triangle::new([ d.clone(), c.clone(), cp.clone() ], 0);
+        let t7 = Triangle::new([ d.clone(), cp.clone(), dp.clone() ], 0);
+        let t8 = Triangle::new([ a.clone(), bp.clone(), b.clone() ], 0);
+        let t9 = Triangle::new([ a.clone(), ap.clone(), bp.clone() ], 0);
+
         json["triangle.0"] = serde_json::to_value(&t0).unwrap();
         json["triangle.1"] = serde_json::to_value(&t1).unwrap();
         json["triangle.2"] = serde_json::to_value(&t2).unwrap();
@@ -258,12 +213,12 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
             y : rng.gen_range(-2.0..2.0),
             z : rng.gen_range(-2.0..2.0),
         };
-        let name = format!("sphere.{}", i);
         let sphere = Sphere {
             center: center,
             radius: rng.gen_range(0.2..0.4),
             material_id: rng.gen_range(0..10),
         };
+        let name = format!("sphere.{}", i);
         json[name] = serde_json::to_value(&sphere).unwrap();
     }
     let s0 = serde_json::to_string_pretty(&json)?;

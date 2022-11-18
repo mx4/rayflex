@@ -47,10 +47,10 @@ impl Camera {
         let s_dir = format!("dir: {:?}", self.dir).dimmed();
         let s_u   = format!("  u: {:?}", self.screen_u).dimmed();
         let s_v   = format!("  v: {:?}", self.screen_v).dimmed();
-        println!("{s} {s_pos}");
-        println!("{s} {s_dir}");
-        println!("{s} {s_u}");
-        println!("{s} {s_v}");
+        println!("-- {s} {s_pos}");
+        println!("-- {s} {s_dir}");
+        println!("-- {s} {s_u}");
+        println!("-- {s} {s_v}");
     }
 }
 
