@@ -59,20 +59,15 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
     let num_materials = 4;
 
     println!("Generating scene w/ {} spheres {} materials", num_spheres_to_generate, num_materials);
-    json = serde_json::json!({
-        "resolution": [ 400, 400 ],
-//        "obj.0.path" : "obj/teapot.obj",
-    });
+    json = serde_json::json!({ "resolution": [ 400, 400 ] });
 
-    {
-        let spot0 = SpotLight {
-            name: "spot-light.0".to_owned(),
-            pos: Vec3 { x: 0.5, y: 2.5, z: 1.0 },
-            rgb: RGB { r: 1.0, g: 1.0, b: 1.0 },
-            intensity: 150.0,
-        };
-        json[&spot0.name] = serde_json::to_value(&spot0).unwrap();
-    }
+    let spot0 = SpotLight {
+        name: "spot-light.0".to_owned(),
+        pos: Vec3 { x: 0.5, y: 2.5, z: 1.0 },
+        rgb: RGB { r: 1.0, g: 1.0, b: 1.0 },
+        intensity: 150.0,
+    };
+    json[&spot0.name] = serde_json::to_value(&spot0).unwrap();
     {
         let mat = Material { albedo: 0.9, reflectivity: 0.0, checkered: false,
         rgb: RGB { r: 1.0, g: 1.0, b: 1.0 }, };
@@ -227,7 +222,7 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
 }
 
 fn print_opt(opt: &Options) {
-    println!("use_gamma: {} sampling-max-depth: {} use_reflection: {} max-depth: {}", opt.use_gamma, opt.adaptive_max_depth, opt.use_reflection, opt.reflection_max_depth);
+    println!("options: gamma: {} sampling-depth: {} use_reflection: {} reflection-depth: {}", opt.use_gamma, opt.adaptive_max_depth, opt.use_reflection, opt.reflection_max_depth);
     let s = format!("num_threads: {}", rayon::current_num_threads()).red();
     println!("{s}");
 }

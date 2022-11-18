@@ -20,52 +20,15 @@ use raymax::light::AmbientLight;
 use raymax::camera::Camera;
 use raymax::image::Image;
 use raymax::Ray;
+use raymax::RenderStats;
 
+use raymax::three_d::EPSILON;
 use raymax::three_d::Material;
 use raymax::three_d::Object;
 use raymax::three_d::Sphere;
 use raymax::three_d::Triangle;
+use raymax::three_d::Mesh;
 use raymax::three_d::Plane;
-
-#[derive(Clone, Copy)]
-struct RenderStats {
-    num_rays_sampling: u64,
-    num_rays_reflection: u64,
-    num_rays_hit_max_level: u64,
-    num_intersects_plane: u64,
-    num_intersects_sphere: u64,
-    num_intersects_triangle: u64,
-}
-
-impl RenderStats {
-    fn new() -> RenderStats {
-        RenderStats {
-            num_rays_sampling: 0,
-            num_rays_reflection: 0,
-            num_rays_hit_max_level: 0,
-            num_intersects_plane: 0,
-            num_intersects_sphere: 0,
-            num_intersects_triangle: 0,
-        }
-    }
-    fn intersect_obj(&mut self, is_sphere: bool, is_triangle: bool) {
-        if is_triangle {
-            self.num_intersects_triangle += 1;
-        } else if is_sphere {
-            self.num_intersects_sphere += 1;
-        } else {
-            self.num_intersects_plane += 1;
-        }
-    }
-    fn add(&mut self, other: RenderStats) {
-        self.num_rays_sampling       += other.num_rays_sampling;
-        self.num_rays_reflection     += other.num_rays_reflection;
-        self.num_rays_hit_max_level  += other.num_rays_hit_max_level;
-        self.num_intersects_sphere   += other.num_intersects_sphere;
-        self.num_intersects_plane    += other.num_intersects_plane;
-        self.num_intersects_triangle += other.num_intersects_triangle;
-    }
-}
 
 pub struct RenderConfig {
     pub use_adaptive_sampling: bool,
@@ -103,19 +66,19 @@ impl RenderJob {
             return RGB::new();
         }
         let mut t = f64::MAX;
-        let mut tmin = 0.0001;
+        let mut tmin = EPSILON;
         if depth == 0 {
             tmin = ray.dir.norm();
         }
+        let mut oid: usize = 0;
 
         let hit_obj = self.objects.iter().filter(|obj| {
-            stats.intersect_obj(obj.is_sphere(), obj.is_triangle());
-            obj.intercept(&ray, tmin, &mut t)
+            obj.intercept(stats, &ray, tmin, &mut t, &mut oid)
         }).fold(None, |_acc, obj| Some(obj));
 
         if hit_obj.is_some() {
             let hit_point = ray.orig + ray.dir * t;
-            let hit_normal = hit_obj.clone().unwrap().get_normal(hit_point);
+            let hit_normal = hit_obj.clone().unwrap().get_normal(hit_point, oid);
             let hit_mat_id = hit_obj.clone().unwrap().get_material_id();
             let hit_material = &self.materials[hit_mat_id];
             let mut hit_text2d = Vec2::new();
@@ -131,7 +94,8 @@ impl RenderJob {
                     let light_vec = light.get_vector(hit_point) * -1.0;
                     let light_ray = Ray{orig: hit_point, dir: light_vec};
                     let mut t = 1.0;
-                    let shadow = self.objects.iter().find(|obj| obj.intercept(&light_ray, 0.0001, &mut t)).is_some();
+                    let mut oid0 : usize = 0;
+                    let shadow = self.objects.iter().find(|obj| obj.intercept(stats, &light_ray, EPSILON, &mut t, &mut oid0)).is_some();
 
                     if shadow {
                         c_light = RGB::new();
@@ -217,9 +181,9 @@ impl RenderJob {
         println!("num_intersects Triangle: {:14}", stats.num_intersects_triangle);
 
         let num_pixels = (self.cfg.res_x * self.cfg.res_y) as u64;
-        println!("num_rays_sampling:   {:12} {}%", stats.num_rays_sampling, 100 * stats.num_rays_sampling / num_pixels);
-        println!("num_rays_reflection: {:12} {}%", stats.num_rays_reflection, 100 * stats.num_rays_reflection / stats.num_rays_sampling);
-        println!("num_rays_max_level:  {:12} {}%", stats.num_rays_hit_max_level, 100 * stats.num_rays_hit_max_level / stats.num_rays_sampling);
+        println!("num_rays_sampling:   {:12} -- {:3}%", stats.num_rays_sampling, 100 * stats.num_rays_sampling / num_pixels);
+        println!("num_rays_reflection: {:12} -- {:3}%", stats.num_rays_reflection, 100 * stats.num_rays_reflection / stats.num_rays_sampling);
+        println!("num_rays_max_level:  {:12} -- {:3}%", stats.num_rays_hit_max_level, 100 * stats.num_rays_hit_max_level / stats.num_rays_sampling);
     }
 
     fn render_pixel_box(&self, x0: u32, y0: u32, nx: u32, ny: u32, stats: &mut RenderStats) {
@@ -382,6 +346,8 @@ impl RenderJob {
                 angle_z = v;
             }
             let mut n = 0;
+            for [_a, _b, _c] in model.triangles() { n += 1; }
+            let mut triangles = Vec::with_capacity(n);
             for [a, b, c] in model.triangles() {
                 let a0 = a.position();
                 let b0 = b.position();
@@ -395,9 +361,10 @@ impl RenderJob {
                 let mut triangle = Triangle::new([ p0, p1, p2 ], 0);
                 triangle.calc_normal();
                 num_obj_triangles += 1;
-                n += 1;
-                self.objects.push(Arc::new(Box::new(triangle)));
+                triangles.push(triangle);
             }
+            let mesh = Mesh { triangles: triangles, material_id: 0, };
+            self.objects.push(Arc::new(Box::new(mesh)));
             num_objs += 1;
             println!("-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}", path.green(), n, angle_x, angle_y, angle_z);
         }
@@ -410,8 +377,8 @@ impl RenderJob {
             self.objects.push(Arc::new(Box::new(triangle)));
             num_triangles += 1;
         }
+        println!("-- materials={} vec_lights={} spot_lights={}", num_materials, num_vec_lights, num_vec_lights);
         println!("-- {} surfaces: mesh={} triangles={} spheres={} planes={}", self.objects.len(), num_objs, num_triangles + num_obj_triangles, num_spheres, num_planes);
-        println!("-- materials={} vec_lights={} pot_lights={}", num_materials, num_vec_lights, num_vec_lights);
         self.camera.as_ref().unwrap().display();
 
         self.lights.iter().for_each(|light| light.display());

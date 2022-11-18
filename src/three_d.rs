@@ -4,6 +4,10 @@ use crate::vec3::Vec3;
 use crate::vec3::Vec2;
 use crate::vec3::Point;
 use crate::Ray;
+use crate::RenderStats;
+
+
+pub const EPSILON : f64 = 0.000001;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Material {
@@ -32,12 +36,10 @@ impl Material {
 
 pub trait Object {
     fn display(&self);
-    fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool;
-    fn get_normal(&self, point: Point) -> Vec3;
+    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, oid: &mut usize) -> bool;
+    fn get_normal(&self, point: Point, oid: usize) -> Vec3;
     fn get_texture_2d(&self, point: Point) -> Vec2;
     fn get_material_id(&self) -> usize;
-    fn is_sphere(&self) -> bool;
-    fn is_triangle(&self) -> bool;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,12 +66,18 @@ pub struct Triangle {
     pub has_normal: bool,
 }
 
+pub struct Mesh {
+    pub material_id: usize,
+    pub triangles: Vec<Triangle>,
+}
+
+
 impl Triangle {
     pub fn new(points: [Point; 3], material_id: usize) -> Self {
         Self { points: points, normal: Vec3::new(), material_id: material_id, has_normal: false }
     }
     pub fn calc_normal(&mut self) {
-        self.normal = self.get_normal(Point::new());
+        self.normal = self.get_normal(Point::new(), 0);
         self.has_normal = true;
     }
 }
@@ -81,16 +89,11 @@ impl Plane {
     }
 }
 impl Object for Plane {
-    fn is_triangle(&self) -> bool {
-        false
-    }
-    fn is_sphere(&self) -> bool {
-        false
-    }
     fn display(&self) {
         println!("plane: {:?} normal={:?}", self.point, self.normal);
     }
-    fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
+    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _oid: &mut usize) -> bool {
+        stats.num_intersects_plane += 1;
         let d = ray.dir.dot(self.normal);
         if d.abs() < 0.001 {
             return false
@@ -103,7 +106,7 @@ impl Object for Plane {
         *tmax = t0;
         true
     }
-    fn get_normal(&self, _point: Point) -> Vec3 {
+    fn get_normal(&self, _point: Point, _oid: usize) -> Vec3 {
         self.normal
     }
     fn get_texture_2d(&self, _point: Point) -> Vec2 {
@@ -121,19 +124,13 @@ impl Sphere {
 }
 
 impl Object for Sphere {
-    fn is_triangle(&self) -> bool {
-        false
-    }
-    fn is_sphere(&self) -> bool {
-        true
-    }
     fn get_material_id(&self) -> usize {
         self.material_id
     }
     fn display(&self) {
         println!("sphere: {:?} radius={:?}", self.center, self.radius);
     }
-    fn get_normal(&self, point: Point) -> Vec3 {
+    fn get_normal(&self, point: Point, _oid: usize) -> Vec3 {
         let normal = point - self.center;
         normal / self.radius
     }
@@ -147,7 +144,8 @@ impl Object for Sphere {
         }
     }
 
-    fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
+    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _oid: &mut usize) -> bool {
+        stats.num_intersects_sphere += 1;
         let a = ray.dir.dot(ray.dir);
         let v0 = ray.orig - self.center;
         let b = 2.0 * ray.dir.dot(v0);
@@ -181,19 +179,13 @@ impl Object for Sphere {
 }
 
 impl Object for Triangle {
-    fn is_sphere(&self) -> bool {
-        false
-    }
-    fn is_triangle(&self) -> bool {
-        true
-    }
     fn get_material_id(&self) -> usize {
         self.material_id
     } 
     fn display(&self) {
         println!("triangle: {:?} {:?} {:?}", self.points[0], self.points[1], self.points[2]);
     }
-    fn get_normal(&self, _point: Point) -> Vec3 {
+    fn get_normal(&self, _point: Point, _oid: usize) -> Vec3 {
         if self.has_normal {
             return self.normal
         }
@@ -206,13 +198,13 @@ impl Object for Triangle {
     }
 
     // cf wikipedia
-    fn intercept(&self, ray: &Ray, tmin: f64, tmax: &mut f64) -> bool {
-        let epsilon = 0.000001;
+    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _oid: &mut usize) -> bool {
+        stats.num_intersects_triangle += 1;
         let edge1 = self.points[1] - self.points[0];
         let edge2 = self.points[2] - self.points[0];
         let h = ray.dir.cross(edge2);
         let a = edge1.dot(h);
-        if a.abs() < epsilon {
+        if a.abs() < EPSILON {
             return false
         }
 
@@ -230,7 +222,7 @@ impl Object for Triangle {
         }
 
         let t = f * edge2.dot(q);
-        if t < epsilon {
+        if t < EPSILON {
             return false
         }
         if t <= tmin || t >= *tmax {
@@ -238,5 +230,34 @@ impl Object for Triangle {
         }
         *tmax = t;
         true
+    }
+}
+
+impl Object for Mesh {
+    fn get_material_id(&self) -> usize {
+        self.material_id
+    } 
+    fn display(&self) {
+        println!("mesh: n={:?}", self.triangles.len());
+    }
+    fn get_normal(&self, _point: Point, oid: usize) -> Vec3 {
+        self.triangles[oid].get_normal(_point, 0)
+    }
+    fn get_texture_2d(&self, _point: Point) -> Vec2 {
+        Vec2{ x: 0.0, y: 0.0 }
+    }
+
+    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, oid: &mut usize) -> bool {
+        let mut n = 0;
+        let hit_triangle = self.triangles.iter().filter(|triangle| {
+            stats.num_intersects_triangle += 1;
+            let mut oid0 : usize = 0;
+            let res = triangle.intercept(stats, &ray, tmin, tmax, &mut oid0);
+            if res { *oid = n; }
+            n += 1;
+            res
+        }).fold(None, |_acc, triangle| Some(triangle));
+
+        hit_triangle.is_some()
     }
 }
