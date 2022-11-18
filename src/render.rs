@@ -172,13 +172,30 @@ impl RenderJob {
     }
 
     fn print_stats(&self, start_time: Instant, stats: RenderStats) {
+        let pretty_print = |n| {
+            let mut suffix = "";
+            let val;
+            if n > 1_000_000_000 {
+                val = n as f64 / 1_000_000_000.0;
+                suffix = "G";
+            } else if n >= 1_000_000 {
+                val = n as f64 / 1_000_000.0;
+                suffix = "M";
+            } else if n >= 1_000 {
+                val = n as f64 / 1_000.0;
+                suffix = "M";
+            } else {
+                val = n as f64
+            }
+            format!("{:.3}{suffix}", val)
+        };
         let elapsed = start_time.elapsed();
         let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as f64 / 1000.0);
         let ray_lat_str = format!("{:.3} usec", elapsed.as_micros() as f64 / (stats.num_rays_sampling + stats.num_rays_reflection) as f64);
         println!("duration: {} -- {} per ray", tot_lat_str.bold(), ray_lat_str.bold());
-        println!("num_intersects Sphere:   {:14}", stats.num_intersects_sphere);
-        println!("num_intersects Plane:    {:14}", stats.num_intersects_plane);
-        println!("num_intersects Triangle: {:14}", stats.num_intersects_triangle);
+        println!("num_intersects Sphere:   {:14}", pretty_print(stats.num_intersects_sphere));
+        println!("num_intersects Plane:    {:14}", pretty_print(stats.num_intersects_plane));
+        println!("num_intersects Triangle: {:14}", pretty_print(stats.num_intersects_triangle));
 
         let num_pixels = (self.cfg.res_x * self.cfg.res_y) as u64;
         println!("num_rays_sampling:   {:12} -- {:3}%", stats.num_rays_sampling, 100 * stats.num_rays_sampling / num_pixels);
