@@ -122,7 +122,7 @@ impl Light for VectorLight {
         println!("-- {:12}: {s}", self.name.blue());
     }
     fn get_vector(&self, _point: Point) -> Vec3 {
-        self.dir
+        self.dir * -1.0
     }
     fn get_intensity(&self) -> f32 {
         self.intensity

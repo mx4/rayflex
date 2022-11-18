@@ -56,7 +56,7 @@ struct Options {
 fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bool) -> std::io::Result<()> {
     let mut rng = rand::thread_rng();
     let mut json: serde_json::Value;
-    let num_materials = 4;
+    let num_materials = 10;
 
     println!("Generating scene w/ {} spheres {} materials", num_spheres_to_generate, num_materials);
     json = serde_json::json!({ "resolution": [ 400, 400 ] });
@@ -69,19 +69,28 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
     };
     json[&spot0.name] = serde_json::to_value(&spot0).unwrap();
     {
+        // white
         let mat = Material { albedo: 0.9, reflectivity: 0.0, checkered: false,
         rgb: RGB { r: 1.0, g: 1.0, b: 1.0 }, };
         json["material.0"] = serde_json::to_value(mat).unwrap();
+        // white glossy
+        let mat = Material { albedo: 0.9, reflectivity: 0.5, checkered: false,
+        rgb: RGB { r: 1.0, g: 1.0, b: 1.0 }, };
+        json["material.1"] = serde_json::to_value(mat).unwrap();
+        // red
         let mat = Material { albedo: 0.9, reflectivity: 0.0, checkered: false,
         rgb: RGB { r: 1.0, g: 0.0, b: 0.0 }, };
-        json["material.1"] = serde_json::to_value(mat).unwrap();
+        json["material.2"] = serde_json::to_value(mat).unwrap();
+        // green
         let mat = Material { albedo: 0.9, reflectivity: 0.0, checkered: false,
         rgb: RGB { r: 0.0, g: 1.0, b: 0.0 }, };
-        json["material.2"] = serde_json::to_value(mat).unwrap();
+        json["material.3"] = serde_json::to_value(mat).unwrap();
+        // blue
         let mat = Material { albedo: 0.9, reflectivity: 0.0, checkered: false,
         rgb: RGB { r: 0.0, g: 0.0, b: 1.0 }, };
-        json["material.3"] = serde_json::to_value(mat).unwrap();
-        for i in 4..10 {
+        json["material.4"] = serde_json::to_value(mat).unwrap();
+
+        for i in 5..10 {
             let name = format!("material.{}", i);
             let mat = Material {
                 albedo: 0.9,
@@ -130,7 +139,6 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
         );
         json["camera"] = serde_json::to_value(camera).unwrap();
     }
-    json["num_spheres"] = serde_json::json!(num_spheres_to_generate);
     if false {
         let orig = Vec3{ x: 1.5, y: -1.5, z: -1.0};
         let sz = 0.5;
@@ -173,7 +181,7 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
         let p0 = Plane {
             point: Point{ x: 0.0, y: 0.0, z: -1.0 }, // bottom
             normal: Vec3{ x: 0.0, y: 0.0, z: 1.0 },
-            material_id: 0,
+            material_id: 1,
         };
         json["plane.0"] = serde_json::to_value(&p0).unwrap();
         let p1 = Plane {
@@ -185,13 +193,13 @@ fn generate_scene(num_spheres_to_generate: u32, scene_file: PathBuf, use_box: bo
         let p2 = Plane {
             point: Point{ x: 0.0, y: -3.0, z: 0.0 }, // right
             normal: Vec3{ x: 0.0, y: 1.0, z: 0.0 },
-            material_id: 2,
+            material_id: 3,
         };
         json["plane.2"] = serde_json::to_value(&p2).unwrap();
         let p3 = Plane {
             point: Point{ x: 0.0, y: 3.0, z: 3.0 }, // left
             normal: Vec3{ x: 0.0, y: -1.0, z: 0.0 },
-            material_id: 1,
+            material_id: 2,
         };
         json["plane.3"] = serde_json::to_value(&p3).unwrap();
         let p4 = Plane {

@@ -40,21 +40,21 @@ pub trait Object {
     fn get_material_id(&self) -> usize;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Sphere {
     pub center: Point,
     pub radius: f64,
     pub material_id: usize,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Plane {
     pub point: Point,
     pub normal: Vec3,
     pub material_id: usize,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Triangle {
     pub points: [Point; 3],
     pub material_id: usize,
