@@ -1,23 +1,26 @@
-pub mod image;
-pub mod color;
-pub mod vec3;
-pub mod light;
-pub mod camera;
-pub mod three_d;
 pub mod aabb;
+pub mod camera;
+pub mod color;
+pub mod image;
+pub mod light;
+pub mod three_d;
+pub mod vec3;
 
-use vec3::Vec3;
 use vec3::Point;
+use vec3::Vec3;
 
 #[derive(Debug)]
 pub struct Ray {
     pub orig: Point,
-    pub dir: Vec3
+    pub dir: Vec3,
 }
 
 impl Ray {
     pub fn get_reflection(&self, point: Point, normal: Vec3) -> Ray {
-        Ray{orig: point, dir: self.dir.reflect(normal) }
+        Ray {
+            orig: point,
+            dir: self.dir.reflect(normal),
+        }
     }
 }
 
@@ -43,12 +46,11 @@ impl RenderStats {
         }
     }
     pub fn add(&mut self, other: RenderStats) {
-        self.num_rays_sampling       += other.num_rays_sampling;
-        self.num_rays_reflection     += other.num_rays_reflection;
-        self.num_rays_hit_max_level  += other.num_rays_hit_max_level;
-        self.num_intersects_sphere   += other.num_intersects_sphere;
-        self.num_intersects_plane    += other.num_intersects_plane;
+        self.num_rays_sampling += other.num_rays_sampling;
+        self.num_rays_reflection += other.num_rays_reflection;
+        self.num_rays_hit_max_level += other.num_rays_hit_max_level;
+        self.num_intersects_sphere += other.num_intersects_sphere;
+        self.num_intersects_plane += other.num_intersects_plane;
         self.num_intersects_triangle += other.num_intersects_triangle;
     }
 }
-

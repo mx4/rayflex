@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
-use colored::Colorize;
 use crate::color::RGB;
-use crate::vec3::Vec3;
-use crate::vec3::Point;
 use crate::three_d::Material;
+use crate::vec3::Point;
+use crate::vec3::Vec3;
+use colored::Colorize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct AmbientLight {
@@ -87,7 +87,11 @@ impl Light for AmbientLight {
         println!("-- {:12}: {s}", self.name.blue());
     }
     fn get_vector(&self, _point: Point) -> Vec3 {
-        Vec3 { x: 0.0, y: 0.0, z: 0.0 }
+        Vec3 {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        }
     }
     fn get_intensity(&self) -> f32 {
         self.intensity
@@ -137,4 +141,3 @@ impl Light for VectorLight {
         false
     }
 }
-

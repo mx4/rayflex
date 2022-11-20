@@ -1,14 +1,13 @@
-use serde::{Deserialize, Serialize};
-use crate::color::RGB;
-use crate::vec3::Vec3;
-use crate::vec3::Vec2;
-use crate::vec3::Point;
 use crate::aabb::AABB;
+use crate::color::RGB;
+use crate::vec3::Point;
+use crate::vec3::Vec2;
+use crate::vec3::Vec3;
 use crate::Ray;
 use crate::RenderStats;
+use serde::{Deserialize, Serialize};
 
-
-pub const EPSILON : f64 = 0.000001;
+pub const EPSILON: f64 = 0.000001;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Material {
@@ -20,7 +19,12 @@ pub struct Material {
 
 impl Material {
     pub fn new() -> Material {
-        Material{ albedo: 0.0, rgb: RGB::new(), checkered : false, reflectivity: 0.0 }
+        Material {
+            albedo: 0.0,
+            rgb: RGB::new(),
+            checkered: false,
+            reflectivity: 0.0,
+        }
     }
     pub fn do_checker(&self, c: RGB, text2d: Vec2) -> RGB {
         assert!(self.checkered);
@@ -35,7 +39,15 @@ impl Material {
 
 pub trait Object {
     fn display(&self);
-    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, any: bool, oid: &mut usize) -> bool;
+    fn intercept(
+        &self,
+        stats: &mut RenderStats,
+        ray: &Ray,
+        tmin: f64,
+        tmax: &mut f64,
+        any: bool,
+        oid: &mut usize,
+    ) -> bool;
     fn get_normal(&self, point: Point, oid: usize) -> Vec3;
     fn get_texture_2d(&self, point: Point) -> Vec2;
     fn get_material_id(&self) -> usize;
@@ -89,10 +101,14 @@ impl Mesh {
     }
 }
 
-
 impl Triangle {
     pub fn new(points: [Point; 3], material_id: usize) -> Self {
-        Self { points: points, normal: Vec3::new(), material_id: material_id, has_normal: false }
+        Self {
+            points: points,
+            normal: Vec3::new(),
+            material_id: material_id,
+            has_normal: false,
+        }
     }
     pub fn calc_normal(&mut self) {
         self.normal = self.get_normal(Point::new(), 0);
@@ -103,23 +119,35 @@ impl Triangle {
 impl Plane {
     pub fn new(point: Point, normal: Vec3, material_id: usize) -> Self {
         let n = normal.normalize();
-        Self { point: point, normal: n, material_id: material_id }
+        Self {
+            point: point,
+            normal: n,
+            material_id: material_id,
+        }
     }
 }
 impl Object for Plane {
     fn display(&self) {
         println!("plane: {:?} normal={:?}", self.point, self.normal);
     }
-    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _any: bool,_oid: &mut usize) -> bool {
+    fn intercept(
+        &self,
+        stats: &mut RenderStats,
+        ray: &Ray,
+        tmin: f64,
+        tmax: &mut f64,
+        _any: bool,
+        _oid: &mut usize,
+    ) -> bool {
         stats.num_intersects_plane += 1;
         let d = ray.dir.dot(self.normal);
         if d.abs() < 0.001 {
-            return false
+            return false;
         }
         let v = self.point - ray.orig;
         let t0 = v.dot(self.normal) / d;
         if t0 <= tmin || t0 >= *tmax {
-            return false
+            return false;
         }
         *tmax = t0;
         true
@@ -128,7 +156,7 @@ impl Object for Plane {
         self.normal
     }
     fn get_texture_2d(&self, _point: Point) -> Vec2 {
-        Vec2{ x: 0.0, y: 0.0 }
+        Vec2 { x: 0.0, y: 0.0 }
     }
     fn get_material_id(&self) -> usize {
         self.material_id
@@ -137,7 +165,11 @@ impl Object for Plane {
 
 impl Sphere {
     pub fn new(center: Point, radius: f64, material_id: usize) -> Self {
-        Self { center: center, radius: radius, material_id: material_id }
+        Self {
+            center: center,
+            radius: radius,
+            material_id: material_id,
+        }
     }
 }
 
@@ -156,13 +188,21 @@ impl Object for Sphere {
         let v = (point - self.center) / self.radius;
         let x = (1.0 + v.y.atan2(v.x) / std::f64::consts::PI) * 0.5;
         let y = v.z.acos() / std::f64::consts::PI;
-        Vec2{
+        Vec2 {
             x: x as f32,
             y: y as f32,
         }
     }
 
-    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _any: bool, _oid: &mut usize) -> bool {
+    fn intercept(
+        &self,
+        stats: &mut RenderStats,
+        ray: &Ray,
+        tmin: f64,
+        tmax: &mut f64,
+        _any: bool,
+        _oid: &mut usize,
+    ) -> bool {
         stats.num_intersects_sphere += 1;
         let a = ray.dir.dot(ray.dir);
         let v0 = ray.orig - self.center;
@@ -173,22 +213,22 @@ impl Object for Sphere {
         let delta = b * b - 4.0 * a * c;
 
         if delta < 0.0 {
-            return false
+            return false;
         }
         let delta_sqrt = delta.sqrt();
         let t1 = (-b + delta_sqrt) / (2.0 * a);
         let t2 = (-b - delta_sqrt) / (2.0 * a);
         if t1 < tmin {
-            return false
+            return false;
         }
-        let t0 : f64;
+        let t0: f64;
         if t2 < tmin {
             t0 = t1;
         } else {
             t0 = t2;
         }
         if t0 >= *tmax {
-            return false
+            return false;
         }
 
         *tmax = t0;
@@ -199,52 +239,63 @@ impl Object for Sphere {
 impl Object for Triangle {
     fn get_material_id(&self) -> usize {
         self.material_id
-    } 
+    }
     fn display(&self) {
-        println!("triangle: {:?} {:?} {:?}", self.points[0], self.points[1], self.points[2]);
+        println!(
+            "triangle: {:?} {:?} {:?}",
+            self.points[0], self.points[1], self.points[2]
+        );
     }
     fn get_normal(&self, _point: Point, _oid: usize) -> Vec3 {
         if self.has_normal {
-            return self.normal
+            return self.normal;
         }
         let edge1 = self.points[1] - self.points[0];
         let edge2 = self.points[2] - self.points[0];
         edge1.cross(edge2).normalize()
     }
     fn get_texture_2d(&self, _point: Point) -> Vec2 {
-        Vec2{ x: 0.0, y: 0.0 }
+        Vec2 { x: 0.0, y: 0.0 }
     }
 
     // cf wikipedia
-    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _any: bool, _oid: &mut usize) -> bool {
+    fn intercept(
+        &self,
+        stats: &mut RenderStats,
+        ray: &Ray,
+        tmin: f64,
+        tmax: &mut f64,
+        _any: bool,
+        _oid: &mut usize,
+    ) -> bool {
         stats.num_intersects_triangle += 1;
         let edge1 = self.points[1] - self.points[0];
         let edge2 = self.points[2] - self.points[0];
         let h = ray.dir.cross(edge2);
         let a = edge1.dot(h);
         if a.abs() < EPSILON {
-            return false
+            return false;
         }
 
         let f = 1.0 / a;
         let s = ray.orig - self.points[0];
         let u = f * s.dot(h);
         if u < 0.0 || u > 1.0 {
-            return false
+            return false;
         }
 
         let q = s.cross(edge1);
         let v = f * ray.dir.dot(q);
         if v < 0.0 || u + v > 1.0 {
-            return false
+            return false;
         }
 
         let t = f * edge2.dot(q);
         if t < EPSILON {
-            return false
+            return false;
         }
         if t <= tmin || t >= *tmax {
-            return false
+            return false;
         }
         *tmax = t;
         true
@@ -254,7 +305,7 @@ impl Object for Triangle {
 impl Object for Mesh {
     fn get_material_id(&self) -> usize {
         self.material_id
-    } 
+    }
     fn display(&self) {
         println!("mesh: n={:?}", self.triangles.len());
     }
@@ -262,16 +313,24 @@ impl Object for Mesh {
         self.triangles[oid].get_normal(_point, 0)
     }
     fn get_texture_2d(&self, _point: Point) -> Vec2 {
-        Vec2{ x: 0.0, y: 0.0 }
+        Vec2 { x: 0.0, y: 0.0 }
     }
 
-    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, any: bool, oid: &mut usize) -> bool {
-        let mut oid0 : usize = 0;
+    fn intercept(
+        &self,
+        stats: &mut RenderStats,
+        ray: &Ray,
+        tmin: f64,
+        tmax: &mut f64,
+        any: bool,
+        oid: &mut usize,
+    ) -> bool {
+        let mut oid0: usize = 0;
         let mut hit = false;
         let mut n = 0;
 
-        if ! self.aabb.check_intersect(ray, *tmax) {
-            return false
+        if !self.aabb.check_intersect(ray, *tmax) {
+            return false;
         }
 
         for triangle in &self.triangles {
@@ -284,7 +343,7 @@ impl Object for Mesh {
             }
             n += 1;
         }
- 
+
         hit
     }
 }

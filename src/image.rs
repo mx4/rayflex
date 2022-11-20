@@ -1,8 +1,8 @@
+use crate::color::RGB;
 use colored::Colorize;
-use image::{Rgb32FImage, RgbImage, Rgb};
+use image::{Rgb, Rgb32FImage, RgbImage};
 use std::path::PathBuf;
 use std::time::Instant;
-use crate::color::RGB;
 
 const GAMMA: f32 = 2.2;
 
@@ -18,7 +18,11 @@ fn gamma_encode(linear: f32) -> f32 {
 
 impl Image {
     pub fn new(res_x: u32, res_y: u32) -> Self {
-        Self {  res_x: res_x, res_y: res_y, img_buffer: Rgb32FImage::new(res_x, res_y), }
+        Self {
+            res_x: res_x,
+            res_y: res_y,
+            img_buffer: Rgb32FImage::new(res_x, res_y),
+        }
     }
     pub fn push_pixel(&mut self, x: u32, y: u32, c: RGB) {
         self.img_buffer.put_pixel(x, y, Rgb([c.r, c.g, c.b]));
@@ -28,9 +32,9 @@ impl Image {
 
         let mut img = RgbImage::new(self.res_x, self.res_y);
 
-	for i in 0..self.res_y {
-	    for j in 0..self.res_x {
-		let c = self.img_buffer.get_pixel_mut(j, i);
+        for i in 0..self.res_y {
+            for j in 0..self.res_x {
+                let c = self.img_buffer.get_pixel_mut(j, i);
                 let mut rf = c[0];
                 let mut gf = c[1];
                 let mut bf = c[2];
@@ -45,13 +49,16 @@ impl Image {
                 let b = (255.0 * bf).clamp(0.0, 255.0) as u8;
 
                 img.put_pixel(j, i, Rgb([r, g, b]));
-	    }
-	}
+            }
+        }
         img.save(file.clone()).expect("png write");
         let elapsed = start_time.elapsed();
         let lat_msec = elapsed.as_millis() as f64 / 1000.0;
-        println!("writing '{}' took {} sec", file.display().to_string().bold(), lat_msec);
+        println!(
+            "writing '{}' took {} sec",
+            file.display().to_string().bold(),
+            lat_msec
+        );
         Ok(())
     }
 }
-

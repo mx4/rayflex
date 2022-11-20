@@ -1,7 +1,7 @@
-use crate::Ray;
 use crate::three_d::Triangle;
 use crate::vec3::Point;
 use crate::vec3::Vec3;
+use crate::Ray;
 
 /*
  * Axis-Aligned Bounding Box
@@ -10,15 +10,19 @@ use crate::vec3::Vec3;
 pub struct AABB {
     p_min: Point,
     p_max: Point,
-    init: bool, 
+    init: bool,
 }
 
 impl AABB {
     pub fn new() -> AABB {
-        AABB { p_min: Point::new(), p_max: Point::new(), init: false }
+        AABB {
+            p_min: Point::new(),
+            p_max: Point::new(),
+            init: false,
+        }
     }
     fn feed_point(&mut self, point: Point) {
-        if ! self.init {
+        if !self.init {
             self.p_min = point;
             self.p_max = point;
             self.init = true;

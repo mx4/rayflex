@@ -1,33 +1,33 @@
-use std::sync::atomic::Ordering;
-use std::fs;
-use std::path::PathBuf;
-use std::time::Instant;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use colored::Colorize;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
-use colored::Colorize;
 use serde_json;
+use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use wavefront;
 
-use raymax::color::RGB;
-use raymax::vec3::Point;
-use raymax::light::Light;
-use raymax::light::VectorLight;
-use raymax::light::SpotLight;
-use raymax::light::AmbientLight;
 use raymax::camera::Camera;
+use raymax::color::RGB;
 use raymax::image::Image;
+use raymax::light::AmbientLight;
+use raymax::light::Light;
+use raymax::light::SpotLight;
+use raymax::light::VectorLight;
+use raymax::vec3::Point;
 use raymax::Ray;
 use raymax::RenderStats;
 
-use raymax::three_d::EPSILON;
 use raymax::three_d::Material;
+use raymax::three_d::Mesh;
 use raymax::three_d::Object;
+use raymax::three_d::Plane;
 use raymax::three_d::Sphere;
 use raymax::three_d::Triangle;
-use raymax::three_d::Mesh;
-use raymax::three_d::Plane;
+use raymax::three_d::EPSILON;
 
 pub struct RenderConfig {
     pub use_adaptive_sampling: bool,
@@ -47,7 +47,6 @@ pub struct RenderJob {
     image: Mutex<Image>,
     cfg: RenderConfig,
 }
-
 
 impl RenderJob {
     pub fn new(cfg: RenderConfig) -> Self {
@@ -72,9 +71,11 @@ impl RenderJob {
             tmin = ray.dir.norm();
         }
 
-        let hit_obj = self.objects.iter().filter(|obj| {
-            obj.intercept(stats, &ray, tmin, &mut t, false, &mut s_id)
-        }).fold(None, |_acc, obj| Some(obj));
+        let hit_obj = self
+            .objects
+            .iter()
+            .filter(|obj| obj.intercept(stats, &ray, tmin, &mut t, false, &mut s_id))
+            .fold(None, |_acc, obj| Some(obj));
 
         if hit_obj.is_some() {
             let hit_point = ray.orig + ray.dir * t;
@@ -85,14 +86,23 @@ impl RenderJob {
             let mut c = self.lights.iter().fold(RGB::new(), |acc, light| {
                 let c_light;
 
-                if ! light.is_spot() {
+                if !light.is_spot() {
                     c_light = light.get_contrib(&hit_material, hit_point, hit_normal);
                 } else {
                     let light_vec = light.get_vector(hit_point) * -1.0;
-                    let light_ray = Ray{orig: hit_point, dir: light_vec};
+                    let light_ray = Ray {
+                        orig: hit_point,
+                        dir: light_vec,
+                    };
                     let mut t0 = 1.0;
-                    let mut oid0 : usize = 0;
-                    let shadow = self.objects.iter().find(|obj| obj.intercept(stats, &light_ray, EPSILON, &mut t0, true, &mut oid0)).is_some();
+                    let mut oid0: usize = 0;
+                    let shadow = self
+                        .objects
+                        .iter()
+                        .find(|obj| {
+                            obj.intercept(stats, &light_ray, EPSILON, &mut t0, true, &mut oid0)
+                        })
+                        .is_some();
 
                     if shadow {
                         c_light = RGB::new();
@@ -116,14 +126,28 @@ impl RenderJob {
             }
             c
         } else {
-	    let z = (ray.dir.z + 0.5).clamp(0.0, 1.0) as f32;
-	    let cmax = RGB{ r: 1.0, g: 1.0, b: 1.0 };
-	    let cyan = RGB{ r: 0.4, g: 0.6, b: 0.9 };
+            let z = (ray.dir.z + 0.5).clamp(0.0, 1.0) as f32;
+            let cmax = RGB {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+            };
+            let cyan = RGB {
+                r: 0.4,
+                g: 0.6,
+                b: 0.9,
+            };
             cmax * (1.0 - z) + cyan * z
         }
     }
 
-    fn calc_one_ray(&self, stats: &mut RenderStats, pmap: &mut HashMap<String,RGB>, u: f64, v: f64) -> RGB {
+    fn calc_one_ray(
+        &self,
+        stats: &mut RenderStats,
+        pmap: &mut HashMap<String, RGB>,
+        u: f64,
+        v: f64,
+    ) -> RGB {
         if self.cfg.use_adaptive_sampling {
             let key = format!("{}-{}", u, v);
             if let Some(c) = pmap.get(&key) {
@@ -146,12 +170,21 @@ impl RenderJob {
      * pos_u: -0.5 .. 0.5
      * pos_v: -0.5 .. 0.5
      */
-    fn calc_ray_box(&self, stats: &mut RenderStats, pmap: &mut HashMap<String,RGB>, pos_u: f64, pos_v: f64, du: f64, dv: f64, lvl: u32) -> RGB {
-        if ! self.cfg.use_adaptive_sampling {
+    fn calc_ray_box(
+        &self,
+        stats: &mut RenderStats,
+        pmap: &mut HashMap<String, RGB>,
+        pos_u: f64,
+        pos_v: f64,
+        du: f64,
+        dv: f64,
+        lvl: u32,
+    ) -> RGB {
+        if !self.cfg.use_adaptive_sampling {
             return self.calc_one_ray(stats, pmap, pos_u + du / 2.0, pos_v + dv / 2.0);
         }
-        let mut c00 = self.calc_one_ray(stats, pmap, pos_u,      pos_v);
-        let mut c01 = self.calc_one_ray(stats, pmap, pos_u,      pos_v + dv);
+        let mut c00 = self.calc_one_ray(stats, pmap, pos_u, pos_v);
+        let mut c01 = self.calc_one_ray(stats, pmap, pos_u, pos_v + dv);
         let mut c10 = self.calc_one_ray(stats, pmap, pos_u + du, pos_v);
         let mut c11 = self.calc_one_ray(stats, pmap, pos_u + du, pos_v + dv);
 
@@ -160,9 +193,9 @@ impl RenderJob {
             if color_diff {
                 let du2 = du / 2.0;
                 let dv2 = dv / 2.0;
-                c00 = self.calc_ray_box(stats, pmap, pos_u,       pos_v,       du2, dv2, lvl + 1);
-                c01 = self.calc_ray_box(stats, pmap, pos_u,       pos_v + dv2, du2, dv2, lvl + 1);
-                c10 = self.calc_ray_box(stats, pmap, pos_u + du2, pos_v,       du2, dv2, lvl + 1);
+                c00 = self.calc_ray_box(stats, pmap, pos_u, pos_v, du2, dv2, lvl + 1);
+                c01 = self.calc_ray_box(stats, pmap, pos_u, pos_v + dv2, du2, dv2, lvl + 1);
+                c10 = self.calc_ray_box(stats, pmap, pos_u + du2, pos_v, du2, dv2, lvl + 1);
                 c11 = self.calc_ray_box(stats, pmap, pos_u + du2, pos_v + dv2, du2, dv2, lvl + 1);
             }
         } else {
@@ -197,15 +230,41 @@ impl RenderJob {
         let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as f64 / 1000.0);
         let ray_lat_str = format!("{:.3} usec", elapsed.as_micros() as f64 / num_rays as f64);
         let kray_sec_str = format!("{:.3}", num_rays / elapsed.as_secs_f64() / 1_000_f64);
-        println!("duration: {} -- {} per ray -- {} Krays/sec", tot_lat_str.bold(), ray_lat_str.bold(), kray_sec_str.bold());
-        println!("num_intersects Sphere:   {:>12}", pretty_print(stats.num_intersects_sphere));
-        println!("num_intersects Plane:    {:>12}", pretty_print(stats.num_intersects_plane));
-        println!("num_intersects Triangle: {:>12}", pretty_print(stats.num_intersects_triangle));
+        println!(
+            "duration: {} -- {} per ray -- {} Krays/sec",
+            tot_lat_str.bold(),
+            ray_lat_str.bold(),
+            kray_sec_str.bold()
+        );
+        println!(
+            "num_intersects Sphere:   {:>12}",
+            pretty_print(stats.num_intersects_sphere)
+        );
+        println!(
+            "num_intersects Plane:    {:>12}",
+            pretty_print(stats.num_intersects_plane)
+        );
+        println!(
+            "num_intersects Triangle: {:>12}",
+            pretty_print(stats.num_intersects_triangle)
+        );
 
         let num_pixels = (self.cfg.res_x * self.cfg.res_y) as u64;
-        println!("num_rays_sampling:       {:>12} -- {:3}%", pretty_print(stats.num_rays_sampling), 100 * stats.num_rays_sampling / num_pixels);
-        println!("num_rays_reflection:     {:>12} -- {:3}%", pretty_print(stats.num_rays_reflection), 100 * stats.num_rays_reflection / stats.num_rays_sampling);
-        println!("num_rays_max_level:      {:>12} -- {:3}%", pretty_print(stats.num_rays_hit_max_level), 100 * stats.num_rays_hit_max_level / stats.num_rays_sampling);
+        println!(
+            "num_rays_sampling:       {:>12} -- {:3}%",
+            pretty_print(stats.num_rays_sampling),
+            100 * stats.num_rays_sampling / num_pixels
+        );
+        println!(
+            "num_rays_reflection:     {:>12} -- {:3}%",
+            pretty_print(stats.num_rays_reflection),
+            100 * stats.num_rays_reflection / stats.num_rays_sampling
+        );
+        println!(
+            "num_rays_max_level:      {:>12} -- {:3}%",
+            pretty_print(stats.num_rays_hit_max_level),
+            100 * stats.num_rays_hit_max_level / stats.num_rays_sampling
+        );
     }
 
     fn render_pixel_box(&self, x0: u32, y0: u32, sz: u32, stats: &mut RenderStats) {
@@ -241,7 +300,7 @@ impl RenderJob {
 
         let total_stats = Mutex::new(RenderStats::new());
 
-        (0..ny*nx).into_par_iter().for_each(|v| {
+        (0..ny * nx).into_par_iter().for_each(|v| {
             let mut stats = RenderStats::new();
             let x = (v % nx) * step;
             let y = (v / nx) * step;
@@ -260,10 +319,13 @@ impl RenderJob {
     }
 
     pub fn load_scene(&mut self, scene_file: PathBuf) -> std::io::Result<()> {
-        if ! scene_file.is_file() {
-             panic!("scene file {} not present.", scene_file.display());
+        if !scene_file.is_file() {
+            panic!("scene file {} not present.", scene_file.display());
         }
-        println!("loading scene file {}", scene_file.display().to_string().bold());
+        println!(
+            "loading scene file {}",
+            scene_file.display().to_string().bold()
+        );
 
         let data = fs::read_to_string(&scene_file)?;
         let json: serde_json::Value = serde_json::from_str(&data)?;
@@ -289,12 +351,12 @@ impl RenderJob {
         }
         println!("-- img resolution: {}{}", res_str, smp_str);
 
-        let mut camera : Camera = serde_json::from_value(json["camera"].clone()).unwrap();
+        let mut camera: Camera = serde_json::from_value(json["camera"].clone()).unwrap();
         camera.calc_uv_after_deserialize();
         self.camera = Some(camera);
 
-        if ! json["ambient"].is_null() {
-            let ambient : AmbientLight = serde_json::from_value(json["ambient"].clone()).unwrap();
+        if !json["ambient"].is_null() {
+            let ambient: AmbientLight = serde_json::from_value(json["ambient"].clone()).unwrap();
             self.lights.push(Arc::new(Box::new(ambient)));
         }
 
@@ -303,7 +365,7 @@ impl RenderJob {
             if json[&name].is_null() {
                 break;
             }
-            let mat : Material = serde_json::from_value(json[&name].clone()).unwrap();
+            let mat: Material = serde_json::from_value(json[&name].clone()).unwrap();
             self.materials.push(Arc::new(Box::new(mat)));
             num_materials += 1;
         }
@@ -312,7 +374,7 @@ impl RenderJob {
             if json[&s].is_null() {
                 break;
             }
-            let spot : SpotLight = serde_json::from_value(json[&s].clone()).unwrap();
+            let spot: SpotLight = serde_json::from_value(json[&s].clone()).unwrap();
             self.lights.push(Arc::new(Box::new(spot)));
             num_spot_lights += 1;
         }
@@ -321,7 +383,7 @@ impl RenderJob {
             if json[&s].is_null() {
                 break;
             }
-            let mut vec : VectorLight = serde_json::from_value(json[&s].clone()).unwrap();
+            let mut vec: VectorLight = serde_json::from_value(json[&s].clone()).unwrap();
             vec.dir = vec.dir.normalize();
             self.lights.push(Arc::new(Box::new(vec)));
             num_vec_lights += 1;
@@ -332,7 +394,7 @@ impl RenderJob {
             if json[&s].is_null() {
                 break;
             }
-            let p : Plane = serde_json::from_value(json[&s].clone()).unwrap();
+            let p: Plane = serde_json::from_value(json[&s].clone()).unwrap();
             self.objects.push(Arc::new(Box::new(p)));
             num_planes += 1;
         }
@@ -341,7 +403,7 @@ impl RenderJob {
             if json[&s].is_null() {
                 break;
             }
-            let sphere : Sphere = serde_json::from_value(json[&s].clone()).unwrap();
+            let sphere: Sphere = serde_json::from_value(json[&s].clone()).unwrap();
             self.objects.push(Arc::new(Box::new(sphere)));
             num_spheres += 1;
         }
@@ -374,32 +436,61 @@ impl RenderJob {
                 let a0 = a.position();
                 let b0 = b.position();
                 let c0 = c.position();
-                let mut p0 = Point{ x: a0[0] as f64, y: a0[1] as f64, z: a0[2] as f64};
-                let mut p1 = Point{ x: b0[0] as f64, y: b0[1] as f64, z: b0[2] as f64};
-                let mut p2 = Point{ x: c0[0] as f64, y: c0[1] as f64, z: c0[2] as f64};
+                let mut p0 = Point {
+                    x: a0[0] as f64,
+                    y: a0[1] as f64,
+                    z: a0[2] as f64,
+                };
+                let mut p1 = Point {
+                    x: b0[0] as f64,
+                    y: b0[1] as f64,
+                    z: b0[2] as f64,
+                };
+                let mut p2 = Point {
+                    x: c0[0] as f64,
+                    y: c0[1] as f64,
+                    z: c0[2] as f64,
+                };
                 p0 = p0.rotx(angle_x).roty(angle_y).rotz(angle_z);
                 p1 = p1.rotx(angle_x).roty(angle_y).rotz(angle_z);
                 p2 = p2.rotx(angle_x).roty(angle_y).rotz(angle_z);
-                let mut triangle = Triangle::new([ p0, p1, p2 ], 0);
+                let mut triangle = Triangle::new([p0, p1, p2], 0);
                 triangle.calc_normal();
                 triangles.push(triangle);
             }
             let mesh = Mesh::new(triangles, 0);
             self.objects.push(Arc::new(Box::new(mesh)));
             num_objs += 1;
-            println!("-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}", path.green(), n, angle_x, angle_y, angle_z);
+            println!(
+                "-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
+                path.green(),
+                n,
+                angle_x,
+                angle_y,
+                angle_z
+            );
         }
         loop {
             let s = format!("triangle.{}", num_triangles);
             if json[&s].is_null() {
                 break;
             }
-            let triangle : Triangle = serde_json::from_value(json[&s].clone()).unwrap();
+            let triangle: Triangle = serde_json::from_value(json[&s].clone()).unwrap();
             self.objects.push(Arc::new(Box::new(triangle)));
             num_triangles += 1;
         }
-        println!("-- materials={} vec_lights={} spot_lights={}", num_materials, num_vec_lights, num_vec_lights);
-        println!("-- {} surfaces: mesh={} triangles={} spheres={} planes={}", self.objects.len(), num_objs, num_triangles + num_obj_triangles, num_spheres, num_planes);
+        println!(
+            "-- materials={} vec_lights={} spot_lights={}",
+            num_materials, num_vec_lights, num_vec_lights
+        );
+        println!(
+            "-- {} surfaces: mesh={} triangles={} spheres={} planes={}",
+            self.objects.len(),
+            num_objs,
+            num_triangles + num_obj_triangles,
+            num_spheres,
+            num_planes
+        );
         self.camera.as_ref().unwrap().display();
 
         self.lights.iter().for_each(|light| light.display());
@@ -407,6 +498,10 @@ impl RenderJob {
     }
 
     pub fn save_image(&mut self, img_file: PathBuf) -> std::io::Result<()> {
-        return self.image.lock().unwrap().save_image(PathBuf::from(&img_file), self.cfg.use_gamma);
+        return self
+            .image
+            .lock()
+            .unwrap()
+            .save_image(PathBuf::from(&img_file), self.cfg.use_gamma);
     }
 }

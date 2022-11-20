@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::ops::{Add, AddAssign, Mul, Div};
 use std::fmt;
+use std::ops::{Add, AddAssign, Div, Mul};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct RGB {
@@ -25,7 +25,11 @@ impl Add for RGB {
         assert!(other.r >= 0.0);
         assert!(other.g >= 0.0);
         assert!(other.b >= 0.0);
-        RGB { r: self.r + other.r, g: self.g + other.g, b: self.b + other.b }
+        RGB {
+            r: self.r + other.r,
+            g: self.g + other.g,
+            b: self.b + other.b,
+        }
     }
 }
 
@@ -38,7 +42,11 @@ impl Mul<RGB> for RGB {
         assert!(rhs.r >= 0.0);
         assert!(rhs.g >= 0.0);
         assert!(rhs.b >= 0.0);
-        RGB { r: self.r * rhs.r, g: self.g * rhs.g, b: self.b * rhs.b }
+        RGB {
+            r: self.r * rhs.r,
+            g: self.g * rhs.g,
+            b: self.b * rhs.b,
+        }
     }
 }
 
@@ -49,7 +57,11 @@ impl Div<f32> for RGB {
         assert!(self.g >= 0.0);
         assert!(self.b >= 0.0);
         assert!(rhs >= 0.0);
-        RGB { r: self.r / rhs, g: self.g / rhs, b: self.b / rhs }
+        RGB {
+            r: self.r / rhs,
+            g: self.g / rhs,
+            b: self.b / rhs,
+        }
     }
 }
 
@@ -60,12 +72,16 @@ impl Mul<f32> for RGB {
         assert!(self.g >= 0.0);
         assert!(self.b >= 0.0);
         assert!(rhs >= 0.0);
-        RGB { r: self.r * rhs, g: self.g * rhs, b: self.b * rhs }
+        RGB {
+            r: self.r * rhs,
+            g: self.g * rhs,
+            b: self.b * rhs,
+        }
     }
 }
 
 impl AddAssign<RGB> for RGB {
-    fn add_assign(&mut self, other: RGB)  {
+    fn add_assign(&mut self, other: RGB) {
         *self = RGB {
             r: self.r + other.r,
             g: self.g + other.g,
@@ -76,7 +92,11 @@ impl AddAssign<RGB> for RGB {
 
 impl RGB {
     pub fn new() -> RGB {
-	RGB{ r: 0.0, g: 0.0, b: 0.0 }
+        RGB {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+        }
     }
     pub fn difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> f32 {
         let avg = (c00 + c01 + c10 + c11) * 0.25;
@@ -89,7 +109,7 @@ impl RGB {
     pub fn distance(&self, rhs: RGB) -> f32 {
         ((self.r - rhs.r).powi(2) + (self.g - rhs.g).powi(2) + (self.b - rhs.b).powi(2)).sqrt()
     }
-    pub fn add(&mut self, rgb: &RGB)  {
+    pub fn add(&mut self, rgb: &RGB) {
         assert!(self.r >= 0.0);
         assert!(self.g >= 0.0);
         assert!(self.b >= 0.0);
