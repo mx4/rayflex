@@ -3,6 +3,7 @@ use crate::color::RGB;
 use crate::vec3::Vec3;
 use crate::vec3::Vec2;
 use crate::vec3::Point;
+use crate::aabb::AABB;
 use crate::Ray;
 use crate::RenderStats;
 
@@ -34,7 +35,7 @@ impl Material {
 
 pub trait Object {
     fn display(&self);
-    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, oid: &mut usize) -> bool;
+    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, any: bool, oid: &mut usize) -> bool;
     fn get_normal(&self, point: Point, oid: usize) -> Vec3;
     fn get_texture_2d(&self, point: Point) -> Vec2;
     fn get_material_id(&self) -> usize;
@@ -67,6 +68,25 @@ pub struct Triangle {
 pub struct Mesh {
     pub material_id: usize,
     pub triangles: Vec<Triangle>,
+    pub aabb: AABB,
+}
+
+impl Mesh {
+    pub fn new(triangles: Vec<Triangle>, mat_id: usize) -> Mesh {
+        let mut m = Mesh {
+            triangles: triangles,
+            material_id: mat_id,
+            aabb: AABB::new(),
+        };
+        m.setup_aabb();
+        m.aabb.display();
+        m
+    }
+    fn setup_aabb(&mut self) {
+        for triangle in &self.triangles {
+            self.aabb.init_with_triangle(triangle);
+        }
+    }
 }
 
 
@@ -90,7 +110,7 @@ impl Object for Plane {
     fn display(&self) {
         println!("plane: {:?} normal={:?}", self.point, self.normal);
     }
-    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _oid: &mut usize) -> bool {
+    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _any: bool,_oid: &mut usize) -> bool {
         stats.num_intersects_plane += 1;
         let d = ray.dir.dot(self.normal);
         if d.abs() < 0.001 {
@@ -142,7 +162,7 @@ impl Object for Sphere {
         }
     }
 
-    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _oid: &mut usize) -> bool {
+    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _any: bool, _oid: &mut usize) -> bool {
         stats.num_intersects_sphere += 1;
         let a = ray.dir.dot(ray.dir);
         let v0 = ray.orig - self.center;
@@ -196,7 +216,7 @@ impl Object for Triangle {
     }
 
     // cf wikipedia
-    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _oid: &mut usize) -> bool {
+    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, _any: bool, _oid: &mut usize) -> bool {
         stats.num_intersects_triangle += 1;
         let edge1 = self.points[1] - self.points[0];
         let edge2 = self.points[2] - self.points[0];
@@ -245,17 +265,26 @@ impl Object for Mesh {
         Vec2{ x: 0.0, y: 0.0 }
     }
 
-    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, oid: &mut usize) -> bool {
-        let mut n = 0;
+    fn intercept(&self, stats: &mut RenderStats, ray: &Ray, tmin: f64, tmax: &mut f64, any: bool, oid: &mut usize) -> bool {
         let mut oid0 : usize = 0;
+        let mut hit = false;
+        let mut n = 0;
 
-        let hit_triangle = self.triangles.iter().filter(|triangle| {
-            let res = triangle.intercept(stats, &ray, tmin, tmax, &mut oid0);
-            if res { *oid = n; }
+        if ! self.aabb.check_intersect(ray, *tmax) {
+            return false
+        }
+
+        for triangle in &self.triangles {
+            if triangle.intercept(stats, &ray, tmin, tmax, true, &mut oid0) {
+                *oid = n;
+                hit = true;
+                if any {
+                    break;
+                }
+            }
             n += 1;
-            res
-        }).fold(None, |_acc, triangle| Some(triangle));
-
-        hit_triangle.is_some()
+        }
+ 
+        hit
     }
 }

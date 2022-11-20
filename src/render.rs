@@ -73,7 +73,7 @@ impl RenderJob {
         }
 
         let hit_obj = self.objects.iter().filter(|obj| {
-            obj.intercept(stats, &ray, tmin, &mut t, &mut s_id)
+            obj.intercept(stats, &ray, tmin, &mut t, false, &mut s_id)
         }).fold(None, |_acc, obj| Some(obj));
 
         if hit_obj.is_some() {
@@ -92,7 +92,7 @@ impl RenderJob {
                     let light_ray = Ray{orig: hit_point, dir: light_vec};
                     let mut t0 = 1.0;
                     let mut oid0 : usize = 0;
-                    let shadow = self.objects.iter().find(|obj| obj.intercept(stats, &light_ray, EPSILON, &mut t0, &mut oid0)).is_some();
+                    let shadow = self.objects.iter().find(|obj| obj.intercept(stats, &light_ray, EPSILON, &mut t0, true, &mut oid0)).is_some();
 
                     if shadow {
                         c_light = RGB::new();
@@ -173,6 +173,7 @@ impl RenderJob {
 
     fn print_stats(&self, start_time: Instant, stats: RenderStats) {
         let pretty_print = |n| {
+            let mut precision = 3;
             let suffix;
             let val;
             if n > 1_000_000_000_000 {
@@ -184,38 +185,36 @@ impl RenderJob {
             } else if n >= 1_000_000 {
                 val = n as f64 / 1_000_000.0;
                 suffix = "M";
-            } else if n >= 1_000 {
-                val = n as f64 / 1_000.0;
-                suffix = "K";
             } else {
                 val = n as f64;
                 suffix = "";
+                precision = 0
             }
-            format!("{:3.3} {suffix}", val)
+            format!("{:6.precision$} {suffix}", val)
         };
         let elapsed = start_time.elapsed();
         let num_rays = (stats.num_rays_sampling + stats.num_rays_reflection) as f64;
         let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as f64 / 1000.0);
         let ray_lat_str = format!("{:.3} usec", elapsed.as_micros() as f64 / num_rays as f64);
-        let mray_sec_str = format!("{:.3}", num_rays / elapsed.as_secs_f64() / 1_000_000_f64);
-        println!("duration: {} -- {} per ray -- {} Mrays/sec", tot_lat_str.bold(), ray_lat_str.bold(), mray_sec_str.bold());
-        println!("num_intersects Sphere:   {:14}", pretty_print(stats.num_intersects_sphere));
-        println!("num_intersects Plane:    {:14}", pretty_print(stats.num_intersects_plane));
-        println!("num_intersects Triangle: {:14}", pretty_print(stats.num_intersects_triangle));
+        let kray_sec_str = format!("{:.3}", num_rays / elapsed.as_secs_f64() / 1_000_f64);
+        println!("duration: {} -- {} per ray -- {} Krays/sec", tot_lat_str.bold(), ray_lat_str.bold(), kray_sec_str.bold());
+        println!("num_intersects Sphere:   {:>12}", pretty_print(stats.num_intersects_sphere));
+        println!("num_intersects Plane:    {:>12}", pretty_print(stats.num_intersects_plane));
+        println!("num_intersects Triangle: {:>12}", pretty_print(stats.num_intersects_triangle));
 
         let num_pixels = (self.cfg.res_x * self.cfg.res_y) as u64;
-        println!("num_rays_sampling:   {:12} -- {:3}%", stats.num_rays_sampling, 100 * stats.num_rays_sampling / num_pixels);
-        println!("num_rays_reflection: {:12} -- {:3}%", stats.num_rays_reflection, 100 * stats.num_rays_reflection / stats.num_rays_sampling);
-        println!("num_rays_max_level:  {:12} -- {:3}%", stats.num_rays_hit_max_level, 100 * stats.num_rays_hit_max_level / stats.num_rays_sampling);
+        println!("num_rays_sampling:       {:>12} -- {:3}%", pretty_print(stats.num_rays_sampling), 100 * stats.num_rays_sampling / num_pixels);
+        println!("num_rays_reflection:     {:>12} -- {:3}%", pretty_print(stats.num_rays_reflection), 100 * stats.num_rays_reflection / stats.num_rays_sampling);
+        println!("num_rays_max_level:      {:>12} -- {:3}%", pretty_print(stats.num_rays_hit_max_level), 100 * stats.num_rays_hit_max_level / stats.num_rays_sampling);
     }
 
-    fn render_pixel_box(&self, x0: u32, y0: u32, nx: u32, ny: u32, stats: &mut RenderStats) {
+    fn render_pixel_box(&self, x0: u32, y0: u32, sz: u32, stats: &mut RenderStats) {
         let u = 1.0;
         let v = 1.0;
         let du = u / self.cfg.res_x as f64;
         let dv = v / self.cfg.res_y as f64;
-        let y_max = (y0 + ny).min(self.cfg.res_y);
-        let x_max = (x0 + nx).min(self.cfg.res_x);
+        let y_max = (y0 + sz).min(self.cfg.res_y);
+        let x_max = (x0 + sz).min(self.cfg.res_x);
 
         let mut pmap = HashMap::new();
 
@@ -251,7 +250,7 @@ impl RenderJob {
                 pb.inc(1);
                 return;
             }
-            self.render_pixel_box(x, y, step, step, &mut stats);
+            self.render_pixel_box(x, y, step, &mut stats);
             pb.inc(1);
             total_stats.lock().unwrap().add(stats);
         });
@@ -385,7 +384,7 @@ impl RenderJob {
                 triangle.calc_normal();
                 triangles.push(triangle);
             }
-            let mesh = Mesh { triangles: triangles, material_id: 0, };
+            let mesh = Mesh::new(triangles, 0);
             self.objects.push(Arc::new(Box::new(mesh)));
             num_objs += 1;
             println!("-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}", path.green(), n, angle_x, angle_y, angle_z);

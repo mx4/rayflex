@@ -4,6 +4,7 @@ pub mod vec3;
 pub mod light;
 pub mod camera;
 pub mod three_d;
+pub mod aabb;
 
 use vec3::Vec3;
 use vec3::Point;
