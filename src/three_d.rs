@@ -67,7 +67,7 @@ pub struct Plane {
     pub material_id: usize,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Triangle {
     pub points: [Point; 3],
     pub material_id: usize,
@@ -75,6 +75,8 @@ pub struct Triangle {
     pub normal: Vec3,
     #[serde(skip)]
     pub has_normal: bool,
+    #[serde(skip)]
+    pub mesh_id: usize,
 }
 
 pub struct Mesh {
@@ -90,14 +92,14 @@ impl Mesh {
             material_id: mat_id,
             aabb: AABB::new(),
         };
-        m.setup_aabb();
+        let mut id = 0;
+        for t in m.triangles.iter_mut() {
+            t.mesh_id = id;
+            id += 1;
+        }
+        m.aabb.init_aabb(&m.triangles);
         m.aabb.display();
         m
-    }
-    fn setup_aabb(&mut self) {
-        for triangle in &self.triangles {
-            self.aabb.init_with_triangle(triangle);
-        }
     }
 }
 
@@ -108,6 +110,7 @@ impl Triangle {
             normal: Vec3::new(),
             material_id: material_id,
             has_normal: false,
+            mesh_id: 0,
         }
     }
     pub fn calc_normal(&mut self) {
@@ -325,25 +328,6 @@ impl Object for Mesh {
         any: bool,
         oid: &mut usize,
     ) -> bool {
-        let mut oid0: usize = 0;
-        let mut hit = false;
-        let mut n = 0;
-
-        if !self.aabb.check_intersect(ray, *tmax) {
-            return false;
-        }
-
-        for triangle in &self.triangles {
-            if triangle.intercept(stats, &ray, tmin, tmax, true, &mut oid0) {
-                *oid = n;
-                hit = true;
-                if any {
-                    break;
-                }
-            }
-            n += 1;
-        }
-
-        hit
+        self.aabb.intercept(stats, ray, tmin, tmax, any, oid)
     }
 }
