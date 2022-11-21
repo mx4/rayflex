@@ -374,7 +374,8 @@ impl RenderJob {
             if json[&s].is_null() {
                 break;
             }
-            let spot: SpotLight = serde_json::from_value(json[&s].clone()).unwrap();
+            let mut spot: SpotLight = serde_json::from_value(json[&s].clone()).unwrap();
+            spot.name = s;
             self.lights.push(Arc::new(Box::new(spot)));
             num_spot_lights += 1;
         }
@@ -384,6 +385,7 @@ impl RenderJob {
                 break;
             }
             let mut vec: VectorLight = serde_json::from_value(json[&s].clone()).unwrap();
+            vec.name = s;
             vec.dir = vec.dir.normalize();
             self.lights.push(Arc::new(Box::new(vec)));
             num_vec_lights += 1;

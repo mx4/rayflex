@@ -178,7 +178,6 @@ fn generate_scene(
     }
     {
         let ambient = AmbientLight {
-            name: "ambient".to_owned(),
             rgb: RGB {
                 r: 1.0,
                 g: 1.0,

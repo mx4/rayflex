@@ -7,13 +7,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct AmbientLight {
-    pub name: String,
     pub rgb: RGB,
     pub intensity: f32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct SpotLight {
+    #[serde(skip)]
     pub name: String,
     pub pos: Point,
     pub rgb: RGB,
@@ -22,6 +22,7 @@ pub struct SpotLight {
 
 #[derive(Serialize, Deserialize)]
 pub struct VectorLight {
+    #[serde(skip)]
     pub name: String,
     pub dir: Vec3,
     pub rgb: RGB,
@@ -38,6 +39,7 @@ pub trait Light {
     fn is_spot(&self) -> bool;
     fn get_contrib(&self, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB;
 }
+
 
 impl Light for SpotLight {
     fn get_contrib(&self, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB {
@@ -84,7 +86,7 @@ impl Light for AmbientLight {
     }
     fn display(&self) {
         let s = format!("{:3} {:?}", self.intensity, self.rgb).dimmed();
-        println!("-- {:12}: {s}", self.name.blue());
+        println!("-- {:12}: {s}", "ambient".blue());
     }
     fn get_vector(&self, _point: Point) -> Vec3 {
         Vec3 {

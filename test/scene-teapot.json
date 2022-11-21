@@ -32,16 +32,16 @@
     "dir": {
       "x": 0.9950371902099893,
       "y": 0.0,
-      "z": -0.5
+      "z": -0.9
     },
     "pos": {
       "x": 0.5,
-      "y": -0.5,
-      "z": 5.0
+      "y": -0.6,
+      "z": 7.0
     }
   },
   "obj.0.path": "obj/teapot.obj",
-  "obj.0.rotx": -1.5,
+  "obj.0.rotx": -1.5708,
   "obj.0.roty": 0,
   "obj.0.rotz": 0,
   "obj.0.material": 0,
@@ -66,7 +66,7 @@
     "intensity": 500.0,
     "name": "spot-light.0",
     "pos": {
-      "x": 0,
+      "x": 3,
       "y": 4,
       "z": 5.0
     },
@@ -77,10 +77,10 @@
     }
   },
   "spot-light.1": {
-    "intensity": 1500.0,
+    "intensity": 500.0,
     "name": "spot-light.1",
     "pos": {
-      "x": 0,
+      "x": 3,
       "y": -4.0,
       "z": 6.0
     },

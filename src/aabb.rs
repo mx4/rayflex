@@ -51,7 +51,17 @@ impl AABB {
             Self::init_with_triangle(p_min, p_max, &triangle);
         }
     }
+    fn point_inside(&self, p: &Point) -> bool {
+        p.x >= self.p_min.x && p.x <= self.p_max.x &&
+        p.y >= self.p_min.y && p.y <= self.p_max.y &&
+        p.z >= self.p_min.z && p.z <= self.p_max.z
+    }
     fn triangle_inside(&self, t: &Triangle) -> bool {
+//      if self.point_inside(&t.points[0]) ||
+//         self.point_inside(&t.points[1]) ||
+//         self.point_inside(&t.points[2]) {
+//             return true
+//      }
         let ray0 = Ray {
             orig: t.points[0],
             dir: t.points[1] - t.points[0],
@@ -166,10 +176,17 @@ impl AABB {
         let elapsed = start_time.elapsed();
 
         if elapsed.as_secs() >= 1 {
-            println!("-- aabb generated in {:.2} sec", elapsed.as_millis() as f64 / 1000.0);
+            println!(
+                "-- aabb generated in {:.2} sec",
+                elapsed.as_millis() as f64 / 1000.0
+            );
         }
         println!("-- min: {:?} -- max: {:?}", self.p_min, self.p_max);
-        println!("-- max-depth: {} size: {:?}", self.get_depth(), self.p_max - self.p_min);
+        println!(
+            "-- max-depth: {} size: {:?}",
+            self.get_depth(),
+            self.p_max - self.p_min
+        );
     }
 
     pub fn intercept(
