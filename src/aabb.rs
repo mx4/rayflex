@@ -51,11 +51,11 @@ impl AABB {
             Self::init_with_triangle(p_min, p_max, &triangle);
         }
     }
-    fn point_inside(&self, p: &Point) -> bool {
-        p.x >= self.p_min.x && p.x <= self.p_max.x &&
-        p.y >= self.p_min.y && p.y <= self.p_max.y &&
-        p.z >= self.p_min.z && p.z <= self.p_max.z
-    }
+//   fn point_inside(&self, p: &Point) -> bool {
+//       p.x >= self.p_min.x && p.x <= self.p_max.x &&
+//       p.y >= self.p_min.y && p.y <= self.p_max.y &&
+//       p.z >= self.p_min.z && p.z <= self.p_max.z
+//   }
     fn triangle_inside(&self, t: &Triangle) -> bool {
 //      if self.point_inside(&t.points[0]) ||
 //         self.point_inside(&t.points[1]) ||
@@ -77,9 +77,10 @@ impl AABB {
         /*
          * XXX: not correct if the AABB doesn't touch an edge!!
          */
-        return self.check_intersect(&ray0, 1.0)
-            || self.check_intersect(&ray1, 1.0)
-            || self.check_intersect(&ray2, 1.0);
+        let mut t = 0.0;
+        return self.check_intersect(&ray0, 1.0, &mut t)
+            || self.check_intersect(&ray1, 1.0, &mut t)
+            || self.check_intersect(&ray2, 1.0, &mut t);
     }
     fn setup_node(&mut self, p_min: Point, p_max: Point, triangles: &Vec<Triangle>, depth: u32) {
         self.p_min = p_min;
@@ -98,7 +99,7 @@ impl AABB {
         }
         /*
          *      +---+---+
-         *     / 7 / 6 /|
+         *     / 6 / 7 /|
          *    +---+---+ +
          *   / 4 / 5 / /
          *  +---+---+ +
@@ -106,7 +107,7 @@ impl AABB {
          *  +---+---+
          *
          *      +---+---+    ^ z  ^ y
-         *     / 3 / 2 /|    |   /
+         *     / 2 / 3 /|    |   /
          *    +---+---+ +    |  /
          *   / 0 / 1 / /     | /
          *  +---+---+ +      |/
@@ -139,10 +140,10 @@ impl AABB {
         v_max[0] = p_min + inc;
         v_min[1] = p_min + hx;
         v_max[1] = p_min + hx + inc;
-        v_min[2] = p_min + hx + hy;
-        v_max[2] = p_min + hx + hy + inc;
-        v_min[3] = p_min + hy;
-        v_max[3] = p_min + hy + inc;
+        v_min[2] = p_min + hy;
+        v_max[2] = p_min + hy + inc;
+        v_min[3] = p_min + hx + hy;
+        v_max[3] = p_min + hx + hy + inc;
 
         for i in 0..4 {
             v_min[4 + i] = v_min[i] + hz;
@@ -189,6 +190,24 @@ impl AABB {
         );
     }
 
+    fn nearest_node(&self, p: Point) -> usize {
+        let op = p - (self.p_min + (self.p_max - self.p_min) / 2.0);
+        let x_test = op.x.is_sign_positive();
+        let y_test = op.y.is_sign_positive();
+        let z_test = op.z.is_sign_positive();
+
+        let mut v : usize = 0;
+        if x_test {
+            v = 1 << 0;
+        }
+        if y_test {
+            v += 1 << 1;
+        }
+        if z_test {
+            v += 1 << 2;
+        }
+        return v
+    }
     pub fn intercept(
         &self,
         stats: &mut RenderStats,
@@ -198,9 +217,13 @@ impl AABB {
         any: bool,
         oid: &mut usize,
     ) -> bool {
-        if !self.check_intersect(ray, *tmax) {
+        let mut t = *tmax;
+        if !self.check_intersect(ray, *tmax, &mut t) {
             return false;
         }
+        let p = ray.orig + ray.dir * t;
+        let close_idx = self.nearest_node(p);
+        assert!(close_idx < 8);
 
         let mut hit = false;
 
@@ -216,7 +239,13 @@ impl AABB {
                 }
             }
         } else {
+            if self.aabbs.as_ref().unwrap()[close_idx].intercept(stats, ray, tmin, tmax, any, oid) {
+                return true
+            }
             for i in 0..8 {
+                if i == close_idx {
+                    continue;
+                }
                 if self.aabbs.as_ref().unwrap()[i].intercept(stats, ray, tmin, tmax, any, oid) {
                     hit = true;
                     if any {
@@ -236,7 +265,7 @@ impl AABB {
     // which are parallel to an axis and outside the box will have tmin == inf
     // or tmax == -inf, while rays inside the box will have tmin and tmax
     // unchanged.
-    fn check_intersect(&self, ray: &Ray, t: f64) -> bool {
+    fn check_intersect(&self, ray: &Ray, tmax: f64, t: &mut f64) -> bool {
         let inv_dir = Vec3 {
             x: 1.0 / ray.dir.x,
             y: 1.0 / ray.dir.y,
@@ -246,21 +275,25 @@ impl AABB {
         let tx1 = (self.p_min.x - ray.orig.x) * inv_dir.x;
         let tx2 = (self.p_max.x - ray.orig.x) * inv_dir.x;
 
-        let mut tmin = tx1.min(tx2);
-        let mut tmax = tx1.max(tx2);
+        let mut t_min = tx1.min(tx2);
+        let mut t_max = tx1.max(tx2);
 
         let ty1 = (self.p_min.y - ray.orig.y) * inv_dir.y;
         let ty2 = (self.p_max.y - ray.orig.y) * inv_dir.y;
 
-        tmin = tmin.max(ty1.min(ty2));
-        tmax = tmax.min(ty1.max(ty2));
+        t_min = t_min.max(ty1.min(ty2));
+        t_max = t_max.min(ty1.max(ty2));
 
         let tz1 = (self.p_min.z - ray.orig.z) * inv_dir.z;
         let tz2 = (self.p_max.z - ray.orig.z) * inv_dir.z;
 
-        tmin = tmin.max(tz1.min(tz2));
-        tmax = tmax.min(tz1.max(tz2));
+        t_min = t_min.max(tz1.min(tz2));
+        t_max = t_max.min(tz1.max(tz2));
 
-        return tmax >= tmin.max(0.0) && tmin < t;
+        if t_max >= t_min.max(0.0) && t_min < tmax {
+            *t = t_min;
+            return true
+        }
+        false
     }
 }

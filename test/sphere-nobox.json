@@ -1,4 +1,17 @@
 {
+  "plane.0": {
+    "point": {
+      "x": 0,
+      "y": 0,
+      "z": -3
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1 
+    },
+    "material_id": 0
+  },
   "ambient": {
     "intensity": 0.10000000149011612,
     "name": "ambient",
