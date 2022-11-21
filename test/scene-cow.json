@@ -4,9 +4,19 @@
       "checkered": false,
       "reflectivity": 0.0,
       "rgb": {
-        "b": 0.1,
+        "b": 1.0,
         "g": 1.0,
-        "r": 0.1
+        "r": 1.0
+      }
+    },
+    "material.1": {
+      "albedo": 0.9,
+      "checkered": false,
+      "reflectivity": 0.2,
+      "rgb": {
+        "b": 1.0,
+        "g": 0.3,
+        "r": 0.3
       }
     },
   "vec-light.0": {
@@ -53,8 +63,21 @@
     400,
     400
   ],
+  "plane.0": {
+    "point": {
+      "x": 0,
+      "y": 0,
+      "z": -3.7
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1 
+    },
+    "material_id": 1
+  },
   "spot-light.0": {
-    "intensity": 500.0,
+    "intensity": 300.0,
     "name": "spot-light.0",
     "pos": {
       "x": 0,
@@ -62,13 +85,13 @@
       "z": 4
     },
     "rgb": {
-      "b": 0.8,
-      "g": 0.8,
+      "b": 0.9,
+      "g": 0.9,
       "r": 1.0
     }
   },
   "spot-light.1": {
-    "intensity": 1000.0,
+    "intensity": 300.0,
     "name": "spot-light.1",
     "pos": {
       "x": 8,
@@ -76,9 +99,9 @@
       "z": 0.0
     },
     "rgb": {
-      "b": 0.8,
-      "g": 0.3,
-      "r": 0.8
+      "b": 1.0,
+      "g": 0.8,
+      "r": 1.0
     }
   }
 }

@@ -4,9 +4,19 @@
       "checkered": false,
       "reflectivity": 0.1,
       "rgb": {
-        "b": 0.1,
+        "b": 0.8,
         "g": 1.0,
-        "r": 0.1
+        "r": 0.8
+      }
+    },
+    "material.1": {
+      "albedo": 0.8,
+      "checkered": false,
+      "reflectivity": 0.3,
+      "rgb": {
+        "b": 1.0,
+        "g": 0.7,
+        "r": 0.7
       }
     },
   "ambient": {
@@ -39,6 +49,19 @@
     400,
     400
   ],
+  "plane.0": {
+    "point": {
+      "x": 0,
+      "y": 0,
+      "z": -1
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1 
+    },
+    "material_id": 1
+  },
   "spot-light.0": {
     "intensity": 500.0,
     "name": "spot-light.0",
