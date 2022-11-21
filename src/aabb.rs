@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::three_d::Object;
 use crate::three_d::Triangle;
 use crate::vec3::Point;
@@ -158,12 +160,16 @@ impl AABB {
         let mut p_min = Vec3::new();
         let mut p_max = Vec3::new();
         self.find_bounds(&mut p_min, &mut p_max, triangles);
+
+        let start_time = Instant::now();
         self.setup_node(p_min, p_max, triangles, 0);
-        println!("aabb max-depth: {}", self.get_depth());
-    }
-    pub fn display(&self) {
-        println!("min: {:?} -- max: {:?}", self.p_min, self.p_max);
-        println!("size: {:?}", self.p_max - self.p_min);
+        let elapsed = start_time.elapsed();
+
+        if elapsed.as_secs() >= 1 {
+            println!("-- aabb generated in {:.2} sec", elapsed.as_millis() as f64 / 1000.0);
+        }
+        println!("-- min: {:?} -- max: {:?}", self.p_min, self.p_max);
+        println!("-- max-depth: {} size: {:?}", self.get_depth(), self.p_max - self.p_min);
     }
 
     pub fn intercept(

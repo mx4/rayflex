@@ -98,7 +98,6 @@ impl Mesh {
             id += 1;
         }
         m.aabb.init_aabb(&m.triangles);
-        m.aabb.display();
         m
     }
 }
