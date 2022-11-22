@@ -461,7 +461,10 @@ impl RenderJob {
                 triangles.push(triangle);
             }
             let mut id = 0;
-            triangles.iter_mut().for_each(|t| { t.mesh_id = id; id +=1; });
+            triangles.iter_mut().for_each(|t| {
+                t.mesh_id = id;
+                id += 1;
+            });
             let mesh = Mesh::new(triangles, 0);
             self.objects.push(Arc::new(Box::new(mesh)));
             num_objs += 1;

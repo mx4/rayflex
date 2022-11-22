@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -10,7 +9,7 @@ use crate::vec3::Vec3;
 use crate::Ray;
 use crate::RenderStats;
 
-static MAX_NUM_TRIANGLES: AtomicUsize = AtomicUsize::new(30);
+const MAX_NUM_TRIANGLES: usize = 20;
 const MAX_DEPTH: u32 = 8;
 
 /*
@@ -49,7 +48,9 @@ impl AABB {
         p_max.z = p_max.z.max(point.z);
     }
     fn init_with_triangle(p_min: &mut Point, p_max: &mut Point, triangle: &Triangle) {
-        triangle.points.iter().for_each(|p| { Self::init_with_point(p_min, p_max, p); });
+        triangle.points.iter().for_each(|p| {
+            Self::init_with_point(p_min, p_max, p);
+        });
     }
     fn find_bounds(&self, p_min: &mut Point, p_max: &mut Point) {
         let mut init = false;
@@ -97,7 +98,13 @@ impl AABB {
             || self.check_intersect(&ray1, 1.0, &mut t0)
             || self.check_intersect(&ray2, 1.0, &mut t0);
     }
-    fn setup_node(&mut self, p_min: Point, p_max: Point, triangles: &Vec<AABBTriangle>, depth: u32) {
+    fn setup_node(
+        &mut self,
+        p_min: Point,
+        p_max: Point,
+        triangles: &Vec<AABBTriangle>,
+        depth: u32,
+    ) {
         self.p_min = p_min;
         self.p_max = p_max;
 
@@ -114,7 +121,7 @@ impl AABB {
                 .for_each(|tid| v_triangles.push(*tid));
         }
 
-        if depth >= MAX_DEPTH || v_triangles.len() < MAX_NUM_TRIANGLES.load(Ordering::Relaxed) {
+        if depth >= MAX_DEPTH || v_triangles.len() < MAX_NUM_TRIANGLES {
             self.is_leaf = true;
             self.triangles = v_triangles;
             return;
@@ -220,8 +227,10 @@ impl AABB {
         }
         println!(
             "-- depth: {}/{} num_leaves={} max_num_triangles={}",
-            self.get_depth(), MAX_DEPTH, self.count_leaves(),
-            MAX_NUM_TRIANGLES.load(Ordering::Relaxed)
+            self.get_depth(),
+            MAX_DEPTH,
+            self.count_leaves(),
+            MAX_NUM_TRIANGLES
         );
     }
 
@@ -272,7 +281,9 @@ impl AABB {
 
         if self.is_leaf {
             for triangle_id in &self.triangles {
-                if self.triangles_root[*triangle_id].intercept(stats, ray, tmin, tmax, any, &mut oid0) {
+                if self.triangles_root[*triangle_id]
+                    .intercept(stats, ray, tmin, tmax, any, &mut oid0)
+                {
                     hit = true;
                     *oid = *triangle_id;
                     if any {
