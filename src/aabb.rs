@@ -10,8 +10,8 @@ use crate::vec3::Vec3;
 use crate::Ray;
 use crate::RenderStats;
 
-static MAX_NUM_TRIANGLES: AtomicUsize = AtomicUsize::new(200);
-const MAX_DEPTH: u32 = 5;
+static MAX_NUM_TRIANGLES: AtomicUsize = AtomicUsize::new(30);
+const MAX_DEPTH: u32 = 8;
 
 /*
  * Axis-Aligned Bounding Box
@@ -206,7 +206,6 @@ impl AABB {
     pub fn init_aabb(&mut self) {
         let mut p_min = Vec3::new();
         let mut p_max = Vec3::new();
-        //self.triangles_root = Some(triangles);
         self.find_bounds(&mut p_min, &mut p_max);
 
         let start_time = Instant::now();
@@ -220,10 +219,9 @@ impl AABB {
             );
         }
         println!(
-            "-- max-depth: {} size: {:?} num_leaves={}",
-            self.get_depth(),
-            self.p_max - self.p_min,
-            self.count_leaves()
+            "-- depth: {}/{} num_leaves={} max_num_triangles={}",
+            self.get_depth(), MAX_DEPTH, self.count_leaves(),
+            MAX_NUM_TRIANGLES.load(Ordering::Relaxed)
         );
     }
 
