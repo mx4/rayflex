@@ -40,7 +40,6 @@ pub trait Light {
     fn get_contrib(&self, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB;
 }
 
-
 impl Light for SpotLight {
     fn get_contrib(&self, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB {
         let c_res = mat.rgb * self.rgb * self.intensity;

@@ -2,8 +2,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 use crate::three_d::Object;
-use crate::three_d::Triangle;
 use crate::three_d::Plane;
+use crate::three_d::Triangle;
 use crate::vec3::Point;
 use crate::vec3::Vec3;
 use crate::Ray;
@@ -51,7 +51,7 @@ impl AABB {
     fn find_bounds(&self, p_min: &mut Point, p_max: &mut Point, triangles: &Vec<Triangle>) {
         let mut init = false;
         for triangle in triangles {
-            if ! init {
+            if !init {
                 *p_min = triangle.points[0];
                 *p_max = triangle.points[0];
                 init = true;
@@ -60,16 +60,20 @@ impl AABB {
         }
     }
     fn point_inside(&self, p: Point) -> bool {
-        p.x >= self.p_min.x && p.x <= self.p_max.x &&
-        p.y >= self.p_min.y && p.y <= self.p_max.y &&
-        p.z >= self.p_min.z && p.z <= self.p_max.z
+        p.x >= self.p_min.x
+            && p.x <= self.p_max.x
+            && p.y >= self.p_min.y
+            && p.y <= self.p_max.y
+            && p.z >= self.p_min.z
+            && p.z <= self.p_max.z
     }
     fn triangle_inside(&self, t: &Triangle) -> bool {
-       if self.point_inside(t.points[0]) ||
-          self.point_inside(t.points[1]) ||
-          self.point_inside(t.points[2]) {
-              return true
-       }
+        if self.point_inside(t.points[0])
+            || self.point_inside(t.points[1])
+            || self.point_inside(t.points[2])
+        {
+            return true;
+        }
         let ray0 = Ray {
             orig: t.points[0],
             dir: t.points[1] - t.points[0],
@@ -214,7 +218,7 @@ impl AABB {
         if z_test {
             v += 1 << 2;
         }
-        return v
+        return v;
     }
 
     pub fn intercept(
@@ -229,7 +233,7 @@ impl AABB {
         let mut t_aabb = *tmax;
 
         if !self.check_intersect(ray, *tmax, &mut t_aabb) {
-            return false
+            return false;
         }
 
         /*
@@ -237,7 +241,7 @@ impl AABB {
          * this node, we're done.
          */
         if t_aabb < tmin {
-            return false
+            return false;
         }
 
         let mut oid0 = 0;
@@ -253,12 +257,36 @@ impl AABB {
                     }
                 }
             }
-            return hit
+            return hit;
         } else {
             let mid = self.p_min + (self.p_max - self.p_min) / 2.0;
-            let plane_yz = Plane::new(mid, Vec3{ x: 1.0, y: 0.0, z: 0.0 }, 0);
-            let plane_xz = Plane::new(mid, Vec3{ x: 0.0, y: 1.0, z: 0.0 }, 0);
-            let plane_xy = Plane::new(mid, Vec3{ x: 0.0, y: 0.0, z: 1.0 }, 0);
+            let plane_yz = Plane::new(
+                mid,
+                Vec3 {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                0,
+            );
+            let plane_xz = Plane::new(
+                mid,
+                Vec3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
+                0,
+            );
+            let plane_xy = Plane::new(
+                mid,
+                Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
+                0,
+            );
             let mut close_idx = self.nearest_node(ray.orig + ray.dir * t_aabb, mid);
             let mut tmin0 = tmin;
             let mut visited = vec![];
@@ -268,10 +296,11 @@ impl AABB {
 
                 visited.push(close_idx);
 
-                if self.aabbs.as_ref().unwrap()[close_idx].intercept(stats, ray, tmin, tmax, any, oid) {
+                if self.aabbs.as_ref().unwrap()[close_idx]
+                    .intercept(stats, ray, tmin, tmax, any, oid)
+                {
                     return true;
                 }
-
 
                 let mut t_yz = f64::MAX;
                 let mut t_xz = f64::MAX;
@@ -299,16 +328,16 @@ impl AABB {
                 planes[1] = planes[1] && t_xz <= t_yz && t_xz <= t_xy;
                 planes[2] = planes[2] && t_xy <= t_xz && t_yz <= t_yz;
 
-//              planes[0] = planes[0] && self.point_inside(ray.orig + ray.dir * t_yz);
-//              planes[1] = planes[1] && self.point_inside(ray.orig + ray.dir * t_xz);
-//              planes[2] = planes[2] && self.point_inside(ray.orig + ray.dir * t_xy);
+                //              planes[0] = planes[0] && self.point_inside(ray.orig + ray.dir * t_yz);
+                //              planes[1] = planes[1] && self.point_inside(ray.orig + ray.dir * t_xz);
+                //              planes[2] = planes[2] && self.point_inside(ray.orig + ray.dir * t_xy);
 
-                if !planes.iter().any(|&x| x ) {
+                if !planes.iter().any(|&x| x) {
                     break;
                 }
 
                 tmin0 = t_yz.min(t_xy).min(t_xz);
-                close_idx = close_idx ^ (1 << planes.iter().position(|&x| x ).unwrap());
+                close_idx = close_idx ^ (1 << planes.iter().position(|&x| x).unwrap());
                 assert!(!visited.contains(&close_idx));
             }
         }
@@ -350,7 +379,7 @@ impl AABB {
 
         if t_max >= t_min.max(0.0) && t_min < tmax {
             *t = t_min;
-            return true
+            return true;
         }
         false
     }
