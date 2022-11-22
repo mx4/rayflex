@@ -1,13 +1,15 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 use crate::three_d::Object;
 use crate::three_d::Triangle;
+use crate::three_d::Plane;
 use crate::vec3::Point;
 use crate::vec3::Vec3;
 use crate::Ray;
 use crate::RenderStats;
 
-const MAX_NUM_TRIANGLES: usize = 300;
+static MAX_NUM_TRIANGLES: AtomicUsize = AtomicUsize::new(200);
 const MAX_DEPTH: u32 = 5;
 
 /*
@@ -15,11 +17,11 @@ const MAX_DEPTH: u32 = 5;
  */
 
 pub struct AABB {
-    p_min: Point,
-    p_max: Point,
-    is_leaf: bool,
-    aabbs: Option<Vec<AABB>>,
-    triangles: Vec<Triangle>,
+    pub p_min: Point,
+    pub p_max: Point,
+    pub is_leaf: bool,
+    pub aabbs: Option<Vec<AABB>>,
+    pub triangles: Vec<Triangle>,
 }
 
 impl AABB {
@@ -47,21 +49,27 @@ impl AABB {
         }
     }
     fn find_bounds(&self, p_min: &mut Point, p_max: &mut Point, triangles: &Vec<Triangle>) {
+        let mut init = false;
         for triangle in triangles {
+            if ! init {
+                *p_min = triangle.points[0];
+                *p_max = triangle.points[0];
+                init = true;
+            }
             Self::init_with_triangle(p_min, p_max, &triangle);
         }
     }
-//   fn point_inside(&self, p: &Point) -> bool {
-//       p.x >= self.p_min.x && p.x <= self.p_max.x &&
-//       p.y >= self.p_min.y && p.y <= self.p_max.y &&
-//       p.z >= self.p_min.z && p.z <= self.p_max.z
-//   }
+    fn point_inside(&self, p: Point) -> bool {
+        p.x >= self.p_min.x && p.x <= self.p_max.x &&
+        p.y >= self.p_min.y && p.y <= self.p_max.y &&
+        p.z >= self.p_min.z && p.z <= self.p_max.z
+    }
     fn triangle_inside(&self, t: &Triangle) -> bool {
-//      if self.point_inside(&t.points[0]) ||
-//         self.point_inside(&t.points[1]) ||
-//         self.point_inside(&t.points[2]) {
-//             return true
-//      }
+       if self.point_inside(t.points[0]) ||
+          self.point_inside(t.points[1]) ||
+          self.point_inside(t.points[2]) {
+              return true
+       }
         let ray0 = Ray {
             orig: t.points[0],
             dir: t.points[1] - t.points[0],
@@ -77,10 +85,10 @@ impl AABB {
         /*
          * XXX: not correct if the AABB doesn't touch an edge!!
          */
-        let mut t = 0.0;
-        return self.check_intersect(&ray0, 1.0, &mut t)
-            || self.check_intersect(&ray1, 1.0, &mut t)
-            || self.check_intersect(&ray2, 1.0, &mut t);
+        let mut t0 = 0.0;
+        return self.check_intersect(&ray0, 1.0, &mut t0)
+            || self.check_intersect(&ray1, 1.0, &mut t0)
+            || self.check_intersect(&ray2, 1.0, &mut t0);
     }
     fn setup_node(&mut self, p_min: Point, p_max: Point, triangles: &Vec<Triangle>, depth: u32) {
         self.p_min = p_min;
@@ -92,7 +100,7 @@ impl AABB {
                 v_triangles.push(*triangle);
             }
         }
-        if depth >= MAX_DEPTH || v_triangles.len() < MAX_NUM_TRIANGLES {
+        if depth >= MAX_DEPTH || v_triangles.len() < MAX_NUM_TRIANGLES.load(Ordering::Relaxed) {
             self.is_leaf = true;
             self.triangles = v_triangles;
             return;
@@ -116,6 +124,7 @@ impl AABB {
          * orig
          */
         let inc = (p_max - p_min) / 2.0;
+        assert!(inc.x != 0.0 && inc.y != 0.0 && inc.z != 0.0);
         let hx = Vec3 {
             x: inc.x,
             y: 0.0,
@@ -134,7 +143,6 @@ impl AABB {
 
         let mut v_min = [Point::new(); 8];
         let mut v_max = [Point::new(); 8];
-        self.is_leaf = false;
 
         v_min[0] = p_min;
         v_max[0] = p_min + inc;
@@ -149,6 +157,7 @@ impl AABB {
             v_min[4 + i] = v_min[i] + hz;
             v_max[4 + i] = v_max[i] + hz;
         }
+        self.is_leaf = false;
         self.aabbs = Some(Vec::with_capacity(8));
         for i in 0..8 {
             let mut aabb = AABB::new();
@@ -182,7 +191,6 @@ impl AABB {
                 elapsed.as_millis() as f64 / 1000.0
             );
         }
-        println!("-- min: {:?} -- max: {:?}", self.p_min, self.p_max);
         println!(
             "-- max-depth: {} size: {:?}",
             self.get_depth(),
@@ -190,13 +198,13 @@ impl AABB {
         );
     }
 
-    fn nearest_node(&self, p: Point) -> usize {
-        let op = p - (self.p_min + (self.p_max - self.p_min) / 2.0);
+    fn nearest_node(&self, p: Point, mid: Point) -> usize {
+        let op = p - mid;
         let x_test = op.x.is_sign_positive();
         let y_test = op.y.is_sign_positive();
         let z_test = op.z.is_sign_positive();
 
-        let mut v : usize = 0;
+        let mut v = 0;
         if x_test {
             v = 1 << 0;
         }
@@ -208,6 +216,7 @@ impl AABB {
         }
         return v
     }
+
     pub fn intercept(
         &self,
         stats: &mut RenderStats,
@@ -217,18 +226,24 @@ impl AABB {
         any: bool,
         oid: &mut usize,
     ) -> bool {
-        let mut t = *tmax;
-        if !self.check_intersect(ray, *tmax, &mut t) {
-            return false;
-        }
-        let p = ray.orig + ray.dir * t;
-        let close_idx = self.nearest_node(p);
-        assert!(close_idx < 8);
+        let mut t_aabb = *tmax;
 
+        if !self.check_intersect(ray, *tmax, &mut t_aabb) {
+            return false
+        }
+
+        /*
+         * If any interception exists and it's closer to the entry point into
+         * this node, we're done.
+         */
+        if t_aabb < tmin {
+            return false
+        }
+
+        let mut oid0 = 0;
         let mut hit = false;
 
         if self.is_leaf {
-            let mut oid0 = 0;
             for triangle in &self.triangles {
                 if triangle.intercept(stats, ray, tmin, tmax, any, &mut oid0) {
                     hit = true;
@@ -238,20 +253,63 @@ impl AABB {
                     }
                 }
             }
+            return hit
         } else {
-            if self.aabbs.as_ref().unwrap()[close_idx].intercept(stats, ray, tmin, tmax, any, oid) {
-                return true
-            }
-            for i in 0..8 {
-                if i == close_idx {
-                    continue;
+            let mid = self.p_min + (self.p_max - self.p_min) / 2.0;
+            let plane_yz = Plane::new(mid, Vec3{ x: 1.0, y: 0.0, z: 0.0 }, 0);
+            let plane_xz = Plane::new(mid, Vec3{ x: 0.0, y: 1.0, z: 0.0 }, 0);
+            let plane_xy = Plane::new(mid, Vec3{ x: 0.0, y: 0.0, z: 1.0 }, 0);
+            let mut close_idx = self.nearest_node(ray.orig + ray.dir * t_aabb, mid);
+            let mut tmin0 = tmin;
+            let mut visited = vec![];
+
+            for _i in 0..4 {
+                assert!(close_idx < 8);
+
+                visited.push(close_idx);
+
+                if self.aabbs.as_ref().unwrap()[close_idx].intercept(stats, ray, tmin, tmax, any, oid) {
+                    return true;
                 }
-                if self.aabbs.as_ref().unwrap()[i].intercept(stats, ray, tmin, tmax, any, oid) {
-                    hit = true;
-                    if any {
-                        break;
-                    }
+
+
+                let mut t_yz = f64::MAX;
+                let mut t_xz = f64::MAX;
+                let mut t_xy = f64::MAX;
+                let mut planes = [false; 3];
+
+                planes[0] = plane_yz.intercept(stats, ray, tmin0, &mut t_yz, false, &mut oid0);
+                planes[1] = plane_xz.intercept(stats, ray, tmin0, &mut t_xz, false, &mut oid0);
+                planes[2] = plane_xy.intercept(stats, ray, tmin0, &mut t_xy, false, &mut oid0);
+
+                planes[0] = planes[0] && t_yz > t_aabb;
+                planes[1] = planes[1] && t_xz > t_aabb;
+                planes[2] = planes[2] && t_xy > t_aabb;
+                if t_yz <= t_aabb {
+                    t_yz = f64::MAX;
                 }
+                if t_xy <= t_aabb {
+                    t_xy = f64::MAX;
+                }
+                if t_xz <= t_aabb {
+                    t_xz = f64::MAX;
+                }
+
+                planes[0] = planes[0] && t_yz <= t_xz && t_yz <= t_xy;
+                planes[1] = planes[1] && t_xz <= t_yz && t_xz <= t_xy;
+                planes[2] = planes[2] && t_xy <= t_xz && t_yz <= t_yz;
+
+//              planes[0] = planes[0] && self.point_inside(ray.orig + ray.dir * t_yz);
+//              planes[1] = planes[1] && self.point_inside(ray.orig + ray.dir * t_xz);
+//              planes[2] = planes[2] && self.point_inside(ray.orig + ray.dir * t_xy);
+
+                if !planes.iter().any(|&x| x ) {
+                    break;
+                }
+
+                tmin0 = t_yz.min(t_xy).min(t_xz);
+                close_idx = close_idx ^ (1 << planes.iter().position(|&x| x ).unwrap());
+                assert!(!visited.contains(&close_idx));
             }
         }
         hit

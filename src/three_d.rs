@@ -143,7 +143,7 @@ impl Object for Plane {
     ) -> bool {
         stats.num_intersects_plane += 1;
         let d = ray.dir.dot(self.normal);
-        if d.abs() < 0.001 {
+        if d.abs() < EPSILON {
             return false;
         }
         let v = self.point - ray.orig;
