@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::aabb::AABB;
 use crate::color::RGB;
 use crate::vec3::Point;
@@ -81,23 +83,19 @@ pub struct Triangle {
 
 pub struct Mesh {
     pub material_id: usize,
-    pub triangles: Vec<Triangle>,
+    pub triangles: Arc<Vec<Triangle>>,
     pub aabb: AABB,
 }
 
 impl Mesh {
     pub fn new(triangles: Vec<Triangle>, mat_id: usize) -> Mesh {
+        let arc_triangles = Arc::new(triangles);
         let mut m = Mesh {
-            triangles: triangles,
+            triangles: arc_triangles.clone(),
             material_id: mat_id,
-            aabb: AABB::new(),
+            aabb: AABB::new(arc_triangles),
         };
-        let mut id = 0;
-        for t in m.triangles.iter_mut() {
-            t.mesh_id = id;
-            id += 1;
-        }
-        m.aabb.init_aabb(&m.triangles);
+        m.aabb.init_aabb();
         m
     }
 }
