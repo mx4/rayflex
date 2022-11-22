@@ -264,6 +264,7 @@ impl AABB {
     ) -> bool {
         let mut t_aabb = *tmax;
 
+        stats.num_intersects_aabb += 1;
         if !self.check_intersect(ray, *tmax, &mut t_aabb) {
             return false;
         }
@@ -379,13 +380,6 @@ impl AABB {
     }
 
     // https://tavianator.com/cgit/dimension.git/tree/libdimension/bvh/bvh.c#n194
-    //
-    // This is actually correct, even though it appears not to handle edge cases
-    // (ray.n.{x,y,z} == 0).  It works because the infinities that result from
-    // dividing by zero will still behave correctly in the comparisons.  Rays
-    // which are parallel to an axis and outside the box will have tmin == inf
-    // or tmax == -inf, while rays inside the box will have tmin and tmax
-    // unchanged.
     fn check_intersect(&self, ray: &Ray, tmax: f64, t: &mut f64) -> bool {
         let inv_dir = Vec3 {
             x: 1.0 / ray.dir.x,

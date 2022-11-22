@@ -78,7 +78,7 @@ fn generate_scene(
             g: 1.0,
             b: 1.0,
         },
-        intensity: 150.0,
+        intensity: 70.0,
     };
     json[&spot0.name] = serde_json::to_value(&spot0).unwrap();
     {
@@ -172,7 +172,7 @@ fn generate_scene(
                 g: 0.3,
                 b: 0.8,
             },
-            intensity: 80.0,
+            intensity: 50.0,
         };
         json[&spot0.name] = serde_json::to_value(&spot0).unwrap();
     }
@@ -200,7 +200,7 @@ fn generate_scene(
                 y: 0.5,
                 z: -0.5,
             },
-            intensity: 1.5,
+            intensity: 0.7,
         };
         json["vec-light.0"] = serde_json::to_value(vec0).unwrap();
     }

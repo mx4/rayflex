@@ -32,6 +32,7 @@ pub struct RenderStats {
     pub num_intersects_plane: u64,
     pub num_intersects_sphere: u64,
     pub num_intersects_triangle: u64,
+    pub num_intersects_aabb: u64,
 }
 
 impl RenderStats {
@@ -43,6 +44,7 @@ impl RenderStats {
             num_intersects_plane: 0,
             num_intersects_sphere: 0,
             num_intersects_triangle: 0,
+            num_intersects_aabb: 0,
         }
     }
     pub fn add(&mut self, other: RenderStats) {
@@ -52,5 +54,6 @@ impl RenderStats {
         self.num_intersects_sphere += other.num_intersects_sphere;
         self.num_intersects_plane += other.num_intersects_plane;
         self.num_intersects_triangle += other.num_intersects_triangle;
+        self.num_intersects_aabb += other.num_intersects_aabb;
     }
 }

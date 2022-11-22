@@ -229,12 +229,21 @@ impl RenderJob {
         let num_rays = (stats.num_rays_sampling + stats.num_rays_reflection) as f64;
         let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as f64 / 1000.0);
         let ray_lat_str = format!("{:.3} usec", elapsed.as_micros() as f64 / num_rays as f64);
-        let kray_sec_str = format!("{:.3}", num_rays / elapsed.as_secs_f64() / 1_000_f64);
+        let kray_per_secs = num_rays / elapsed.as_secs_f64() / 1_000_f64;
+        let mut v = kray_per_secs;
+        let mut suffix = "K";
+        if kray_per_secs >= 1000.0 {
+            v = kray_per_secs / 1000.0;
+            suffix = "M";
+        }
+        let xray_sec_str = format!("{:.3}", v);
+
         println!(
-            "duration: {} -- {} per ray -- {} Krays/sec",
+            "duration: {} -- {} per ray -- {} {}rays/sec",
             tot_lat_str.bold(),
             ray_lat_str.bold(),
-            kray_sec_str.bold()
+            xray_sec_str.bold(),
+            suffix
         );
         println!(
             "num_intersects Sphere:   {:>12}",
@@ -247,6 +256,10 @@ impl RenderJob {
         println!(
             "num_intersects Triangle: {:>12}",
             pretty_print(stats.num_intersects_triangle)
+        );
+        println!(
+            "num_intersects AABB:     {:>12}",
+            pretty_print(stats.num_intersects_aabb)
         );
 
         let num_pixels = (self.cfg.res_x * self.cfg.res_y) as u64;
