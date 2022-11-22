@@ -75,7 +75,7 @@ impl RenderJob {
             .objects
             .iter()
             .filter(|obj| obj.intercept(stats, &ray, tmin, &mut t, false, &mut s_id))
-            .fold(None, |_acc, obj| Some(obj));
+            .last();
 
         if hit_obj.is_some() {
             let hit_point = ray.orig + ray.dir * t;

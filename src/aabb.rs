@@ -99,11 +99,11 @@ impl AABB {
         self.p_max = p_max;
 
         let mut v_triangles = vec![];
-        for triangle in triangles {
-            if self.triangle_inside(triangle) {
-                v_triangles.push(*triangle);
-            }
-        }
+        triangles
+            .iter()
+            .filter(|t| self.triangle_inside(t))
+            .for_each(|t| v_triangles.push(*t));
+
         if depth >= MAX_DEPTH || v_triangles.len() < MAX_NUM_TRIANGLES.load(Ordering::Relaxed) {
             self.is_leaf = true;
             self.triangles = v_triangles;
@@ -169,16 +169,29 @@ impl AABB {
             self.aabbs.as_mut().unwrap().push(aabb);
         }
     }
-    pub fn get_depth(&self) -> u32 {
+    fn count_leaves(&self) -> u32 {
+        if self.is_leaf {
+            return 1;
+        }
+        self.aabbs
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|v| v.count_leaves())
+            .sum()
+    }
+    fn get_depth(&self) -> u32 {
         if self.is_leaf {
             return 0;
         }
-        let mut depth = 0;
-        for i in 0..8 {
-            let d = 1 + self.aabbs.as_ref().unwrap()[i].get_depth();
-            depth = depth.max(d);
-        }
-        depth
+        1 + self
+            .aabbs
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|v| v.get_depth())
+            .max()
+            .unwrap()
     }
     pub fn init_aabb(&mut self, triangles: &Vec<Triangle>) {
         let mut p_min = Vec3::new();
@@ -196,9 +209,10 @@ impl AABB {
             );
         }
         println!(
-            "-- max-depth: {} size: {:?}",
+            "-- max-depth: {} size: {:?} num_leaves={}",
             self.get_depth(),
-            self.p_max - self.p_min
+            self.p_max - self.p_min,
+            self.count_leaves()
         );
     }
 

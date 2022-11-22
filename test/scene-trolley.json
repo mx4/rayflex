@@ -17,9 +17,9 @@
     }
   },
     "material.0": {
-      "albedo": 0.9,
+      "albedo": 0.7,
       "checkered": false,
-      "reflectivity": 0.0,
+      "reflectivity": 0.1,
       "rgb": {
         "b": 1.0,
         "g": 1.0,
