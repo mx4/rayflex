@@ -116,6 +116,9 @@ impl RenderJob {
                 let c_reflect = self.calc_ray_color(stats, reflected_ray, depth + 1);
                 c = c * (1.0 - hit_material.reflectivity) + c_reflect * hit_material.reflectivity;
             }
+            c.r = c.r.min(1.0);
+            c.g = c.g.min(1.0);
+            c.b = c.b.min(1.0);
             c
         } else {
             //let z = (ray.dir.z + 0.5).clamp(0.0, 1.0) as f32;
@@ -328,6 +331,8 @@ impl RenderJob {
 
     pub fn load_scene(&mut self, scene_file: PathBuf) -> std::io::Result<()> {
         if !scene_file.is_file() {
+            println!("file '{}' not found.", scene_file.display());
+            println!("pwd={}", std::env::current_dir()?.display());
             panic!("scene file {} not present.", scene_file.display());
         }
         println!(

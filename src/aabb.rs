@@ -9,8 +9,8 @@ use crate::vec3::Vec3;
 use crate::Ray;
 use crate::RenderStats;
 
-const MAX_NUM_TRIANGLES: usize = 100;
-const MAX_DEPTH: u32 = 7;
+const MAX_NUM_TRIANGLES: usize = 200;
+const MAX_DEPTH: u32 = 5;
 
 /*
  * Axis-Aligned Bounding Box
