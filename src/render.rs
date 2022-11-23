@@ -8,7 +8,6 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use wavefront;
 
 use raymax::camera::Camera;
 use raymax::color::RGB;
@@ -428,75 +427,64 @@ impl RenderJob {
                 break;
             }
             let path = json[&name].as_str().unwrap();
-            let model = wavefront::Obj::from_file(path).unwrap();
-            let mut angle_x = 0.0;
-            let mut angle_y = 0.0;
-            let mut angle_z = 0.0;
-            let rname = format!("obj.{}.rotx", num_objs);
-            if let Some(v) = json[&rname].as_f64() {
-                angle_x = v;
-            }
-            let rname = format!("obj.{}.roty", num_objs);
-            if let Some(v) = json[&rname].as_f64() {
-                angle_y = v;
-            }
-            let rname = format!("obj.{}.rotz", num_objs);
-            if let Some(v) = json[&rname].as_f64() {
-                angle_z = v;
-            }
-            let n = model.triangles().count();
-            num_obj_triangles += n;
-            let mut triangles = Vec::with_capacity(n);
-            let mut num_skipped = 0;
-            for [a, b, c] in model.triangles() {
-                let a0 = a.position();
-                let b0 = b.position();
-                let c0 = c.position();
-                let mut p0 = Point {
-                    x: a0[0] as f64,
-                    y: a0[1] as f64,
-                    z: a0[2] as f64,
-                };
-                let mut p1 = Point {
-                    x: b0[0] as f64,
-                    y: b0[1] as f64,
-                    z: b0[2] as f64,
-                };
-                let mut p2 = Point {
-                    x: c0[0] as f64,
-                    y: c0[1] as f64,
-                    z: c0[2] as f64,
-                };
-                if p0 == p1 || p0 == p2 || p1 == p2 {
-                    num_skipped += 1;
-                    continue;
+            let rxname = format!("obj.{}.rotx", num_objs);
+            let ryname = format!("obj.{}.roty", num_objs);
+            let rzname = format!("obj.{}.rotz", num_objs);
+            let angle_x = json[&rxname].as_f64().unwrap();
+            let angle_y = json[&ryname].as_f64().unwrap();
+            let angle_z = json[&rzname].as_f64().unwrap();
+
+            let mut opt = tobj::LoadOptions::default();
+            opt.triangulate = true;   // converts polygon into triangles
+            opt.ignore_lines = true;
+            opt.ignore_points = true;
+            let (models, _materials) = tobj::load_obj(&path, &opt).expect("tobj");
+            assert!(models.len() == 1);
+	    models.iter().for_each(|m| {
+                let mesh = &m.mesh;
+                let n = mesh.indices.len() / 3;
+                println!("-- model has {} triangles w/ {} vertices", n, mesh.positions.len());
+                assert!(mesh.indices.len() % 3 == 0);
+                num_obj_triangles += n;
+                let mut triangles = Vec::with_capacity(n);
+                let mut num_skipped = 0;
+                for i in 0..n {
+                    let i0 = mesh.indices[3 * i + 0] as usize;
+                    let i1 = mesh.indices[3 * i + 1] as usize;
+                    let i2 = mesh.indices[3 * i + 2] as usize;
+                    let x0 = mesh.positions[3 * i0 + 0] as f64;
+                    let y0 = mesh.positions[3 * i0 + 1] as f64;
+                    let z0 = mesh.positions[3 * i0 + 2] as f64;
+                    let x1 = mesh.positions[3 * i1 + 0] as f64;
+                    let y1 = mesh.positions[3 * i1 + 1] as f64;
+                    let z1 = mesh.positions[3 * i1 + 2] as f64;
+                    let x2 = mesh.positions[3 * i2 + 0] as f64;
+                    let y2 = mesh.positions[3 * i2 + 1] as f64;
+                    let z2 = mesh.positions[3 * i2 + 2] as f64;
+                    let mut p0 = Point { x: x0, y: y0, z: z0 };
+                    let mut p1 = Point { x: x1, y: y1, z: z1 };
+                    let mut p2 = Point { x: x2, y: y2, z: z2 };
+
+                    if p0 == p1 || p0 == p2 || p1 == p2 {
+                        num_skipped += 1;
+                        continue;
+                    }
+                    p0 = p0.rotx(angle_x).roty(angle_y).rotz(angle_z);
+                    p1 = p1.rotx(angle_x).roty(angle_y).rotz(angle_z);
+                    p2 = p2.rotx(angle_x).roty(angle_y).rotz(angle_z);
+                    let mut triangle = Triangle::new([p0, p1, p2], 0);
+                    triangle.mesh_id = triangles.len();
+                    triangle.calc_normal();
+                    triangles.push(triangle);
                 }
-                p0 = p0.rotx(angle_x).roty(angle_y).rotz(angle_z);
-                p1 = p1.rotx(angle_x).roty(angle_y).rotz(angle_z);
-                p2 = p2.rotx(angle_x).roty(angle_y).rotz(angle_z);
-                let mut triangle = Triangle::new([p0, p1, p2], 0);
-                triangle.calc_normal();
-                triangles.push(triangle);
-            }
-            if num_skipped > 0 {
-                println!("skipped {} malformed triangles", num_skipped);
-            }
-            let mut id = 0;
-            triangles.iter_mut().for_each(|t| {
-                t.mesh_id = id;
-                id += 1;
+                if num_skipped > 0 {
+                    println!("-- skipped {} malformed triangles", num_skipped);
+                }
+                self.objects.push(Arc::new(Box::new(Mesh::new(triangles, 0))));
+                num_objs += 1;
+                println!("-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
+                        path.green(), n, angle_x, angle_y, angle_z);
             });
-            let mesh = Mesh::new(triangles, 0);
-            self.objects.push(Arc::new(Box::new(mesh)));
-            num_objs += 1;
-            println!(
-                "-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
-                path.green(),
-                n,
-                angle_x,
-                angle_y,
-                angle_z
-            );
         }
         loop {
             let s = format!("triangle.{}", num_triangles);

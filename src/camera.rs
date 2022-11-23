@@ -27,7 +27,6 @@ impl Camera {
 	let theta = self.vfov.to_radians();
 	let half_height = (theta / 2.0).tan();
 	let half_width = self.aspect * half_height;
-
 	let u = self.up.cross(self.dir).normalize();
 	let v = self.dir.cross(u).normalize();
 
