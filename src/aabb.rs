@@ -78,18 +78,9 @@ impl AABB {
         {
             return true;
         }
-        let ray0 = Ray {
-            orig: t.points[0],
-            dir: t.points[1] - t.points[0],
-        };
-        let ray1 = Ray {
-            orig: t.points[1],
-            dir: t.points[2] - t.points[1],
-        };
-        let ray2 = Ray {
-            orig: t.points[2],
-            dir: t.points[0] - t.points[2],
-        };
+        let ray0 = Ray::new(t.points[0], t.points[1] - t.points[0]);
+        let ray1 = Ray::new(t.points[1], t.points[2] - t.points[1]);
+        let ray2 = Ray::new(t.points[2], t.points[0] - t.points[2]);
         /*
          * XXX: not correct if the AABB doesn't touch an edge!!
          */
@@ -383,26 +374,20 @@ impl AABB {
 
     // https://tavianator.com/cgit/dimension.git/tree/libdimension/bvh/bvh.c#n194
     fn check_intersect(&self, ray: &Ray, tmax: f64, t: &mut f64) -> bool {
-        let inv_dir = Vec3 {
-            x: 1.0 / ray.dir.x,
-            y: 1.0 / ray.dir.y,
-            z: 1.0 / ray.dir.z,
-        };
-
-        let tx1 = (self.p_min.x - ray.orig.x) * inv_dir.x;
-        let tx2 = (self.p_max.x - ray.orig.x) * inv_dir.x;
+        let tx1 = (self.p_min.x - ray.orig.x) * ray.inv_dir.x;
+        let tx2 = (self.p_max.x - ray.orig.x) * ray.inv_dir.x;
 
         let mut t_min = tx1.min(tx2);
         let mut t_max = tx1.max(tx2);
 
-        let ty1 = (self.p_min.y - ray.orig.y) * inv_dir.y;
-        let ty2 = (self.p_max.y - ray.orig.y) * inv_dir.y;
+        let ty1 = (self.p_min.y - ray.orig.y) * ray.inv_dir.y;
+        let ty2 = (self.p_max.y - ray.orig.y) * ray.inv_dir.y;
 
         t_min = t_min.max(ty1.min(ty2));
         t_max = t_max.min(ty1.max(ty2));
 
-        let tz1 = (self.p_min.z - ray.orig.z) * inv_dir.z;
-        let tz2 = (self.p_max.z - ray.orig.z) * inv_dir.z;
+        let tz1 = (self.p_min.z - ray.orig.z) * ray.inv_dir.z;
+        let tz2 = (self.p_max.z - ray.orig.z) * ray.inv_dir.z;
 
         t_min = t_min.max(tz1.min(tz2));
         t_max = t_max.min(tz1.max(tz2));

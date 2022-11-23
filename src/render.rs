@@ -85,10 +85,7 @@ impl RenderJob {
                     c_light = light.get_contrib(&hit_material, hit_point, hit_normal);
                 } else {
                     let light_vec = light.get_vector(hit_point) * -1.0;
-                    let light_ray = Ray {
-                        orig: hit_point,
-                        dir: light_vec,
-                    };
+                    let light_ray = Ray::new(hit_point, light_vec);
                     let mut t0 = 1.0;
                     let mut oid0: usize = 0;
                     let shadow = self

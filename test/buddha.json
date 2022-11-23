@@ -83,7 +83,7 @@
     "material_id": 1
   },
   "spot-light.0": {
-    "intensity": 600,
+    "intensity": 400,
     "name": "spot-light.0",
     "pos": {
       "x": 5,
@@ -97,7 +97,7 @@
     }
   },
   "spot-light.1": {
-    "intensity": 600,
+    "intensity": 400,
     "name": "spot-light.1",
     "pos": {
       "x": 5,

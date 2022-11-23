@@ -52,10 +52,7 @@ impl Camera {
     // v: -0.5 .. 0.5
     pub fn get_ray(&self, u: f64, v: f64) -> Ray {
         let pixel = self.pos + self.dir + self.screen_u * u + self.screen_v * v;
-        Ray {
-            orig: self.pos,
-            dir: pixel - self.pos,
-        }
+        Ray::new(self.pos, pixel - self.pos)
     }
     pub fn display(&self) {
         let s = format!("camera:").green();

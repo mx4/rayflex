@@ -13,14 +13,16 @@ use vec3::Vec3;
 pub struct Ray {
     pub orig: Point,
     pub dir: Vec3,
+    pub inv_dir: Vec3,
 }
 
 impl Ray {
+    pub fn new(point: Point, dir: Vec3) -> Ray {
+        let inv_dir = Vec3 { x: 1.0 / dir.x, y: 1.0 / dir.y, z: 1.0 / dir.z };
+        Ray{ orig: point, dir: dir, inv_dir: inv_dir }
+    }
     pub fn get_reflection(&self, point: Point, normal: Vec3) -> Ray {
-        Ray {
-            orig: point,
-            dir: self.dir.reflect(normal),
-        }
+        Ray::new(point, self.dir.reflect(normal))
     }
 }
 
