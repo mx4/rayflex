@@ -9,7 +9,7 @@ use crate::Ray;
 use crate::RenderStats;
 use serde::{Deserialize, Serialize};
 
-pub const EPSILON: f64 = 0.000001;
+pub const EPSILON: f64 = 1e-10;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Material {

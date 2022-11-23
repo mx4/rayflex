@@ -30,7 +30,6 @@ use raymax::three_d::EPSILON;
 
 pub struct RenderConfig {
     pub use_adaptive_sampling: bool,
-    pub use_reflection: bool,
     pub use_gamma: bool,
     pub adaptive_max_depth: u32,
     pub reflection_max_depth: u32,
@@ -62,14 +61,13 @@ impl RenderJob {
         if depth > self.cfg.reflection_max_depth {
             return RGB::new();
         }
-        let mut s_id: usize = 0;
+        let mut s_id = 0;
         let mut t = f64::MAX;
-        let tmin = EPSILON;
 
         let hit_obj = self
             .objects
             .iter()
-            .filter(|obj| obj.intercept(stats, &ray, tmin, &mut t, false, &mut s_id))
+            .filter(|obj| obj.intercept(stats, &ray, EPSILON, &mut t, false, &mut s_id))
             .last();
 
         if hit_obj.is_some() {
@@ -79,26 +77,22 @@ impl RenderJob {
             let hit_material = &self.materials[hit_mat_id];
 
             let mut c = self.lights.iter().fold(RGB::new(), |acc, light| {
-                let c_light;
+                let mut c_light = RGB::new();
 
                 if !light.is_spot() {
                     c_light = light.get_contrib(&hit_material, hit_point, hit_normal);
                 } else {
                     let light_vec = light.get_vector(hit_point) * -1.0;
                     let light_ray = Ray::new(hit_point, light_vec);
-                    let mut t0 = 1.0;
-                    let mut oid0: usize = 0;
-                    let shadow = self
+                    if self
                         .objects
                         .iter()
                         .find(|obj| {
-                            obj.intercept(stats, &light_ray, EPSILON, &mut t0, true, &mut oid0)
+                            let mut tmax0 = 1.0;
+                            let mut oid0 = 0;
+                            obj.intercept(stats, &light_ray, EPSILON, &mut tmax0, true, &mut oid0)
                         })
-                        .is_some();
-
-                    if shadow {
-                        c_light = RGB::new();
-                    } else {
+                        .is_none() {
                         c_light = light.get_contrib(&hit_material, hit_point, hit_normal);
                     }
                 }
@@ -110,15 +104,12 @@ impl RenderJob {
                 c = hit_material.do_checker(c, hit_text2d);
             }
 
-            if self.cfg.use_reflection && hit_material.reflectivity > 0.0 {
+            if hit_material.reflectivity > 0.0 {
                 stats.num_rays_reflection += 1;
                 let reflected_ray = ray.get_reflection(hit_point, hit_normal);
                 let c_reflect = self.calc_ray_color(stats, reflected_ray, depth + 1);
                 c = c * (1.0 - hit_material.reflectivity) + c_reflect * hit_material.reflectivity;
             }
-            c.r = c.r.min(1.0);
-            c.g = c.g.min(1.0);
-            c.b = c.b.min(1.0);
             c
         } else {
             //let z = (ray.dir.z + 0.5).clamp(0.0, 1.0) as f32;
@@ -435,20 +426,24 @@ impl RenderJob {
             let angle_x = json[&rxname].as_f64().unwrap();
             let angle_y = json[&ryname].as_f64().unwrap();
             let angle_z = json[&rzname].as_f64().unwrap();
-            let angle_x_rad= angle_x.to_radians();
-            let angle_y_rad= angle_y.to_radians();
-            let angle_z_rad= angle_z.to_radians();
+            let angle_x_rad = angle_x.to_radians();
+            let angle_y_rad = angle_y.to_radians();
+            let angle_z_rad = angle_z.to_radians();
 
             let mut opt = tobj::LoadOptions::default();
-            opt.triangulate = true;   // converts polygon into triangles
+            opt.triangulate = true; // converts polygon into triangles
             opt.ignore_lines = true;
             opt.ignore_points = true;
             let (models, _materials) = tobj::load_obj(&path, &opt).expect("tobj");
             assert!(models.len() == 1);
-	    models.iter().for_each(|m| {
+            models.iter().for_each(|m| {
                 let mesh = &m.mesh;
                 let n = mesh.indices.len() / 3;
-                println!("-- model has {} triangles w/ {} vertices", n, mesh.positions.len());
+                println!(
+                    "-- model has {} triangles w/ {} vertices",
+                    n,
+                    mesh.positions.len()
+                );
                 assert!(mesh.indices.len() % 3 == 0);
                 num_obj_triangles += n;
                 let mut triangles = Vec::with_capacity(n);
@@ -466,9 +461,21 @@ impl RenderJob {
                     let x2 = mesh.positions[3 * i2 + 0] as f64;
                     let y2 = mesh.positions[3 * i2 + 1] as f64;
                     let z2 = mesh.positions[3 * i2 + 2] as f64;
-                    let mut p0 = Point { x: x0, y: y0, z: z0 };
-                    let mut p1 = Point { x: x1, y: y1, z: z1 };
-                    let mut p2 = Point { x: x2, y: y2, z: z2 };
+                    let mut p0 = Point {
+                        x: x0,
+                        y: y0,
+                        z: z0,
+                    };
+                    let mut p1 = Point {
+                        x: x1,
+                        y: y1,
+                        z: z1,
+                    };
+                    let mut p2 = Point {
+                        x: x2,
+                        y: y2,
+                        z: z2,
+                    };
 
                     if p0 == p1 || p0 == p2 || p1 == p2 {
                         num_skipped += 1;
@@ -484,10 +491,17 @@ impl RenderJob {
                 if num_skipped > 0 {
                     println!("-- skipped {} malformed triangles", num_skipped);
                 }
-                self.objects.push(Arc::new(Box::new(Mesh::new(triangles, 0))));
+                self.objects
+                    .push(Arc::new(Box::new(Mesh::new(triangles, 0))));
                 num_objs += 1;
-                println!("-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
-                        path.green(), n, angle_x, angle_y, angle_z);
+                println!(
+                    "-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
+                    path.green(),
+                    n,
+                    angle_x,
+                    angle_y,
+                    angle_z
+                );
             });
         }
         loop {

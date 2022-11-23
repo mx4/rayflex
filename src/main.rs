@@ -43,8 +43,6 @@ struct Options {
     adaptive_max_depth: u32,
     #[structopt(long, default_value = "6")]
     reflection_max_depth: u32,
-    #[structopt(short = "r", long, default_value = "1")]
-    use_reflection: u32,
     #[structopt(short = "g", long, default_value = "0")]
     use_gamma: u32,
     #[structopt(short = "b", long, default_value = "1")]
@@ -208,23 +206,26 @@ fn generate_scene(
     }
     {
         let camera = Camera::new(
-            Point {     // position
+            Point {
+                // position
                 x: -3.0,
                 y: 0.0,
                 z: 1.0,
             },
-            Point {     // look_at
+            Point {
+                // look_at
                 x: 2.0,
                 y: 0.0,
                 z: 0.5,
             },
-            Vec3 {      // up
+            Vec3 {
+                // up
                 x: 0.0,
                 y: 0.0,
                 z: 1.0,
             },
-            55.0,       // vfov
-            res_x as f64 / res_y as f64,  // aspect
+            55.0,                        // vfov
+            res_x as f64 / res_y as f64, // aspect
         );
         json["camera"] = serde_json::to_value(camera).unwrap();
     }
@@ -404,8 +405,8 @@ fn generate_scene(
 
 fn print_opt(opt: &Options) {
     println!(
-        "options: gamma: {} sampling-depth: {} use_reflection: {} reflection-depth: {}",
-        opt.use_gamma, opt.adaptive_max_depth, opt.use_reflection, opt.reflection_max_depth
+        "options: gamma: {} sampling-depth: {} reflection-depth: {}",
+        opt.use_gamma, opt.adaptive_max_depth, opt.reflection_max_depth
     );
     let s = format!("num_threads: {}", rayon::current_num_threads()).red();
     println!("{s}");
@@ -420,7 +421,6 @@ fn main() -> std::io::Result<()> {
     .expect("ctrl-c");
 
     let cfg = RenderConfig {
-        use_reflection: opt.use_reflection > 0,
         use_adaptive_sampling: opt.adaptive_sampling > 0,
         use_gamma: opt.use_gamma > 0,
         reflection_max_depth: opt.reflection_max_depth,

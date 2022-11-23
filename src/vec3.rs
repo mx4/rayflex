@@ -2,8 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
-#[derive(PartialEq)]
+#[derive(Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct Vec3 {
     pub x: f64,
     pub y: f64,

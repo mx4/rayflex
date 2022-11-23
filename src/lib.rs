@@ -18,8 +18,16 @@ pub struct Ray {
 
 impl Ray {
     pub fn new(point: Point, dir: Vec3) -> Ray {
-        let inv_dir = Vec3 { x: 1.0 / dir.x, y: 1.0 / dir.y, z: 1.0 / dir.z };
-        Ray{ orig: point, dir: dir, inv_dir: inv_dir }
+        let inv_dir = Vec3 {
+            x: 1.0 / dir.x,
+            y: 1.0 / dir.y,
+            z: 1.0 / dir.z,
+        };
+        Ray {
+            orig: point,
+            dir: dir,
+            inv_dir: inv_dir,
+        }
     }
     pub fn get_reflection(&self, point: Point, normal: Vec3) -> Ray {
         Ray::new(point, self.dir.reflect(normal))
