@@ -479,7 +479,6 @@ impl RenderJob {
                     p2 = p2.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
                     let mut triangle = Triangle::new([p0, p1, p2], 0);
                     triangle.mesh_id = triangles.len();
-                    triangle.calc_normal();
                     triangles.push(triangle);
                 }
                 if num_skipped > 0 {

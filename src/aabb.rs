@@ -217,14 +217,14 @@ impl AABB {
             );
         }
         println!(
-            "-- depth: {}/{} num_leaves={} max_num_triangles={}",
+            "-- aabb: depth: {}/{} num_leaves={} max_num_triangles={}",
             self.get_depth(),
             MAX_DEPTH,
             self.count_leaves(),
             MAX_NUM_TRIANGLES
         );
-        println!("-- p_min: {:?}", p_min);
-        println!("-- p_max: {:?}", p_max);
+        println!("-- aabb: p_min: {:?}", p_min);
+        println!("-- aabb: p_max: {:?}", p_max);
     }
 
     fn nearest_node(&self, p: Point, mid: Point) -> usize {

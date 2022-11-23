@@ -74,10 +74,6 @@ pub struct Triangle {
     pub points: [Point; 3],
     pub material_id: usize,
     #[serde(skip)]
-    pub normal: Vec3,
-    #[serde(skip)]
-    pub has_normal: bool,
-    #[serde(skip)]
     pub mesh_id: usize,
 }
 
@@ -104,15 +100,9 @@ impl Triangle {
     pub fn new(points: [Point; 3], material_id: usize) -> Self {
         Self {
             points: points,
-            normal: Vec3::new(),
             material_id: material_id,
-            has_normal: false,
             mesh_id: 0,
         }
-    }
-    pub fn calc_normal(&mut self) {
-        self.normal = self.get_normal(Point::new(), 0);
-        self.has_normal = true;
     }
 }
 
@@ -247,9 +237,6 @@ impl Object for Triangle {
         );
     }
     fn get_normal(&self, _point: Point, _oid: usize) -> Vec3 {
-        if self.has_normal {
-            return self.normal;
-        }
         let edge1 = self.points[1] - self.points[0];
         let edge2 = self.points[2] - self.points[0];
         edge1.cross(edge2).normalize()
