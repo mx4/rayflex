@@ -1,26 +1,25 @@
 {
-  "obj.0.path": "obj/buddha.obj",
-  "obj.0.rotx": 0,
+  "obj.0.path": "obj/trolley.obj",
+  "obj.0.rotx": -1.57,
   "obj.0.roty": 0,
-  "obj.0.rotz": 1.57,
+  "obj.0.rotz": 0,
   "obj.0.material": 0,
   "camera": {
-    "dir": {
-      "x": -0.30,
+    "look_at": {
+      "x": 0,
+      "y": 0,
+      "z": 20
+    },
+    "up": {
+      "x": 0,
       "y": 0,
       "z": 1
     },
     "pos": {
-      "x": 0.5,
-      "y": 0,
-      "z": -1.5
+      "x": -170,
+      "y": -170,
+      "z": 110
     },
-    "up": {
-      "x": 1,
-      "y": 0,
-      "z": 0
-    },
-    "aspect": 1.0,
     "vfov": 53.0
   },
     "material.0": {
@@ -45,11 +44,11 @@
     },
   "vec-light.0": {
     "dir": {
-      "x": 0.1,
-      "y": 0.1,
-      "z": 0.8
+      "x": 0.4,
+      "y": 0.4,
+      "z": -0.8
     },
-    "intensity": 0.5,
+    "intensity": 0.3,
     "name": "vec-light.0",
     "rgb": {
       "b": 1.0,
@@ -72,24 +71,24 @@
   ],
   "plane.0": {
     "point": {
-      "x": -0.446,
+      "x": 0,
       "y": 0,
-      "z": 0
+      "z": -1
     },
     "normal": {
-      "x": 1,
+      "x": 0,
       "y": 0,
-      "z": 0 
+      "z": 1 
     },
     "material_id": 1
   },
   "spot-light.0": {
-    "intensity": 600,
+    "intensity": 300000.0,
     "name": "spot-light.0",
     "pos": {
-      "x": 5,
-      "y": 3,
-      "z": -3 
+      "x": -100,
+      "y": 50,
+      "z": 120
     },
     "rgb": {
       "b": 0.9,
@@ -98,12 +97,12 @@
     }
   },
   "spot-light.1": {
-    "intensity": 600,
+    "intensity": 300000.0,
     "name": "spot-light.1",
     "pos": {
-      "x": 5,
-      "y": -3,
-      "z": -3
+      "x": 0,
+      "y": -150,
+      "z": 120
     },
     "rgb": {
       "b": 1.0,

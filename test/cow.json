@@ -1,26 +1,40 @@
 {
     "material.0": {
-      "albedo": 0.8,
+      "albedo": 0.9,
       "checkered": false,
-      "reflectivity": 0.1,
+      "reflectivity": 0.0,
       "rgb": {
-        "b": 0.8,
+        "b": 1.0,
         "g": 1.0,
-        "r": 0.8
+        "r": 1.0
       }
     },
     "material.1": {
-      "albedo": 0.8,
+      "albedo": 0.9,
       "checkered": false,
-      "reflectivity": 0.3,
+      "reflectivity": 0.2,
       "rgb": {
         "b": 1.0,
-        "g": 0.7,
-        "r": 0.7
+        "g": 0.3,
+        "r": 0.3
       }
     },
+  "vec-light.0": {
+    "dir": {
+      "x": -0.5,
+      "y": -0.5,
+      "z": -0.5
+    },
+    "intensity": 0.5,
+    "name": "vec-light.0",
+    "rgb": {
+      "b": 1.0,
+      "g": 1.0,
+      "r": 1.0
+    }
+  },
   "ambient": {
-    "intensity": 0.10000000149011612,
+    "intensity": 0.1,
     "name": "ambient",
     "rgb": {
       "b": 1.0,
@@ -29,26 +43,25 @@
     }
   },
   "camera": {
-    "dir": {
-      "x": 0.9950371902099893,
+    "look_at": {
+      "x": 2.0,
       "y": 0.0,
-      "z": -0.75
+      "z": 0.0
+    },
+    "pos": {
+      "x": 10,
+      "y": -4,
+      "z": 2.5
     },
     "up": {
       "x": 0,
       "y": 0,
       "z": 1
     },
-    "pos": {
-      "x": -0.7,
-      "y": -0.6,
-      "z": 7.0
-    },
-    "aspect": 1.0,
     "vfov": 53.0
   },
-  "obj.0.path": "obj/teapot.obj",
-  "obj.0.rotx": -1.5708,
+  "obj.0.path": "obj/cow.obj",
+  "obj.0.rotx": -1.6,
   "obj.0.roty": 0,
   "obj.0.rotz": 0,
   "obj.0.material": 0,
@@ -60,7 +73,7 @@
     "point": {
       "x": 0,
       "y": 0,
-      "z": -1
+      "z": -3.7
     },
     "normal": {
       "x": 0,
@@ -70,44 +83,30 @@
     "material_id": 1
   },
   "spot-light.0": {
-    "intensity": 500.0,
+    "intensity": 300.0,
     "name": "spot-light.0",
     "pos": {
-      "x": 3,
-      "y": 4,
-      "z": 5.0
+      "x": 0,
+      "y": -5,
+      "z": 4
     },
     "rgb": {
-      "b": 0.8,
-      "g": 0.8,
+      "b": 0.9,
+      "g": 0.9,
       "r": 1.0
     }
   },
   "spot-light.1": {
-    "intensity": 500.0,
+    "intensity": 300.0,
     "name": "spot-light.1",
     "pos": {
-      "x": 3,
+      "x": 8,
       "y": -4.0,
-      "z": 6.0
+      "z": 0.0
     },
-    "rgb": {
-      "b": 0.800000011920929,
-      "g": 0.30000001192092896,
-      "r": 0.800000011920929
-    }
-  },
-  "vec-light.0": {
-    "dir": {
-      "x": 0.5,
-      "y": 0.5,
-      "z": -0.5
-    },
-    "intensity": 0.5,
-    "name": "vec-light.0",
     "rgb": {
       "b": 1.0,
-      "g": 1.0,
+      "g": 0.8,
       "r": 1.0
     }
   }

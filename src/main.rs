@@ -208,22 +208,22 @@ fn generate_scene(
     }
     {
         let camera = Camera::new(
-            Point {
+            Point {     // position
                 x: -3.0,
                 y: 0.0,
                 z: 1.0,
             },
-            Vec3 {
-                x: 1.0,
+            Point {     // look_at
+                x: 2.0,
                 y: 0.0,
-                z: -0.1,
+                z: 0.5,
             },
-            Vec3 {   // up
+            Vec3 {      // up
                 x: 0.0,
                 y: 0.0,
                 z: 1.0,
             },
-            50.0, // vfov
+            55.0,       // vfov
             res_x as f64 / res_y as f64,  // aspect
         );
         json["camera"] = serde_json::to_value(camera).unwrap();

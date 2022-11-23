@@ -4,12 +4,16 @@ use crate::Ray;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Camera {
     pub pos: Point,
-    pub dir: Vec3,
+    pub look_at: Point,
     pub up: Vec3,
     pub vfov: f64,
+    #[serde(skip)]
+    pub dir: Vec3,
+    #[serde(skip)]
     pub aspect: f64,
     #[serde(skip)]
     pub screen_u: Vec3,
@@ -19,6 +23,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn init(&mut self) {
+        self.dir = (self.look_at - self.pos).normalize();
 	let theta = self.vfov.to_radians();
 	let half_height = (theta / 2.0).tan();
 	let half_width = self.aspect * half_height;
@@ -28,19 +33,15 @@ impl Camera {
 
         self.screen_u = u * 2.0 * half_width;
         self.screen_v = v * 2.0 * half_height;
-        println!("u: {:?}", self.screen_u);
-        println!("v: {:?}", self.screen_v);
     }
 
-    pub fn new(pos: Point, dir: Vec3, up: Vec3, vfov: f64, aspect: f64) -> Self {
-        let d = dir.normalize();
-        assert!(up.dot(d) != 0.0);
-
+    pub fn new(pos: Point, look_at: Point, up: Vec3, vfov: f64, aspect: f64) -> Self {
         let mut c = Self {
             pos: pos,
-            dir: d,
+            look_at: look_at,
             screen_u: Vec3::new(),
             screen_v: Vec3::new(),
+            dir: Vec3::new(),
             up: up,
             vfov: vfov,
             aspect: aspect,
