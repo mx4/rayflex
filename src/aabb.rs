@@ -9,8 +9,8 @@ use crate::vec3::Vec3;
 use crate::Ray;
 use crate::RenderStats;
 
-const MAX_NUM_TRIANGLES: usize = 20;
-const MAX_DEPTH: u32 = 8;
+const MAX_NUM_TRIANGLES: usize = 100;
+const MAX_DEPTH: u32 = 7;
 
 /*
  * Axis-Aligned Bounding Box
@@ -232,6 +232,8 @@ impl AABB {
             self.count_leaves(),
             MAX_NUM_TRIANGLES
         );
+        println!("-- p_min: {:?}", p_min);
+        println!("-- p_max: {:?}", p_max);
     }
 
     fn nearest_node(&self, p: Point, mid: Point) -> usize {

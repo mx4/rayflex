@@ -65,11 +65,7 @@ impl RenderJob {
         }
         let mut s_id: usize = 0;
         let mut t = f64::MAX;
-        let mut tmin = EPSILON;
-        if depth == 0 {
-            // look for intersection beyond the screen/sensor
-            tmin = ray.dir.norm();
-        }
+        let tmin = EPSILON;
 
         let hit_obj = self
             .objects
@@ -126,7 +122,10 @@ impl RenderJob {
             }
             c
         } else {
-            let z = (ray.dir.z + 0.5).clamp(0.0, 1.0) as f32;
+            //let z = (ray.dir.z + 0.5).clamp(0.0, 1.0) as f32;
+            let mut screen_v = self.camera.as_ref().unwrap().screen_v;
+            screen_v = screen_v.normalize();
+            let s = ray.dir.dot(screen_v).abs() as f32 / ray.dir.norm() as f32;
             let cmax = RGB {
                 r: 1.0,
                 g: 1.0,
@@ -137,7 +136,7 @@ impl RenderJob {
                 g: 0.6,
                 b: 0.9,
             };
-            cmax * (1.0 - z) + cyan * z
+            cmax * s + cyan * (1.0 - s)
         }
     }
 
@@ -365,7 +364,8 @@ impl RenderJob {
         println!("-- img resolution: {}{}", res_str, smp_str);
 
         let mut camera: Camera = serde_json::from_value(json["camera"].clone()).unwrap();
-        camera.calc_uv_after_deserialize();
+        camera.aspect = self.cfg.res_x as f64 / self.cfg.res_y as f64;
+        camera.init();
         self.camera = Some(camera);
 
         if !json["ambient"].is_null() {

@@ -59,12 +59,14 @@ fn generate_scene(
     let mut rng = rand::thread_rng();
     let mut json: serde_json::Value;
     let num_materials = 10;
+    let res_x = 400;
+    let res_y = 400;
 
     println!(
         "Generating scene w/ {} spheres {} materials",
         num_spheres_to_generate, num_materials
     );
-    json = serde_json::json!({ "resolution": [ 400, 400 ] });
+    json = serde_json::json!({ "resolution": [ res_x, res_y ] });
 
     let spot0 = SpotLight {
         name: "spot-light.0".to_owned(),
@@ -216,6 +218,13 @@ fn generate_scene(
                 y: 0.0,
                 z: -0.1,
             },
+            Vec3 {   // up
+                x: 0.0,
+                y: 0.0,
+                z: 1.0,
+            },
+            50.0, // vfov
+            res_x as f64 / res_y as f64,  // aspect
         );
         json["camera"] = serde_json::to_value(camera).unwrap();
     }

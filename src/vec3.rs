@@ -127,7 +127,11 @@ impl Vec3 {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
     pub fn normalize(self) -> Vec3 {
-        let norm = self.norm();
+        let mut norm = self.norm();
+        if norm == 0.0 {
+            norm = 1.0;
+            println!("vec has norm=0");
+        }
         assert!(norm > 0.0);
         self / norm
     }

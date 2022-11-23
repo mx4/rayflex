@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 pub struct Camera {
     pub pos: Point,
     pub dir: Vec3,
+    pub up: Vec3,
+    pub vfov: f64,
+    pub aspect: f64,
     #[serde(skip)]
     pub screen_u: Vec3,
     #[serde(skip)]
@@ -15,36 +18,38 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn calc_uv(dir: Vec3, u: &mut Vec3, v: &mut Vec3) {
-        *u = Vec3 {
-            x: -dir.y,
-            y: dir.x,
-            z: 0.0,
-        };
-        let v0 = dir.cross(*u);
-        *v = v0.normalize();
+    pub fn init(&mut self) {
+	let theta = self.vfov.to_radians();
+	let half_height = (theta / 2.0).tan();
+	let half_width = self.aspect * half_height;
+
+	let u = self.up.cross(self.dir).normalize();
+	let v = self.dir.cross(u).normalize();
+
+        self.screen_u = u * 2.0 * half_width;
+        self.screen_v = v * 2.0 * half_height;
+        println!("u: {:?}", self.screen_u);
+        println!("v: {:?}", self.screen_v);
     }
-    pub fn calc_uv_after_deserialize(&mut self) {
-        self.dir = self.dir.normalize();
-        Self::calc_uv(self.dir, &mut self.screen_u, &mut self.screen_v);
-    }
-    pub fn new(pos: Point, dir: Vec3) -> Self {
+
+    pub fn new(pos: Point, dir: Vec3, up: Vec3, vfov: f64, aspect: f64) -> Self {
         let d = dir.normalize();
+        assert!(up.dot(d) != 0.0);
 
-        let mut sc_u = Vec3::new();
-        let mut sc_v = Vec3::new();
-
-        Self::calc_uv(d, &mut sc_u, &mut sc_v);
-
-        Self {
+        let mut c = Self {
             pos: pos,
             dir: d,
-            screen_u: sc_u,
-            screen_v: sc_v,
-        }
+            screen_u: Vec3::new(),
+            screen_v: Vec3::new(),
+            up: up,
+            vfov: vfov,
+            aspect: aspect,
+        };
+        c.init();
+        c
     }
-    // u0: -0.5 .. 0.5
-    // v0: -0.5 .. 0.5
+    // u: -0.5 .. 0.5
+    // v: -0.5 .. 0.5
     pub fn get_ray(&self, u: f64, v: f64) -> Ray {
         let pixel = self.pos + self.dir + self.screen_u * u + self.screen_v * v;
         Ray {
