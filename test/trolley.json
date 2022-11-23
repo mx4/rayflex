@@ -1,6 +1,6 @@
 {
   "obj.0.path": "obj/trolley.obj",
-  "obj.0.rotx": -1.57,
+  "obj.0.rotx": -90,
   "obj.0.roty": 0,
   "obj.0.rotz": 0,
   "obj.0.material": 0,
@@ -8,7 +8,7 @@
     "look_at": {
       "x": 0,
       "y": 0,
-      "z": 20
+      "z": 40
     },
     "up": {
       "x": 0,
@@ -16,8 +16,8 @@
       "z": 1
     },
     "pos": {
-      "x": -170,
-      "y": -170,
+      "x": -120,
+      "y": -120,
       "z": 110
     },
     "vfov": 53.0

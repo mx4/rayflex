@@ -2,7 +2,7 @@
   "obj.0.path": "obj/buddha.obj",
   "obj.0.rotx": 0,
   "obj.0.roty": 0,
-  "obj.0.rotz": 1.57,
+  "obj.0.rotz": 90,
   "obj.0.material": 0,
   "camera": {
     "look_at": {
@@ -11,9 +11,9 @@
       "z": 0
     },
     "pos": {
-      "x": 0.5,
-      "y": 0,
-      "z": -1.2
+      "x": 0.8,
+      "y": 0.7,
+      "z": -1.0
     },
     "up": {
       "x": 1,
@@ -57,7 +57,7 @@
     }
   },
   "ambient": {
-    "intensity": 0.1,
+    "intensity": 0.2,
     "name": "ambient",
     "rgb": {
       "b": 1.0,
@@ -97,7 +97,7 @@
     }
   },
   "spot-light.1": {
-    "intensity": 400,
+    "intensity": 500,
     "name": "spot-light.1",
     "pos": {
       "x": 5,

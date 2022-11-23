@@ -13,7 +13,7 @@ use vec3::Vec3;
 pub struct Ray {
     pub orig: Point,
     pub dir: Vec3,
-    pub inv_dir: Vec3,
+    pub inv_dir: Vec3, // aabb optimization
 }
 
 impl Ray {

@@ -430,6 +430,9 @@ impl RenderJob {
             let angle_x = json[&rxname].as_f64().unwrap();
             let angle_y = json[&ryname].as_f64().unwrap();
             let angle_z = json[&rzname].as_f64().unwrap();
+            let angle_x_rad= angle_x.to_radians();
+            let angle_y_rad= angle_y.to_radians();
+            let angle_z_rad= angle_z.to_radians();
 
             let mut opt = tobj::LoadOptions::default();
             opt.triangulate = true;   // converts polygon into triangles
@@ -466,9 +469,9 @@ impl RenderJob {
                         num_skipped += 1;
                         continue;
                     }
-                    p0 = p0.rotx(angle_x).roty(angle_y).rotz(angle_z);
-                    p1 = p1.rotx(angle_x).roty(angle_y).rotz(angle_z);
-                    p2 = p2.rotx(angle_x).roty(angle_y).rotz(angle_z);
+                    p0 = p0.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
+                    p1 = p1.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
+                    p2 = p2.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
                     let mut triangle = Triangle::new([p0, p1, p2], 0);
                     triangle.mesh_id = triangles.len();
                     triangle.calc_normal();

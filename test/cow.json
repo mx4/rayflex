@@ -61,7 +61,7 @@
     "vfov": 53.0
   },
   "obj.0.path": "obj/cow.obj",
-  "obj.0.rotx": -1.6,
+  "obj.0.rotx": -90,
   "obj.0.roty": 0,
   "obj.0.rotz": 0,
   "obj.0.material": 0,
