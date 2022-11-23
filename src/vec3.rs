@@ -3,6 +3,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(PartialEq)]
 pub struct Vec3 {
     pub x: f64,
     pub y: f64,
@@ -127,11 +128,7 @@ impl Vec3 {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
     pub fn normalize(self) -> Vec3 {
-        let mut norm = self.norm();
-        if norm == 0.0 {
-            norm = 1.0;
-            println!("vec has norm=0");
-        }
+        let norm = self.norm();
         assert!(norm > 0.0);
         self / norm
     }

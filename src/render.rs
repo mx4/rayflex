@@ -447,6 +447,7 @@ impl RenderJob {
             let n = model.triangles().count();
             num_obj_triangles += n;
             let mut triangles = Vec::with_capacity(n);
+            let mut num_skipped = 0;
             for [a, b, c] in model.triangles() {
                 let a0 = a.position();
                 let b0 = b.position();
@@ -466,12 +467,19 @@ impl RenderJob {
                     y: c0[1] as f64,
                     z: c0[2] as f64,
                 };
+                if p0 == p1 || p0 == p2 || p1 == p2 {
+                    num_skipped += 1;
+                    continue;
+                }
                 p0 = p0.rotx(angle_x).roty(angle_y).rotz(angle_z);
                 p1 = p1.rotx(angle_x).roty(angle_y).rotz(angle_z);
                 p2 = p2.rotx(angle_x).roty(angle_y).rotz(angle_z);
                 let mut triangle = Triangle::new([p0, p1, p2], 0);
                 triangle.calc_normal();
                 triangles.push(triangle);
+            }
+            if num_skipped > 0 {
+                println!("skipped {} malformed triangles", num_skipped);
             }
             let mut id = 0;
             triangles.iter_mut().for_each(|t| {
