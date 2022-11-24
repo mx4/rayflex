@@ -92,7 +92,8 @@ impl RenderJob {
                             let mut oid0 = 0;
                             obj.intercept(stats, &light_ray, EPSILON, &mut tmax0, true, &mut oid0)
                         })
-                        .is_none() {
+                        .is_none()
+                    {
                         c_light = light.get_contrib(&hit_material, hit_point, hit_normal);
                     }
                 }
@@ -137,21 +138,21 @@ impl RenderJob {
         u: f64,
         v: f64,
     ) -> RGB {
-        if self.cfg.use_adaptive_sampling {
-            let key = format!("{}-{}", u, v);
-            if let Some(c) = pmap.get(&key) {
-                return *c;
-            }
-        }
+//        let key = format!("{}-{}", u, v);
+//        let key = ((u + 0.5) * 1000_000_0000_000_f64 + 1000_000_f64 * (v + 0.5)) as u64;
+//      if && self.cfg.use_adaptive_sampling {
+//          if let Some(c) = pmap.get(&key) {
+//              return *c;
+//          }
+//      }
         let ray = self.camera.as_ref().unwrap().get_ray(u, v);
 
         stats.num_rays_sampling += 1;
 
         let c = self.calc_ray_color(stats, ray, 0);
-        if self.cfg.use_adaptive_sampling {
-            let key = format!("{}-{}", u, v);
-            pmap.insert(key, c);
-        }
+//      if self.cfg.use_adaptive_sampling {
+//          pmap.insert(key, c);
+//      }
         c
     }
 

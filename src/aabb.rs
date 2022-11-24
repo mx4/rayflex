@@ -9,8 +9,8 @@ use crate::vec3::Vec3;
 use crate::Ray;
 use crate::RenderStats;
 
-const MAX_NUM_TRIANGLES: usize = 200;
-const MAX_DEPTH: u32 = 5;
+const MAX_NUM_TRIANGLES: usize = 30;
+const MAX_DEPTH: u32 = 8;
 
 /*
  * Axis-Aligned Bounding Box
@@ -317,12 +317,9 @@ impl AABB {
             );
             let mut close_idx = self.nearest_node(ray.orig + ray.dir * t_aabb, mid);
             let mut tmin0 = tmin;
-            let mut visited = vec![];
 
             for _i in 0..4 {
                 assert!(close_idx < 8);
-
-                visited.push(close_idx);
 
                 if self.aabbs.as_ref().unwrap()[close_idx]
                     .intercept(stats, ray, tmin, tmax, any, oid)
@@ -356,17 +353,12 @@ impl AABB {
                 planes[1] = planes[1] && t_xz <= t_yz && t_xz <= t_xy;
                 planes[2] = planes[2] && t_xy <= t_xz && t_yz <= t_yz;
 
-                // planes[0] = planes[0] && self.point_inside(ray.orig + ray.dir * t_yz);
-                // planes[1] = planes[1] && self.point_inside(ray.orig + ray.dir * t_xz);
-                // planes[2] = planes[2] && self.point_inside(ray.orig + ray.dir * t_xy);
-
                 if !planes.iter().any(|&x| x) {
                     break;
                 }
 
                 tmin0 = t_yz.min(t_xy).min(t_xz);
                 close_idx = close_idx ^ (1 << planes.iter().position(|&x| x).unwrap());
-                assert!(!visited.contains(&close_idx));
             }
         }
         hit
@@ -377,17 +369,17 @@ impl AABB {
         let tx1 = (self.p_min.x - ray.orig.x) * ray.inv_dir.x;
         let tx2 = (self.p_max.x - ray.orig.x) * ray.inv_dir.x;
 
-        let mut t_min = tx1.min(tx2);
-        let mut t_max = tx1.max(tx2);
-
         let ty1 = (self.p_min.y - ray.orig.y) * ray.inv_dir.y;
         let ty2 = (self.p_max.y - ray.orig.y) * ray.inv_dir.y;
 
-        t_min = t_min.max(ty1.min(ty2));
-        t_max = t_max.min(ty1.max(ty2));
-
         let tz1 = (self.p_min.z - ray.orig.z) * ray.inv_dir.z;
         let tz2 = (self.p_max.z - ray.orig.z) * ray.inv_dir.z;
+
+        let mut t_min = tx1.min(tx2);
+        let mut t_max = tx1.max(tx2);
+
+        t_min = t_min.max(ty1.min(ty2));
+        t_max = t_max.min(ty1.max(ty2));
 
         t_min = t_min.max(tz1.min(tz2));
         t_max = t_max.min(tz1.max(tz2));
