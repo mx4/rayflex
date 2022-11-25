@@ -328,15 +328,15 @@ impl AABB {
                 let mut t_yz = f64::MAX;
                 let mut t_xz = f64::MAX;
                 let mut t_xy = f64::MAX;
-                let mut planes = [false; 3];
+                let mut p = [false; 3];
 
-                planes[0] = plane_yz.intercept(stats, ray, tmin0, &mut t_yz, false, &mut oid0);
-                planes[1] = plane_xz.intercept(stats, ray, tmin0, &mut t_xz, false, &mut oid0);
-                planes[2] = plane_xy.intercept(stats, ray, tmin0, &mut t_xy, false, &mut oid0);
+                p[0] = plane_yz.intercept(stats, ray, tmin0, &mut t_yz, false, &mut oid0);
+                p[1] = plane_xz.intercept(stats, ray, tmin0, &mut t_xz, false, &mut oid0);
+                p[2] = plane_xy.intercept(stats, ray, tmin0, &mut t_xy, false, &mut oid0);
 
-                planes[0] = planes[0] && t_yz > t_aabb;
-                planes[1] = planes[1] && t_xz > t_aabb;
-                planes[2] = planes[2] && t_xy > t_aabb;
+                p[0] = p[0] && t_yz > t_aabb;
+                p[1] = p[1] && t_xz > t_aabb;
+                p[2] = p[2] && t_xy > t_aabb;
 
                 // if the intersection is before the aabb, discard
                 if t_yz <= t_aabb {
@@ -349,16 +349,16 @@ impl AABB {
                     t_xz = f64::MAX;
                 }
 
-                planes[0] = planes[0] && t_yz <= t_xz && t_yz <= t_xy;
-                planes[1] = planes[1] && t_xz <= t_yz && t_xz <= t_xy;
-                planes[2] = planes[2] && t_xy <= t_xz && t_yz <= t_yz;
+                p[0] = p[0] && t_yz <= t_xz && t_yz <= t_xy;
+                p[1] = p[1] && t_xz <= t_yz && t_xz <= t_xy;
+                p[2] = p[2] && t_xy <= t_xz && t_yz <= t_yz;
 
-                if !planes.iter().any(|&x| x) {
+                if !p.iter().any(|&x| x) {
                     break;
                 }
 
                 tmin0 = t_yz.min(t_xy).min(t_xz);
-                close_idx = close_idx ^ (1 << planes.iter().position(|&x| x).unwrap());
+                close_idx = close_idx ^ (1 << p.iter().position(|&x| x).unwrap());
             }
         }
         hit
