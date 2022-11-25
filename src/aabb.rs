@@ -255,6 +255,9 @@ impl AABB {
     ) -> bool {
         let mut t_aabb = *tmax;
 
+        if self.is_leaf && self.triangles.is_empty() {
+            return false;
+        }
         stats.num_intersects_aabb += 1;
         if !self.check_intersect(ray, *tmax, &mut t_aabb) {
             return false;
