@@ -210,12 +210,10 @@ impl AABB {
         self.setup_node(p_min, p_max, &vec![], 0);
         let elapsed = start_time.elapsed();
 
-        if elapsed.as_secs() >= 1 {
-            println!(
-                "-- aabb generated in {:.2} sec",
-                elapsed.as_millis() as f64 / 1000.0
-            );
-        }
+        println!(
+            "-- aabb generated in {:.2} sec",
+            elapsed.as_millis() as f64 / 1000.0
+        );
         println!(
             "-- aabb: depth: {}/{} num_leaves={} max_num_triangles={}",
             self.get_depth(),
@@ -339,6 +337,8 @@ impl AABB {
                 planes[0] = planes[0] && t_yz > t_aabb;
                 planes[1] = planes[1] && t_xz > t_aabb;
                 planes[2] = planes[2] && t_xy > t_aabb;
+
+                // if the intersection is before the aabb, discard
                 if t_yz <= t_aabb {
                     t_yz = f64::MAX;
                 }
@@ -375,14 +375,20 @@ impl AABB {
         let tz1 = (self.p_min.z - ray.orig.z) * ray.inv_dir.z;
         let tz2 = (self.p_max.z - ray.orig.z) * ray.inv_dir.z;
 
-        let mut t_min = tx1.min(tx2);
-        let mut t_max = tx1.max(tx2);
+        let tx_min = tx1.min(tx2);
+        let tx_max = tx1.max(tx2);
 
-        t_min = t_min.max(ty1.min(ty2));
-        t_max = t_max.min(ty1.max(ty2));
+        let ty_min = ty1.min(ty2);
+        let ty_max = ty1.max(ty2);
 
-        t_min = t_min.max(tz1.min(tz2));
-        t_max = t_max.min(tz1.max(tz2));
+        let tz_min = tz1.min(tz2);
+        let tz_max = tz1.max(tz2);
+
+        let mut t_min = tx_min.max(ty_min);
+        let mut t_max = tx_max.min(ty_max);
+
+        t_min = t_min.max(tz_min);
+        t_max = t_max.min(tz_max);
 
         if t_max >= t_min.max(0.0) && t_min < tmax {
             *t = t_min;

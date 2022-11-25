@@ -46,13 +46,17 @@ struct Options {
     #[structopt(short = "g", long, default_value = "0")]
     use_gamma: u32,
     #[structopt(short = "b", long, default_value = "1")]
-    use_box: u32,
+    add_box: u32,
+    #[structopt(long, default_value = "0")]
+    use_lines: u32,
+    #[structopt(long, default_value = "0")]
+    use_hashmap: u32,
 }
 
 fn generate_scene(
     num_spheres_to_generate: u32,
     scene_file: PathBuf,
-    use_box: bool,
+    add_box: bool,
 ) -> std::io::Result<()> {
     let mut rng = rand::thread_rng();
     let mut json: serde_json::Value;
@@ -309,7 +313,7 @@ fn generate_scene(
         json["num_triangles"] = serde_json::json!(10);
     }
 
-    if use_box {
+    if add_box {
         println!("using box!");
         json["num_planes"] = serde_json::json!(5);
         let p0 = Plane {
@@ -405,8 +409,12 @@ fn generate_scene(
 
 fn print_opt(opt: &Options) {
     println!(
-        "options: gamma: {} sampling-depth: {} reflection-depth: {}",
-        opt.use_gamma, opt.adaptive_max_depth, opt.reflection_max_depth
+        "options: gamma={} sampling-depth={} reflection-depth={} lines={} hashmap={}",
+        opt.use_gamma,
+        opt.adaptive_max_depth,
+        opt.reflection_max_depth,
+        opt.use_lines,
+        opt.use_hashmap
     );
     let s = format!("num_threads: {}", rayon::current_num_threads()).red();
     println!("{s}");
@@ -427,10 +435,12 @@ fn main() -> std::io::Result<()> {
         adaptive_max_depth: opt.adaptive_max_depth,
         res_x: opt.res_x,
         res_y: opt.res_y,
+        use_lines: opt.use_lines > 0,
+        use_hashmap: opt.use_hashmap > 0,
     };
 
     if opt.num_spheres_to_generate != 0 {
-        return generate_scene(opt.num_spheres_to_generate, opt.scene_file, opt.use_box > 0);
+        return generate_scene(opt.num_spheres_to_generate, opt.scene_file, opt.add_box > 0);
     }
 
     print_opt(&opt);

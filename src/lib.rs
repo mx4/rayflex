@@ -37,8 +37,9 @@ impl Ray {
 #[derive(Clone, Copy)]
 pub struct RenderStats {
     pub num_rays_sampling: u64,
+    pub num_rays_sampling_max: u64,
     pub num_rays_reflection: u64,
-    pub num_rays_hit_max_level: u64,
+    pub num_rays_reflection_max: u64,
     pub num_intersects_plane: u64,
     pub num_intersects_sphere: u64,
     pub num_intersects_triangle: u64,
@@ -49,8 +50,9 @@ impl RenderStats {
     pub fn new() -> RenderStats {
         RenderStats {
             num_rays_sampling: 0,
+            num_rays_sampling_max: 0,
             num_rays_reflection: 0,
-            num_rays_hit_max_level: 0,
+            num_rays_reflection_max: 0,
             num_intersects_plane: 0,
             num_intersects_sphere: 0,
             num_intersects_triangle: 0,
@@ -59,8 +61,9 @@ impl RenderStats {
     }
     pub fn add(&mut self, other: RenderStats) {
         self.num_rays_sampling += other.num_rays_sampling;
+        self.num_rays_sampling_max += other.num_rays_sampling_max;
         self.num_rays_reflection += other.num_rays_reflection;
-        self.num_rays_hit_max_level += other.num_rays_hit_max_level;
+        self.num_rays_reflection_max += other.num_rays_reflection_max;
         self.num_intersects_sphere += other.num_intersects_sphere;
         self.num_intersects_plane += other.num_intersects_plane;
         self.num_intersects_triangle += other.num_intersects_triangle;

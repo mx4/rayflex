@@ -29,6 +29,8 @@ use raymax::three_d::Triangle;
 use raymax::three_d::EPSILON;
 
 pub struct RenderConfig {
+    pub use_lines: bool,
+    pub use_hashmap: bool,
     pub use_adaptive_sampling: bool,
     pub use_gamma: bool,
     pub adaptive_max_depth: u32,
@@ -57,8 +59,9 @@ impl RenderJob {
             cfg: cfg,
         }
     }
-    fn calc_ray_color(&self, stats: &mut RenderStats, ray: Ray, depth: u32) -> RGB {
+    fn trace(&self, stats: &mut RenderStats, ray: Ray, depth: u32) -> RGB {
         if depth > self.cfg.reflection_max_depth {
+            stats.num_rays_reflection_max += 1;
             return RGB::new();
         }
         let mut s_id = 0;
@@ -84,8 +87,7 @@ impl RenderJob {
                 } else {
                     let light_vec = light.get_vector(hit_point) * -1.0;
                     let light_ray = Ray::new(hit_point, light_vec);
-                    if self
-                        .objects
+                    self.objects
                         .iter()
                         .find(|obj| {
                             let mut tmax0 = 1.0;
@@ -93,9 +95,7 @@ impl RenderJob {
                             obj.intercept(stats, &light_ray, EPSILON, &mut tmax0, true, &mut oid0)
                         })
                         .is_none()
-                    {
-                        c_light = light.get_contrib(&hit_material, hit_point, hit_normal);
-                    }
+                        .then(|| c_light = light.get_contrib(&hit_material, hit_point, hit_normal));
                 }
                 acc + c_light * hit_material.albedo
             });
@@ -108,14 +108,13 @@ impl RenderJob {
             if hit_material.reflectivity > 0.0 {
                 stats.num_rays_reflection += 1;
                 let reflected_ray = ray.get_reflection(hit_point, hit_normal);
-                let c_reflect = self.calc_ray_color(stats, reflected_ray, depth + 1);
+                let c_reflect = self.trace(stats, reflected_ray, depth + 1);
                 c = c * (1.0 - hit_material.reflectivity) + c_reflect * hit_material.reflectivity;
             }
             c
         } else {
             //let z = (ray.dir.z + 0.5).clamp(0.0, 1.0) as f32;
-            let mut screen_v = self.camera.as_ref().unwrap().screen_v;
-            screen_v = screen_v.normalize();
+            let screen_v = self.camera.as_ref().unwrap().screen_v.normalize();
             let s = ray.dir.dot(screen_v).abs() as f32 / ray.dir.norm() as f32;
             let cmax = RGB {
                 r: 1.0,
@@ -131,28 +130,31 @@ impl RenderJob {
         }
     }
 
-    fn calc_one_ray(
+    fn trace_from_screen(
         &self,
         stats: &mut RenderStats,
-        pmap: &mut HashMap<String, RGB>,
+        pmap: &mut HashMap<u64, RGB>,
         u: f64,
         v: f64,
     ) -> RGB {
-//        let key = format!("{}-{}", u, v);
-//        let key = ((u + 0.5) * 1000_000_0000_000_f64 + 1000_000_f64 * (v + 0.5)) as u64;
-//      if && self.cfg.use_adaptive_sampling {
-//          if let Some(c) = pmap.get(&key) {
-//              return *c;
-//          }
-//      }
+        let mut key = 0;
+        if self.cfg.use_hashmap {
+            // key = format!("{}-{}", u, v);
+            key = ((u + 0.5) * 1000_000_0000_000_f64 + 1000_000_f64 * (v + 0.5)) as u64;
+            if self.cfg.use_adaptive_sampling {
+                if let Some(c) = pmap.get(&key) {
+                    return *c;
+                }
+            }
+        }
         let ray = self.camera.as_ref().unwrap().get_ray(u, v);
 
         stats.num_rays_sampling += 1;
 
-        let c = self.calc_ray_color(stats, ray, 0);
-//      if self.cfg.use_adaptive_sampling {
-//          pmap.insert(key, c);
-//      }
+        let c = self.trace(stats, ray, 0 /* depth */);
+        if self.cfg.use_hashmap && self.cfg.use_adaptive_sampling {
+            pmap.insert(key, c);
+        }
         c
     }
 
@@ -163,7 +165,7 @@ impl RenderJob {
     fn calc_ray_box(
         &self,
         stats: &mut RenderStats,
-        pmap: &mut HashMap<String, RGB>,
+        pmap: &mut HashMap<u64, RGB>,
         pos_u: f64,
         pos_v: f64,
         du: f64,
@@ -171,12 +173,12 @@ impl RenderJob {
         lvl: u32,
     ) -> RGB {
         if !self.cfg.use_adaptive_sampling {
-            return self.calc_one_ray(stats, pmap, pos_u + du / 2.0, pos_v + dv / 2.0);
+            return self.trace_from_screen(stats, pmap, pos_u + du / 2.0, pos_v + dv / 2.0);
         }
-        let mut c00 = self.calc_one_ray(stats, pmap, pos_u, pos_v);
-        let mut c01 = self.calc_one_ray(stats, pmap, pos_u, pos_v + dv);
-        let mut c10 = self.calc_one_ray(stats, pmap, pos_u + du, pos_v);
-        let mut c11 = self.calc_one_ray(stats, pmap, pos_u + du, pos_v + dv);
+        let mut c00 = self.trace_from_screen(stats, pmap, pos_u, pos_v);
+        let mut c01 = self.trace_from_screen(stats, pmap, pos_u, pos_v + dv);
+        let mut c10 = self.trace_from_screen(stats, pmap, pos_u + du, pos_v);
+        let mut c11 = self.trace_from_screen(stats, pmap, pos_u + du, pos_v + dv);
 
         if lvl < self.cfg.adaptive_max_depth {
             let color_diff = RGB::difference(c00, c01, c10, c11) > 0.3;
@@ -189,7 +191,7 @@ impl RenderJob {
                 c11 = self.calc_ray_box(stats, pmap, pos_u + du2, pos_v + dv2, du2, dv2, lvl + 1);
             }
         } else {
-            stats.num_rays_hit_max_level += 1;
+            stats.num_rays_sampling_max += 1;
         }
         (c00 + c01 + c10 + c11) * 0.25
     }
@@ -210,7 +212,7 @@ impl RenderJob {
                 suffix = "M";
             } else {
                 val = n as f64;
-                suffix = "";
+                suffix = " ";
                 precision = 0
             }
             format!("{:6.precision$} {suffix}", val)
@@ -235,48 +237,57 @@ impl RenderJob {
             xray_sec_str.bold(),
             suffix
         );
-        println!(
-            "num_intersects Sphere:   {:>12}",
-            pretty_print(stats.num_intersects_sphere)
-        );
-        println!(
-            "num_intersects Plane:    {:>12}",
-            pretty_print(stats.num_intersects_plane)
-        );
-        println!(
-            "num_intersects Triangle: {:>12}",
-            pretty_print(stats.num_intersects_triangle)
-        );
-        println!(
-            "num_intersects AABB:     {:>12}",
-            pretty_print(stats.num_intersects_aabb)
-        );
+        let intersect_stats = [
+            ("Sphere", stats.num_intersects_sphere),
+            ("Plane", stats.num_intersects_plane),
+            ("Triangle", stats.num_intersects_triangle),
+            ("AABB", stats.num_intersects_aabb),
+        ];
+
+        for (s, n) in intersect_stats {
+            println!(
+                "num_intersects {:<10}{:>12}",
+                format!("{}:", s),
+                pretty_print(n)
+            );
+        }
 
         let num_pixels = (self.cfg.res_x * self.cfg.res_y) as u64;
-        println!(
-            "num_rays_sampling:       {:>12} -- {:3}%",
-            pretty_print(stats.num_rays_sampling),
-            100 * stats.num_rays_sampling / num_pixels
-        );
-        println!(
-            "num_rays_reflection:     {:>12} -- {:3}%",
-            pretty_print(stats.num_rays_reflection),
-            100 * stats.num_rays_reflection / stats.num_rays_sampling
-        );
-        println!(
-            "num_rays_max_level:      {:>12} -- {:3}%",
-            pretty_print(stats.num_rays_hit_max_level),
-            100 * stats.num_rays_hit_max_level / stats.num_rays_sampling
-        );
+        let ray_stats = [
+            ("num_rays_sampling", stats.num_rays_sampling, num_pixels),
+            (
+                "num_rays_sampling_max",
+                stats.num_rays_sampling_max,
+                stats.num_rays_sampling,
+            ),
+            (
+                "num_rays_reflection",
+                stats.num_rays_reflection,
+                stats.num_rays_sampling,
+            ),
+            (
+                "num_rays_reflection_max",
+                stats.num_rays_reflection_max,
+                stats.num_rays_sampling,
+            ),
+        ];
+        for (s, n, d) in ray_stats {
+            println!(
+                "{:<24} {:>12} -- {:3}%",
+                format!("{}:", s),
+                pretty_print(n),
+                100 * n / d
+            );
+        }
     }
 
-    fn render_pixel_box(&self, x0: u32, y0: u32, sz: u32, stats: &mut RenderStats) {
+    fn render_pixel_box(&self, x0: u32, y0: u32, sz_x: u32, sz_y: u32, stats: &mut RenderStats) {
         let u = 1.0;
         let v = 1.0;
         let du = u / self.cfg.res_x as f64;
         let dv = v / self.cfg.res_y as f64;
-        let y_max = (y0 + sz).min(self.cfg.res_y);
-        let x_max = (x0 + sz).min(self.cfg.res_x);
+        let y_max = (y0 + sz_y).min(self.cfg.res_y);
+        let x_max = (x0 + sz_x).min(self.cfg.res_x);
 
         let mut pmap = HashMap::new();
 
@@ -291,17 +302,28 @@ impl RenderJob {
         }
     }
 
-    pub fn render_scene(&mut self) {
-        self.image = Mutex::new(Image::new(self.cfg.res_x, self.cfg.res_y));
-        let start_time = Instant::now();
-        assert!(self.camera.is_some());
+    pub fn render_image_lines(
+        &mut self,
+        pb: &mut ProgressBar,
+        total_stats: &mut Mutex<RenderStats>,
+    ) {
+        (0..self.cfg.res_y).into_par_iter().for_each(|y| {
+            let mut stats = RenderStats::new();
 
+            if crate::CTRLC_HIT.load(Ordering::SeqCst) {
+                pb.inc(self.cfg.res_y.into());
+                return;
+            }
+            self.render_pixel_box(0, y, self.cfg.res_x, 1, &mut stats);
+            pb.inc(self.cfg.res_y.into());
+            total_stats.lock().unwrap().add(stats);
+        });
+    }
+
+    pub fn render_image_box(&mut self, pb: &mut ProgressBar, total_stats: &mut Mutex<RenderStats>) {
         let step = 32;
         let ny = (self.cfg.res_y + step - 1) / step;
         let nx = (self.cfg.res_x + step - 1) / step;
-        let pb = ProgressBar::new((nx * ny) as u64);
-
-        let total_stats = Mutex::new(RenderStats::new());
 
         (0..ny * nx).into_par_iter().for_each(|v| {
             let mut stats = RenderStats::new();
@@ -309,13 +331,27 @@ impl RenderJob {
             let y = (v / nx) * step;
 
             if crate::CTRLC_HIT.load(Ordering::SeqCst) {
-                pb.inc(1);
+                pb.inc((step * step) as u64);
                 return;
             }
-            self.render_pixel_box(x, y, step, &mut stats);
-            pb.inc(1);
+            self.render_pixel_box(x, y, step, step, &mut stats);
+            pb.inc((step * step) as u64);
             total_stats.lock().unwrap().add(stats);
         });
+    }
+
+    pub fn render_scene(&mut self) {
+        self.image = Mutex::new(Image::new(self.cfg.res_x, self.cfg.res_y));
+        let start_time = Instant::now();
+        assert!(self.camera.is_some());
+        let mut total_stats = Mutex::new(RenderStats::new());
+        let mut pb = ProgressBar::new((self.cfg.res_x * self.cfg.res_y) as u64);
+
+        if self.cfg.use_lines {
+            self.render_image_lines(&mut pb, &mut total_stats);
+        } else {
+            self.render_image_box(&mut pb, &mut total_stats);
+        }
 
         pb.finish_and_clear();
         self.print_stats(start_time, *total_stats.lock().unwrap());
