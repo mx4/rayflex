@@ -30,8 +30,8 @@ pub struct AABB {
 impl AABB {
     pub fn new(triangles: Arc<Vec<Triangle>>) -> AABB {
         AABB {
-            p_min: Point::new(),
-            p_max: Point::new(),
+            p_min: Point::zero(),
+            p_max: Point::zero(),
             is_leaf: false,
             triangles: vec![],
             aabbs: None,
@@ -153,8 +153,8 @@ impl AABB {
             z: inc.z,
         };
 
-        let mut v_min = [Point::new(); 8];
-        let mut v_max = [Point::new(); 8];
+        let mut v_min = [Point::zero(); 8];
+        let mut v_max = [Point::zero(); 8];
 
         v_min[0] = p_min;
         v_max[0] = p_min + inc;
@@ -202,8 +202,8 @@ impl AABB {
             .unwrap()
     }
     pub fn init_aabb(&mut self) {
-        let mut p_min = Vec3::new();
-        let mut p_max = Vec3::new();
+        let mut p_min = Vec3::zero();
+        let mut p_max = Vec3::zero();
         self.find_bounds(&mut p_min, &mut p_max);
 
         let start_time = Instant::now();

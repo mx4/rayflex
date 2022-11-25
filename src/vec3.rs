@@ -113,12 +113,15 @@ impl Matrix3 {
 }
 
 impl Vec3 {
-    pub fn new() -> Vec3 {
+    pub fn zero() -> Vec3 {
         Vec3 {
             x: 0.0,
             y: 0.0,
             z: 0.0,
         }
+    }
+    pub fn new(x: f64, y: f64, z: f64) -> Vec3 {
+        Vec3 { x: x, y: y, z: z }
     }
     pub fn norm(self) -> f64 {
         self.dot(self).sqrt()

@@ -37,9 +37,9 @@ impl Camera {
         let mut c = Self {
             pos: pos,
             look_at: look_at,
-            screen_u: Vec3::new(),
-            screen_v: Vec3::new(),
-            dir: Vec3::new(),
+            screen_u: Vec3::zero(),
+            screen_v: Vec3::zero(),
+            dir: Vec3::zero(),
             up: up,
             vfov: vfov,
             aspect: aspect,
