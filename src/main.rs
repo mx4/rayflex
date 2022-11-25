@@ -37,20 +37,20 @@ struct Options {
     res_y: u32,
     #[structopt(short = "n", long, default_value = "0")]
     num_spheres_to_generate: u32,
-    #[structopt(short = "a", long, default_value = "0")]
-    adaptive_sampling: u8,
     #[structopt(long, default_value = "2")]
     adaptive_max_depth: u32,
     #[structopt(long, default_value = "6")]
     reflection_max_depth: u32,
-    #[structopt(short = "g", long, default_value = "0")]
-    use_gamma: u32,
     #[structopt(short = "b", long, default_value = "1")]
     add_box: u32,
-    #[structopt(long, default_value = "0")]
-    use_lines: u32,
-    #[structopt(long, default_value = "0")]
-    use_hashmap: u32,
+    #[structopt(short = "g", long)]
+    use_gamma: bool,
+    #[structopt(short = "a", long)]
+    use_adaptive_sampling: bool,
+    #[structopt(long)]
+    use_lines: bool,
+    #[structopt(long)]
+    use_hashmap: bool,
 }
 
 fn generate_scene(
@@ -429,14 +429,14 @@ fn main() -> std::io::Result<()> {
     .expect("ctrl-c");
 
     let cfg = RenderConfig {
-        use_adaptive_sampling: opt.adaptive_sampling > 0,
-        use_gamma: opt.use_gamma > 0,
+        use_adaptive_sampling: opt.use_adaptive_sampling,
+        use_gamma: opt.use_gamma,
         reflection_max_depth: opt.reflection_max_depth,
         adaptive_max_depth: opt.adaptive_max_depth,
         res_x: opt.res_x,
         res_y: opt.res_y,
-        use_lines: opt.use_lines > 0,
-        use_hashmap: opt.use_hashmap > 0,
+        use_lines: opt.use_lines,
+        use_hashmap: opt.use_hashmap,
     };
 
     if opt.num_spheres_to_generate != 0 {

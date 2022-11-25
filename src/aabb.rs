@@ -286,39 +286,13 @@ impl AABB {
             return hit;
         } else {
             let mid = self.p_min + (self.p_max - self.p_min) / 2.0;
-            let plane_yz = Plane::new(
-                mid,
-                Vec3 {
-                    x: 1.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                0,
-            );
-            let plane_xz = Plane::new(
-                mid,
-                Vec3 {
-                    x: 0.0,
-                    y: 1.0,
-                    z: 0.0,
-                },
-                0,
-            );
-            let plane_xy = Plane::new(
-                mid,
-                Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                0,
-            );
+            let plane_yz = Plane::new(mid, Vec3::new(1.0, 0.0, 0.0), 0);
+            let plane_xz = Plane::new(mid, Vec3::new(0.0, 1.0, 0.0), 0);
+            let plane_xy = Plane::new(mid, Vec3::new(0.0, 0.0, 1.0), 0);
             let mut close_idx = self.nearest_node(ray.orig + ray.dir * t_aabb, mid);
             let mut tmin0 = tmin;
 
             for _i in 0..4 {
-                assert!(close_idx < 8);
-
                 if self.aabbs.as_ref().unwrap()[close_idx]
                     .intercept(stats, ray, tmin, tmax, any, oid)
                 {
@@ -326,8 +300,8 @@ impl AABB {
                 }
 
                 let mut t_yz = f64::MAX;
-                let mut t_xz = f64::MAX;
-                let mut t_xy = f64::MAX;
+                let mut t_xz = t_yz;
+                let mut t_xy = t_yz;
                 let mut p = [false; 3];
 
                 p[0] = plane_yz.intercept(stats, ray, tmin0, &mut t_yz, false, &mut oid0);
