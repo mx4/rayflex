@@ -27,9 +27,9 @@
     "vfov": 53.0
   },
   "material.0": {
-    "albedo": 0.8999999761581421,
     "checkered": false,
-    "reflectivity": 0.0,
+    "shininess": 50,
+    "ks": 0.0,
     "kd": {
       "b": 1.0,
       "g": 1.0,
@@ -37,9 +37,9 @@
     }
   },
   "material.1": {
-    "albedo": 0.8999999761581421,
     "checkered": false,
-    "reflectivity": 0.8,
+    "shininess": 50,
+    "ks": 0.5,
     "kd": {
       "b": 1.0,
       "g": 1.0,
@@ -47,9 +47,9 @@
     }
   },
   "material.2": {
-    "albedo": 0.8999999761581421,
     "checkered": false,
-    "reflectivity": 0.0,
+    "shininess": 50,
+    "ks": 0.0,
     "kd": {
       "b": 0.0,
       "g": 0.0,
@@ -57,9 +57,9 @@
     }
   },
   "material.3": {
-    "albedo": 0.8999999761581421,
     "checkered": false,
-    "reflectivity": 0.0,
+    "shininess": 50,
+    "ks": 0.0,
     "kd": {
       "b": 0.0,
       "g": 1.0,
@@ -67,9 +67,9 @@
     }
   },
   "material.4": {
-    "albedo": 0.8999999761581421,
     "checkered": false,
-    "reflectivity": 0.0,
+    "shininess": 50,
+    "ks": 0.0,
     "kd": {
       "b": 1.0,
       "g": 0.0,
@@ -77,9 +77,9 @@
     }
   },
   "material.5": {
-    "albedo": 0.9,
     "checkered": true,
-    "reflectivity": 0.2,
+    "shininess": 50,
+    "ks": 0.2,
     "kd": {
       "b": 1,
       "g": 1,
@@ -87,9 +87,9 @@
     }
   },
   "material.6": {
-    "albedo": 0.8999999761581421,
     "checkered": true,
-    "reflectivity": 0.5161757469177246,
+    "shininess": 50,
+    "ks": 0.50,
     "kd": {
       "b": 0.33590269088745117,
       "g": 0.18379902839660645,
@@ -97,9 +97,9 @@
     }
   },
   "material.7": {
-    "albedo": 0.8999999761581421,
     "checkered": true,
-    "reflectivity": 0.2171352207660675,
+    "shininess": 50,
+    "ks": 0.22,
     "kd": {
       "b": 0.0404973030090332,
       "g": 0.7394428253173828,
@@ -107,9 +107,9 @@
     }
   },
   "material.8": {
-    "albedo": 0.8999999761581421,
     "checkered": false,
-    "reflectivity": 0.2913258671760559,
+    "shininess": 50,
+    "ks": 0.29,
     "kd": {
       "b": 0.2092897891998291,
       "g": 0.7886487245559692,
@@ -117,9 +117,9 @@
     }
   },
   "material.9": {
-    "albedo": 0.8999999761581421,
     "checkered": true,
-    "reflectivity": 0.607643723487854,
+    "shininess": 50,
+    "ks": 0.3,
     "kd": {
       "b": 0.6717931032180786,
       "g": 0.4294060468673706,
@@ -916,8 +916,7 @@
     "radius": 0.27466207704137235
   },
   "spot-light.0": {
-    "intensity": 120.0,
-    "name": "spot-light.0",
+    "intensity": 6.0,
     "pos": {
       "x": 0.5,
       "y": 2,
@@ -930,8 +929,7 @@
     }
   },
   "spot-light.1": {
-    "intensity": 70.0,
-    "name": "spot-light.1",
+    "intensity": 4.0,
     "pos": {
       "x": 0.5,
       "y": -2.0,

@@ -1,8 +1,8 @@
 {
     "material.0": {
-      "albedo": 0.9,
       "checkered": false,
-      "reflectivity": 0.0,
+      "shininess": 50,
+      "ks": 0.0,
       "kd": {
         "b": 1.0,
         "g": 1.0,
@@ -10,9 +10,9 @@
       }
     },
     "material.1": {
-      "albedo": 0.9,
       "checkered": false,
-      "reflectivity": 0.2,
+      "shininess": 10,
+      "ks": 0.2,
       "kd": {
         "b": 1.0,
         "g": 0.3,
@@ -83,8 +83,7 @@
     "material_id": 1
   },
   "spot-light.0": {
-    "intensity": 300.0,
-    "name": "spot-light.0",
+    "intensity": 15,
     "pos": {
       "x": 0,
       "y": -5,
@@ -97,8 +96,7 @@
     }
   },
   "spot-light.1": {
-    "intensity": 300.0,
-    "name": "spot-light.1",
+    "intensity": 15,
     "pos": {
       "x": 8,
       "y": -4.0,

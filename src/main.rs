@@ -70,99 +70,23 @@ fn generate_scene(
     );
     json = serde_json::json!({ "resolution": [ res_x, res_y ] });
 
-    let spot0 = SpotLight {
-        name: "spot-light.0".to_owned(),
-        pos: Vec3 {
-            x: 0.5,
-            y: 2.5,
-            z: 1.0,
-        },
-        rgb: RGB {
-            r: 1.0,
-            g: 1.0,
-            b: 1.0,
-        },
-        intensity: 70.0,
-    };
-    json[&spot0.name] = serde_json::to_value(&spot0).unwrap();
     {
-        // white
-        let mat = Material {
-            albedo: 0.9,
-            reflectivity: 0.0,
-            checkered: false,
-            kd: RGB {
+        let spot0 = SpotLight {
+            name: "spot-light.0".to_owned(),
+            pos: Vec3 {
+                x: 0.5,
+                y: 2.5,
+                z: 1.0,
+            },
+            rgb: RGB {
                 r: 1.0,
                 g: 1.0,
                 b: 1.0,
             },
+            intensity: 5.0,
         };
-        json["material.0"] = serde_json::to_value(mat).unwrap();
-        // white glossy
-        let mat = Material {
-            albedo: 0.9,
-            reflectivity: 0.5,
-            checkered: false,
-            kd: RGB {
-                r: 1.0,
-                g: 1.0,
-                b: 1.0,
-            },
-        };
-        json["material.1"] = serde_json::to_value(mat).unwrap();
-        // red
-        let mat = Material {
-            albedo: 0.9,
-            reflectivity: 0.0,
-            checkered: false,
-            kd: RGB {
-                r: 1.0,
-                g: 0.0,
-                b: 0.0,
-            },
-        };
-        json["material.2"] = serde_json::to_value(mat).unwrap();
-        // green
-        let mat = Material {
-            albedo: 0.9,
-            reflectivity: 0.0,
-            checkered: false,
-            kd: RGB {
-                r: 0.0,
-                g: 1.0,
-                b: 0.0,
-            },
-        };
-        json["material.3"] = serde_json::to_value(mat).unwrap();
-        // blue
-        let mat = Material {
-            albedo: 0.9,
-            reflectivity: 0.0,
-            checkered: false,
-            kd: RGB {
-                r: 0.0,
-                g: 0.0,
-                b: 1.0,
-            },
-        };
-        json["material.4"] = serde_json::to_value(mat).unwrap();
-
-        for i in 5..10 {
-            let name = format!("material.{}", i);
-            let mat = Material {
-                albedo: 0.9,
-                reflectivity: rng.gen_range(0.0..0.9),
-                checkered: rng.gen_range(0..2) == 0,
-                kd: RGB {
-                    r: rng.gen_range(0.0..1.0),
-                    g: rng.gen_range(0.0..1.0),
-                    b: rng.gen_range(0.0..1.0),
-                },
-            };
-            json[name] = serde_json::to_value(mat).unwrap();
-        }
+        json[&spot0.name] = serde_json::to_value(&spot0).unwrap();
     }
-
     {
         let spot0 = SpotLight {
             name: "spot-light.1".to_owned(),
@@ -176,10 +100,88 @@ fn generate_scene(
                 g: 0.3,
                 b: 0.8,
             },
-            intensity: 50.0,
+            intensity: 5.0,
         };
         json[&spot0.name] = serde_json::to_value(&spot0).unwrap();
     }
+    {
+        // white
+        let mat = Material {
+            ks: 0.0,
+            shininess: 10,
+            checkered: false,
+            kd: RGB {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+            },
+        };
+        json["material.0"] = serde_json::to_value(mat).unwrap();
+        // white glossy
+        let mat = Material {
+            ks: 0.5,
+            shininess: 10,
+            checkered: false,
+            kd: RGB {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+            },
+        };
+        json["material.1"] = serde_json::to_value(mat).unwrap();
+        // red
+        let mat = Material {
+            ks: 0.0,
+            shininess: 10,
+            checkered: false,
+            kd: RGB {
+                r: 1.0,
+                g: 0.0,
+                b: 0.0,
+            },
+        };
+        json["material.2"] = serde_json::to_value(mat).unwrap();
+        // green
+        let mat = Material {
+            shininess: 10,
+            ks: 0.0,
+            checkered: false,
+            kd: RGB {
+                r: 0.0,
+                g: 1.0,
+                b: 0.0,
+            },
+        };
+        json["material.3"] = serde_json::to_value(mat).unwrap();
+        // blue
+        let mat = Material {
+            shininess: 10,
+            ks: 0.0,
+            checkered: false,
+            kd: RGB {
+                r: 0.0,
+                g: 0.0,
+                b: 1.0,
+            },
+        };
+        json["material.4"] = serde_json::to_value(mat).unwrap();
+
+        for i in 5..10 {
+            let name = format!("material.{}", i);
+            let mat = Material {
+                shininess: 10,
+                ks: rng.gen_range(0.0..0.9),
+                checkered: rng.gen_range(0..2) == 0,
+                kd: RGB {
+                    r: rng.gen_range(0.0..1.0),
+                    g: rng.gen_range(0.0..1.0),
+                    b: rng.gen_range(0.0..1.0),
+                },
+            };
+            json[name] = serde_json::to_value(mat).unwrap();
+        }
+    }
+
     {
         let ambient = AmbientLight {
             rgb: RGB {
@@ -204,7 +206,7 @@ fn generate_scene(
                 y: 0.5,
                 z: -0.5,
             },
-            intensity: 0.7,
+            intensity: 0.0,
         };
         json["vec-light.0"] = serde_json::to_value(vec0).unwrap();
     }

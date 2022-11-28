@@ -4,19 +4,19 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Material {
-    pub albedo: f32,
-    pub reflectivity: f32,
+    pub ks: f32,
     pub kd: RGB,
+    pub shininess: u32, // 0 --> ~1000
     pub checkered: bool,
 }
 
 impl Material {
     pub fn new() -> Material {
         Material {
-            albedo: 0.0,
             kd: RGB::new(),
+            ks: 0.0,
+            shininess: 0,
             checkered: false,
-            reflectivity: 0.0,
         }
     }
     pub fn do_checker(&self, c: RGB, text2d: Vec2) -> RGB {

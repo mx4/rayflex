@@ -2,6 +2,7 @@ use crate::color::RGB;
 use crate::material::Material;
 use crate::vec3::Point;
 use crate::vec3::Vec3;
+use crate::Ray;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
@@ -37,19 +38,25 @@ pub trait Light {
     fn is_ambient(&self) -> bool;
     fn is_vector(&self) -> bool;
     fn is_spot(&self) -> bool;
-    fn get_contrib(&self, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB;
+    fn get_contrib(&self, ray: &Ray, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB;
 }
 
 impl Light for SpotLight {
-    fn get_contrib(&self, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB {
-        let c_res = mat.kd * self.rgb * self.intensity;
+    fn get_contrib(&self, ray: &Ray, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB {
+        let mut c_res;
+
         let light_vec = self.pos - obj_point;
         let dist_sq = light_vec.dot(light_vec);
         let light_vec_norm = light_vec / dist_sq.sqrt();
-        let v_prod = obj_normal.dot(light_vec_norm).max(0.0) as f32;
-        let pi = std::f32::consts::PI;
+        c_res = mat.kd * obj_normal.dot(light_vec_norm).max(0.0) as f32;
 
-        c_res * v_prod.powi(4) / (1.0 + 4.0 * pi * dist_sq as f32)
+        {
+            let reflected_ray = ray.get_reflection(obj_point, obj_normal);
+            let dir = reflected_ray.dir.normalize();
+            c_res += self.rgb * mat.ks * light_vec_norm.dot(dir).powi(80) as f32;
+        }
+
+        c_res * self.intensity / (1.0 + dist_sq as f32)
     }
     fn display(&self) {
         let s = format!("{:3} {:?} {:?}", self.intensity, self.pos, self.rgb).dimmed();
@@ -80,7 +87,7 @@ impl Light for SpotLight {
 }
 
 impl Light for AmbientLight {
-    fn get_contrib(&self, mat: &Material, _obj_point: Point, _obj_normal: Vec3) -> RGB {
+    fn get_contrib(&self, _ray: &Ray, mat: &Material, _obj_point: Point, _obj_normal: Vec3) -> RGB {
         mat.kd * self.rgb * self.intensity
     }
     fn display(&self) {
@@ -112,7 +119,7 @@ impl Light for AmbientLight {
 }
 
 impl Light for VectorLight {
-    fn get_contrib(&self, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB {
+    fn get_contrib(&self, _ray: &Ray, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB {
         let c_res = mat.kd * self.rgb * self.intensity;
         let light_vec = self.get_vector(obj_point) * -1.0;
         let v_prod = obj_normal.dot(light_vec).min(0.0) as f32;

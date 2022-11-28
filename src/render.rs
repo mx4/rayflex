@@ -59,7 +59,7 @@ impl RenderJob {
             cfg: cfg,
         }
     }
-    fn trace(&self, stats: &mut RenderStats, ray: Ray, depth: u32) -> RGB {
+    fn trace(&self, stats: &mut RenderStats, ray: &Ray, depth: u32) -> RGB {
         if depth > self.cfg.reflection_max_depth {
             stats.num_rays_reflection_max += 1;
             return RGB::new();
@@ -83,7 +83,7 @@ impl RenderJob {
                 let mut c_light = RGB::new();
 
                 if !light.is_spot() {
-                    c_light = light.get_contrib(&hit_material, hit_point, hit_normal);
+                    c_light = light.get_contrib(ray, &hit_material, hit_point, hit_normal);
                 } else {
                     let light_vec = light.get_vector(hit_point) * -1.0;
                     let light_ray = Ray::new(hit_point, light_vec);
@@ -95,9 +95,11 @@ impl RenderJob {
                             obj.intercept(stats, &light_ray, EPSILON, &mut tmax0, true, &mut oid0)
                         })
                         .is_none()
-                        .then(|| c_light = light.get_contrib(&hit_material, hit_point, hit_normal));
+                        .then(|| {
+                            c_light = light.get_contrib(ray, &hit_material, hit_point, hit_normal)
+                        });
                 }
-                acc + c_light * hit_material.albedo
+                acc + c_light
             });
 
             if hit_material.checkered {
@@ -105,11 +107,12 @@ impl RenderJob {
                 c = hit_material.do_checker(c, hit_text2d);
             }
 
-            if hit_material.reflectivity > 0.0 {
+            if hit_material.ks > 0.0 {
                 stats.num_rays_reflection += 1;
                 let reflected_ray = ray.get_reflection(hit_point, hit_normal);
-                let c_reflect = self.trace(stats, reflected_ray, depth + 1);
-                c = c * (1.0 - hit_material.reflectivity) + c_reflect * hit_material.reflectivity;
+                let c_reflect = self.trace(stats, &reflected_ray, depth + 1);
+                let ks = 0.1;
+                c = c * (1.0 - ks) + c_reflect * ks;
             }
             c
         } else {
@@ -151,7 +154,7 @@ impl RenderJob {
 
         stats.num_rays_sampling += 1;
 
-        let c = self.trace(stats, ray, 0 /* depth */);
+        let c = self.trace(stats, &ray, 0 /* depth */);
         if self.cfg.use_hashmap && self.cfg.use_adaptive_sampling {
             pmap.insert(key, c);
         }

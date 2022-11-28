@@ -6,7 +6,7 @@
   "obj.0.material": 0,
   "camera": {
     "look_at": {
-      "x": 0.0,
+      "x": 0.05,
       "y": 0,
       "z": 0
     },
@@ -23,9 +23,9 @@
     "vfov": 53.0
   },
     "material.0": {
-      "albedo": 0.7,
       "checkered": false,
-      "reflectivity": 0.0,
+      "shininess": 100,
+      "ks": 0.6,
       "kd": {
         "b": 1.0,
         "g": 1.0,
@@ -33,31 +33,17 @@
       }
     },
     "material.1": {
-      "albedo": 0.9,
-      "checkered": false,
-      "reflectivity": 0.2,
+      "checkered": true,
+      "shininess": 500,
+      "ks": 0.05,
       "kd": {
         "b": 1.0,
         "g": 0.3,
         "r": 0.3
       }
     },
-  "vec-light.0": {
-    "dir": {
-      "x": 0.1,
-      "y": 0.1,
-      "z": 0.8
-    },
-    "intensity": 0.5,
-    "name": "vec-light.0",
-    "rgb": {
-      "b": 1.0,
-      "g": 1.0,
-      "r": 1.0
-    }
-  },
   "ambient": {
-    "intensity": 0.2,
+    "intensity": 0.1,
     "name": "ambient",
     "rgb": {
       "b": 1.0,
@@ -83,8 +69,7 @@
     "material_id": 1
   },
   "spot-light.0": {
-    "intensity": 400,
-    "name": "spot-light.0",
+    "intensity": 15,
     "pos": {
       "x": 5,
       "y": 3,
@@ -97,8 +82,7 @@
     }
   },
   "spot-light.1": {
-    "intensity": 500,
-    "name": "spot-light.1",
+    "intensity": 15,
     "pos": {
       "x": 5,
       "y": -3,

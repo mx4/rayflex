@@ -118,23 +118,17 @@ impl Object for Plane {
     }
     fn get_texture_2d(&self, point: Point) -> Vec2 {
         let v = point - self.point;
-        let v_x = v
-            .dot(Vec3 {
-                x: 0.0,
-                y: 1.0,
-                z: 0.0,
-            })
-            .ceil() as f32;
-        let v_y = v
-            .dot(Vec3 {
-                x: 0.0,
-                y: 0.0,
-                z: 1.0,
-            })
-            .ceil() as f32;
+        let mut v_x = v.dot(Vec3::unity_y());
+        let mut v_y = v.dot(Vec3::unity_z());
+        if v_x < 0.0 {
+            v_x = -v_x + 0.125;
+        }
+        if v_y < 0.0 {
+            v_y = -v_y + 0.125;
+        }
         Vec2 {
-            x: (v_x + 1.0) / 2.0,
-            y: (v_y + 1.0) / 2.0,
+            x: v_x as f32,
+            y: v_y as f32,
         }
     }
     fn get_material_id(&self) -> usize {
