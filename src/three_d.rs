@@ -145,8 +145,11 @@ impl Object for Plane {
     fn get_normal(&self, _point: Point, _oid: usize) -> Vec3 {
         self.normal
     }
-    fn get_texture_2d(&self, _point: Point) -> Vec2 {
-        Vec2 { x: 0.0, y: 0.0 }
+    fn get_texture_2d(&self, point: Point) -> Vec2 {
+        let v = point - self.point;
+        let v_x = v.dot(Vec3{ x: 0.0, y: 1.0, z: 0.0 }).ceil() as f32;
+        let v_y = v.dot(Vec3{ x: 0.0, y: 0.0, z: 1.0 }).ceil() as f32;
+        Vec2 { x: (v_x + 1.0) / 2.0, y: (v_y + 1.0) / 2.0 }
     }
     fn get_material_id(&self) -> usize {
         self.material_id

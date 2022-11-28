@@ -130,7 +130,7 @@ impl RenderJob {
         }
     }
 
-    fn trace_from_screen(
+    fn trace_primary_ray(
         &self,
         stats: &mut RenderStats,
         pmap: &mut HashMap<u64, RGB>,
@@ -173,12 +173,12 @@ impl RenderJob {
         lvl: u32,
     ) -> RGB {
         if !self.cfg.use_adaptive_sampling {
-            return self.trace_from_screen(stats, pmap, pos_u + du / 2.0, pos_v + dv / 2.0);
+            return self.trace_primary_ray(stats, pmap, pos_u + du / 2.0, pos_v + dv / 2.0);
         }
-        let mut c00 = self.trace_from_screen(stats, pmap, pos_u, pos_v);
-        let mut c01 = self.trace_from_screen(stats, pmap, pos_u, pos_v + dv);
-        let mut c10 = self.trace_from_screen(stats, pmap, pos_u + du, pos_v);
-        let mut c11 = self.trace_from_screen(stats, pmap, pos_u + du, pos_v + dv);
+        let mut c00 = self.trace_primary_ray(stats, pmap, pos_u, pos_v);
+        let mut c01 = self.trace_primary_ray(stats, pmap, pos_u, pos_v + dv);
+        let mut c10 = self.trace_primary_ray(stats, pmap, pos_u + du, pos_v);
+        let mut c11 = self.trace_primary_ray(stats, pmap, pos_u + du, pos_v + dv);
 
         if lvl < self.cfg.adaptive_max_depth {
             let color_diff = RGB::difference(c00, c01, c10, c11) > 0.3;
@@ -551,16 +551,12 @@ impl RenderJob {
             num_triangles += 1;
         }
         println!(
-            "-- materials={} vec_lights={} spot_lights={}",
-            num_materials, num_vec_lights, num_vec_lights
-        );
-        println!(
-            "-- {} surfaces: mesh={} triangles={} spheres={} planes={}",
-            self.objects.len(),
+            "-- mesh={} triangles={} spheres={} planes={} materials={}",
             num_objs,
             num_triangles + num_obj_triangles,
             num_spheres,
-            num_planes
+            num_planes,
+            num_materials
         );
         self.camera.as_ref().unwrap().display();
 

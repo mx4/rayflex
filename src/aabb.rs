@@ -211,15 +211,12 @@ impl AABB {
         let elapsed = start_time.elapsed();
 
         println!(
-            "-- aabb generated in {:.2} sec",
-            elapsed.as_millis() as f64 / 1000.0
-        );
-        println!(
-            "-- aabb: depth: {}/{} num_leaves={} max_num_triangles={}",
+            "-- aabb: depth: {}/{} num_leaves={} max_num_triangles={} -- {:.2} sec",
             self.get_depth(),
             MAX_DEPTH,
             self.count_leaves(),
-            MAX_NUM_TRIANGLES
+            MAX_NUM_TRIANGLES,
+            elapsed.as_millis() as f64 / 1000.0
         );
         println!("-- aabb: p_min: {:?}", p_min);
         println!("-- aabb: p_max: {:?}", p_max);
