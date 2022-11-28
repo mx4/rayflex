@@ -11,7 +11,7 @@ use raymax::color::RGB;
 use raymax::light::AmbientLight;
 use raymax::light::SpotLight;
 use raymax::light::VectorLight;
-use raymax::three_d::Material;
+use raymax::material::Material;
 use raymax::three_d::Plane;
 use raymax::three_d::Sphere;
 use raymax::three_d::Triangle;
@@ -91,7 +91,7 @@ fn generate_scene(
             albedo: 0.9,
             reflectivity: 0.0,
             checkered: false,
-            rgb: RGB {
+            kd: RGB {
                 r: 1.0,
                 g: 1.0,
                 b: 1.0,
@@ -103,7 +103,7 @@ fn generate_scene(
             albedo: 0.9,
             reflectivity: 0.5,
             checkered: false,
-            rgb: RGB {
+            kd: RGB {
                 r: 1.0,
                 g: 1.0,
                 b: 1.0,
@@ -115,7 +115,7 @@ fn generate_scene(
             albedo: 0.9,
             reflectivity: 0.0,
             checkered: false,
-            rgb: RGB {
+            kd: RGB {
                 r: 1.0,
                 g: 0.0,
                 b: 0.0,
@@ -127,7 +127,7 @@ fn generate_scene(
             albedo: 0.9,
             reflectivity: 0.0,
             checkered: false,
-            rgb: RGB {
+            kd: RGB {
                 r: 0.0,
                 g: 1.0,
                 b: 0.0,
@@ -139,7 +139,7 @@ fn generate_scene(
             albedo: 0.9,
             reflectivity: 0.0,
             checkered: false,
-            rgb: RGB {
+            kd: RGB {
                 r: 0.0,
                 g: 0.0,
                 b: 1.0,
@@ -153,7 +153,7 @@ fn generate_scene(
                 albedo: 0.9,
                 reflectivity: rng.gen_range(0.0..0.9),
                 checkered: rng.gen_range(0..2) == 0,
-                rgb: RGB {
+                kd: RGB {
                     r: rng.gen_range(0.0..1.0),
                     g: rng.gen_range(0.0..1.0),
                     b: rng.gen_range(0.0..1.0),

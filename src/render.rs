@@ -16,11 +16,11 @@ use raymax::light::AmbientLight;
 use raymax::light::Light;
 use raymax::light::SpotLight;
 use raymax::light::VectorLight;
+use raymax::material::Material;
 use raymax::vec3::Point;
 use raymax::Ray;
 use raymax::RenderStats;
 
-use raymax::three_d::Material;
 use raymax::three_d::Mesh;
 use raymax::three_d::Object;
 use raymax::three_d::Plane;

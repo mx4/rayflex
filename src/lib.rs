@@ -3,6 +3,7 @@ pub mod camera;
 pub mod color;
 pub mod image;
 pub mod light;
+pub mod material;
 pub mod three_d;
 pub mod vec3;
 

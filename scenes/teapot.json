@@ -3,7 +3,7 @@
       "albedo": 0.8,
       "checkered": false,
       "reflectivity": 0.1,
-      "rgb": {
+      "kd": {
         "b": 0.8,
         "g": 1.0,
         "r": 0.8
@@ -13,7 +13,7 @@
       "albedo": 0.8,
       "checkered": false,
       "reflectivity": 0.3,
-      "rgb": {
+      "kd": {
         "b": 1.0,
         "g": 0.7,
         "r": 0.7

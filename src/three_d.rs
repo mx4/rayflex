@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use crate::aabb::AABB;
-use crate::color::RGB;
 use crate::vec3::Point;
 use crate::vec3::Vec2;
 use crate::vec3::Vec3;
@@ -10,34 +9,6 @@ use crate::RenderStats;
 use serde::{Deserialize, Serialize};
 
 pub const EPSILON: f64 = 1e-12;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Material {
-    pub albedo: f32,
-    pub reflectivity: f32,
-    pub rgb: RGB,
-    pub checkered: bool,
-}
-
-impl Material {
-    pub fn new() -> Material {
-        Material {
-            albedo: 0.0,
-            rgb: RGB::new(),
-            checkered: false,
-            reflectivity: 0.0,
-        }
-    }
-    pub fn do_checker(&self, c: RGB, text2d: Vec2) -> RGB {
-        assert!(self.checkered);
-        let pattern = ((text2d.x * 4.0).fract() > 0.5) ^ ((text2d.y * 4.0).fract() > 0.5);
-        if pattern {
-            c / 3.0
-        } else {
-            c
-        }
-    }
-}
 
 pub trait Object {
     fn display(&self);
@@ -147,9 +118,24 @@ impl Object for Plane {
     }
     fn get_texture_2d(&self, point: Point) -> Vec2 {
         let v = point - self.point;
-        let v_x = v.dot(Vec3{ x: 0.0, y: 1.0, z: 0.0 }).ceil() as f32;
-        let v_y = v.dot(Vec3{ x: 0.0, y: 0.0, z: 1.0 }).ceil() as f32;
-        Vec2 { x: (v_x + 1.0) / 2.0, y: (v_y + 1.0) / 2.0 }
+        let v_x = v
+            .dot(Vec3 {
+                x: 0.0,
+                y: 1.0,
+                z: 0.0,
+            })
+            .ceil() as f32;
+        let v_y = v
+            .dot(Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 1.0,
+            })
+            .ceil() as f32;
+        Vec2 {
+            x: (v_x + 1.0) / 2.0,
+            y: (v_y + 1.0) / 2.0,
+        }
     }
     fn get_material_id(&self) -> usize {
         self.material_id

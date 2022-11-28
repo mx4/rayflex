@@ -1,5 +1,5 @@
 use crate::color::RGB;
-use crate::three_d::Material;
+use crate::material::Material;
 use crate::vec3::Point;
 use crate::vec3::Vec3;
 use colored::Colorize;
@@ -42,7 +42,7 @@ pub trait Light {
 
 impl Light for SpotLight {
     fn get_contrib(&self, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB {
-        let c_res = mat.rgb * self.rgb * self.intensity;
+        let c_res = mat.kd * self.rgb * self.intensity;
         let light_vec = self.pos - obj_point;
         let dist_sq = light_vec.dot(light_vec);
         let light_vec_norm = light_vec / dist_sq.sqrt();
@@ -81,7 +81,7 @@ impl Light for SpotLight {
 
 impl Light for AmbientLight {
     fn get_contrib(&self, mat: &Material, _obj_point: Point, _obj_normal: Vec3) -> RGB {
-        mat.rgb * self.rgb * self.intensity
+        mat.kd * self.rgb * self.intensity
     }
     fn display(&self) {
         let s = format!("{:3} {:?}", self.intensity, self.rgb).dimmed();
@@ -113,7 +113,7 @@ impl Light for AmbientLight {
 
 impl Light for VectorLight {
     fn get_contrib(&self, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB {
-        let c_res = mat.rgb * self.rgb * self.intensity;
+        let c_res = mat.kd * self.rgb * self.intensity;
         let light_vec = self.get_vector(obj_point) * -1.0;
         let v_prod = obj_normal.dot(light_vec).min(0.0) as f32;
 
