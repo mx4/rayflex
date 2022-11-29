@@ -49,3 +49,15 @@ fn scene_sphere_no_box() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+#[test]
+fn scene_cornell_box() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin("raymax")?;
+    cmd.arg("-l")
+        .arg("scenes/cornell-box.json")
+        .arg("-p")
+        .arg("5")
+        .assert()
+        .success();
+
+    Ok(())
+}

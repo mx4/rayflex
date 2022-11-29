@@ -4,9 +4,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Material {
+    #[serde(default)]
     pub ks: f32,
+    #[serde(default)]
     pub kd: RGB,
+    #[serde(default)]
+    pub ke: RGB,
+    #[serde(default)]
     pub shininess: u32, // 0 --> ~1000
+    #[serde(default)]
     pub checkered: bool,
 }
 
@@ -14,6 +20,7 @@ impl Material {
     pub fn new() -> Material {
         Material {
             kd: RGB::new(),
+            ke: RGB::new(),
             ks: 0.0,
             shininess: 0,
             checkered: false,

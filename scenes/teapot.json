@@ -1,6 +1,5 @@
 {
     "material.0": {
-      "checkered": false,
       "shininess": 200,
       "ks": 0.25,
       "kd": {
@@ -10,7 +9,6 @@
       }
     },
     "material.1": {
-      "checkered": false,
       "shininess": 10,
       "ks": 0.3,
       "kd": {
@@ -48,8 +46,6 @@
   },
   "obj.0.path": "obj/teapot.obj",
   "obj.0.rotx": -90,
-  "obj.0.roty": 0,
-  "obj.0.rotz": 0,
   "obj.0.material": 0,
   "resolution": [
     400,

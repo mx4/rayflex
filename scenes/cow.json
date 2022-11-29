@@ -1,6 +1,5 @@
 {
     "material.0": {
-      "checkered": false,
       "shininess": 50,
       "ks": 0.0,
       "kd": {
@@ -10,7 +9,6 @@
       }
     },
     "material.1": {
-      "checkered": false,
       "shininess": 10,
       "ks": 0.2,
       "kd": {
@@ -62,8 +60,6 @@
   },
   "obj.0.path": "obj/cow.obj",
   "obj.0.rotx": -90,
-  "obj.0.roty": 0,
-  "obj.0.rotz": 0,
   "obj.0.material": 0,
   "resolution": [
     400,

@@ -55,7 +55,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new(triangles: Vec<Triangle>, mat_id: usize) -> Mesh {
+    pub fn new(triangles: Vec<Triangle>, mat_id: usize) -> Self {
         let arc_triangles = Arc::new(triangles);
         let mut m = Mesh {
             triangles: arc_triangles.clone(),

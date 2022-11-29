@@ -40,7 +40,6 @@
     "vfov": 53.0
   },
   "material.0": {
-    "checkered": false,
     "shininess": 50,
     "ks": 0.2,
     "kd": {
@@ -50,7 +49,6 @@
     }
   },
   "material.1": {
-    "checkered": false,
     "shininess": 50,
     "ks": 0.5,
     "kd": {
@@ -60,7 +58,6 @@
     }
   },
   "material.2": {
-    "checkered": false,
     "shininess": 50,
     "ks": 0.3,
     "kd": {
@@ -70,7 +67,6 @@
     }
   },
   "material.3": {
-    "checkered": false,
     "shininess": 50,
     "ks": 0.1,
     "kd": {
@@ -80,7 +76,6 @@
     }
   },
   "material.4": {
-    "checkered": false,
     "shininess": 50,
     "ks": 0.3,
     "kd": {
@@ -100,7 +95,6 @@
     }
   },
   "material.6": {
-    "checkered": false,
     "shininess": 50,
     "ks": 0.09208366274833679,
     "kd": {
@@ -131,7 +125,6 @@
   },
   "material.9": {
     "shininess": 50,
-    "checkered": false,
     "ks": 0.8205924034118652,
     "kd": {
       "b": 0.13126075267791748,

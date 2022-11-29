@@ -43,14 +43,16 @@ struct Options {
     reflection_max_depth: u32,
     #[structopt(short = "b", long, default_value = "1")]
     add_box: u32,
-    #[structopt(short = "g", long)]
+    #[structopt(short = "g", long, help="use gamma correction")]
     use_gamma: bool,
     #[structopt(short = "a", long)]
     use_adaptive_sampling: bool,
-    #[structopt(long)]
+    #[structopt(long, help="scan per line vs box")]
     use_lines: bool,
-    #[structopt(long)]
+    #[structopt(long, help="use hashmap to speed-up antialiasing")]
     use_hashmap: bool,
+    #[structopt(short="-p", long, help="do path tracing", default_value = "1")]
+    path_tracing: u32,
 }
 
 fn generate_scene(
@@ -110,6 +112,7 @@ fn generate_scene(
             ks: 0.0,
             shininess: 10,
             checkered: false,
+            ke: RGB::new(),
             kd: RGB {
                 r: 1.0,
                 g: 1.0,
@@ -119,6 +122,7 @@ fn generate_scene(
         json["material.0"] = serde_json::to_value(mat).unwrap();
         // white glossy
         let mat = Material {
+            ke: RGB::new(),
             ks: 0.5,
             shininess: 10,
             checkered: false,
@@ -131,6 +135,7 @@ fn generate_scene(
         json["material.1"] = serde_json::to_value(mat).unwrap();
         // red
         let mat = Material {
+            ke: RGB::new(),
             ks: 0.0,
             shininess: 10,
             checkered: false,
@@ -143,6 +148,7 @@ fn generate_scene(
         json["material.2"] = serde_json::to_value(mat).unwrap();
         // green
         let mat = Material {
+            ke: RGB::new(),
             shininess: 10,
             ks: 0.0,
             checkered: false,
@@ -155,6 +161,7 @@ fn generate_scene(
         json["material.3"] = serde_json::to_value(mat).unwrap();
         // blue
         let mat = Material {
+            ke: RGB::new(),
             shininess: 10,
             ks: 0.0,
             checkered: false,
@@ -169,6 +176,7 @@ fn generate_scene(
         for i in 5..10 {
             let name = format!("material.{}", i);
             let mat = Material {
+                ke: RGB::new(),
                 shininess: 10,
                 ks: rng.gen_range(0.0..0.9),
                 checkered: rng.gen_range(0..2) == 0,
@@ -411,12 +419,18 @@ fn generate_scene(
 
 fn print_opt(opt: &Options) {
     println!(
-        "options: gamma={} sampling-depth={} reflection-depth={} lines={} hashmap={}",
+        "{}: gamma={} sampling-depth={} reflection-depth={}",
+        "option".yellow(),
         opt.use_gamma,
         opt.adaptive_max_depth,
         opt.reflection_max_depth,
+    );
+    println!(
+        "{}: lines={} hashmap={} path_tracing={}",
+        "option".yellow(),
         opt.use_lines,
-        opt.use_hashmap
+        opt.use_hashmap,
+        opt.path_tracing,
     );
     let s = format!("num_threads: {}", rayon::current_num_threads()).red();
     println!("{s}");
@@ -439,6 +453,7 @@ fn main() -> std::io::Result<()> {
         res_y: opt.res_y,
         use_lines: opt.use_lines,
         use_hashmap: opt.use_hashmap,
+        path_tracing: opt.path_tracing,
     };
 
     if opt.num_spheres_to_generate != 0 {

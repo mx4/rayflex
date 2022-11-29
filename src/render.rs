@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+use rand::Rng;
 
 use raymax::camera::Camera;
 use raymax::color::RGB;
@@ -18,6 +19,7 @@ use raymax::light::SpotLight;
 use raymax::light::VectorLight;
 use raymax::material::Material;
 use raymax::vec3::Point;
+use raymax::vec3::Vec3;
 use raymax::Ray;
 use raymax::RenderStats;
 
@@ -29,6 +31,7 @@ use raymax::three_d::Triangle;
 use raymax::three_d::EPSILON;
 
 pub struct RenderConfig {
+    pub path_tracing: u32,
     pub use_lines: bool,
     pub use_hashmap: bool,
     pub use_adaptive_sampling: bool,
@@ -59,7 +62,7 @@ impl RenderJob {
             cfg: cfg,
         }
     }
-    fn trace(&self, stats: &mut RenderStats, ray: &Ray, depth: u32) -> RGB {
+    fn trace_ray(&self, stats: &mut RenderStats, ray: &Ray, depth: u32) -> RGB {
         if depth > self.cfg.reflection_max_depth {
             stats.num_rays_reflection_max += 1;
             return RGB::new();
@@ -110,7 +113,7 @@ impl RenderJob {
             if hit_material.ks > 0.0 {
                 stats.num_rays_reflection += 1;
                 let reflected_ray = ray.get_reflection(hit_point, hit_normal);
-                let c_reflect = self.trace(stats, &reflected_ray, depth + 1);
+                let c_reflect = self.trace_ray(stats, &reflected_ray, depth + 1);
                 let ks = 0.1;
                 c = c * (1.0 - ks) + c_reflect * ks;
             }
@@ -132,6 +135,46 @@ impl RenderJob {
             cmax * s + cyan * (1.0 - s)
         }
     }
+    fn trace_ray_path(&self, stats: &mut RenderStats, ray: &Ray, depth: u32) -> RGB {
+        if depth > self.cfg.reflection_max_depth {
+            stats.num_rays_reflection_max += 1;
+            return RGB::new();
+        }
+        let mut s_id = 0;
+        let mut t = f64::MAX;
+
+        let hit_obj = self
+            .objects
+            .iter()
+            .filter(|obj| obj.intercept(stats, &ray, EPSILON, &mut t, false, &mut s_id))
+            .last();
+
+        if hit_obj.is_none() {
+            return RGB::new();
+        }
+
+        let hit_mat_id = hit_obj.unwrap().get_material_id();
+        let hit_material = &self.materials[hit_mat_id];
+
+        if ! hit_material.ke.is_zero() {
+            return hit_material.ke;
+        }
+
+        let hit_point = ray.orig + ray.dir * t;
+        let hit_normal = hit_obj.unwrap().get_normal(hit_point, s_id);
+        stats.num_rays_reflection += 1;
+        let mut reflected_ray = ray.get_reflection(hit_point, hit_normal);
+        if hit_material.ks == 0.0 {
+            let dir = reflected_ray.dir.normalize() + Vec3::gen_rnd_sphere();
+            reflected_ray.dir = dir.normalize();
+        }
+        let c0 = self.trace_ray_path(stats, &reflected_ray, depth + 1);
+        if hit_material.ks == 0.0 {
+            c0 * hit_material.kd
+        } else {
+            c0 * hit_material.ks
+        }
+    }
 
     fn trace_primary_ray(
         &self,
@@ -142,7 +185,6 @@ impl RenderJob {
     ) -> RGB {
         let mut key = 0;
         if self.cfg.use_hashmap {
-            // key = format!("{}-{}", u, v);
             key = ((u + 0.5) * 1000_000_0000_000_f64 + 1000_000_f64 * (v + 0.5)) as u64;
             if self.cfg.use_adaptive_sampling {
                 if let Some(c) = pmap.get(&key) {
@@ -154,11 +196,41 @@ impl RenderJob {
 
         stats.num_rays_sampling += 1;
 
-        let c = self.trace(stats, &ray, 0 /* depth */);
+        let c = self.trace_ray(stats, &ray, 0 /* depth */);
         if self.cfg.use_hashmap && self.cfg.use_adaptive_sampling {
             pmap.insert(key, c);
         }
         c
+    }
+
+    /*
+     * pos_u: -0.5 .. 0.5
+     * pos_v: -0.5 .. 0.5
+     */
+    fn calc_ray_box_path(
+        &self,
+        stats: &mut RenderStats,
+        pos_u: f64,
+        pos_v: f64,
+        du: f64,
+        dv: f64,
+    ) -> RGB {
+        assert!(!self.cfg.use_adaptive_sampling);
+        assert!(self.cfg.path_tracing > 1);
+
+        let mut rng = rand::thread_rng();
+        let mut c = RGB::new();
+
+        for _i in 0..self.cfg.path_tracing {
+            let off_u = rng.gen_range(0.0..du);
+            let off_v = rng.gen_range(0.0..dv);
+            let ray = self.camera.as_ref().unwrap().get_ray(pos_u + off_u, pos_v + off_v);
+
+            stats.num_rays_sampling += 1;
+
+            c += self.trace_ray_path(stats, &ray, 0);
+        }
+        return c / self.cfg.path_tracing as f32;
     }
 
     /*
@@ -298,7 +370,12 @@ impl RenderJob {
             let pos_v = v / 2.0 - (y as f64) * dv;
             for x in x0..x_max {
                 let pos_u = u / 2.0 - (x as f64) * du;
-                let c = self.calc_ray_box(stats, &mut pmap, pos_u, pos_v, du, dv, 0);
+                let c;
+                if self.cfg.path_tracing > 1 {
+                    c = self.calc_ray_box_path(stats, pos_u, pos_v, du, dv);
+                } else {
+                    c = self.calc_ray_box(stats, &mut pmap, pos_u, pos_v, du, dv, 0);
+                }
 
                 self.image.lock().unwrap().push_pixel(x, y, c);
             }
@@ -338,6 +415,7 @@ impl RenderJob {
                 return;
             }
             self.render_pixel_box(x, y, step, step, &mut stats);
+
             pb.inc((step * step) as u64);
             total_stats.lock().unwrap().add(stats);
         });
@@ -400,59 +478,73 @@ impl RenderJob {
         camera.init();
         self.camera = Some(camera);
 
-        if !json["ambient"].is_null() {
-            let ambient: AmbientLight = serde_json::from_value(json["ambient"].clone()).unwrap();
+        if let Ok(ambient) = serde_json::from_value::<AmbientLight>(json["ambient"].clone()) {
             self.lights.push(Arc::new(Box::new(ambient)));
         }
 
         loop {
-            let name = format!("material.{}", num_materials);
-            if json[&name].is_null() {
-                break;
+            let s = format!("material.{}", num_materials);
+            match serde_json::from_value::<Material>(json[&s].clone()) {
+                Err(_error) => break,
+                Ok(mat) => {
+                    self.materials.push(Arc::new(Box::new(mat)));
+                    num_materials += 1;
+                }
             }
-            let mat: Material = serde_json::from_value(json[&name].clone()).unwrap();
-            self.materials.push(Arc::new(Box::new(mat)));
-            num_materials += 1;
         }
         loop {
             let s = format!("spot-light.{}", num_spot_lights);
-            if json[&s].is_null() {
-                break;
+            match serde_json::from_value::<SpotLight>(json[&s].clone()) {
+                Err(_error) => break,
+                Ok(mut spot) => {
+                    spot.name = s;
+                    self.lights.push(Arc::new(Box::new(spot)));
+                    num_spot_lights += 1;
+                }
             }
-            let mut spot: SpotLight = serde_json::from_value(json[&s].clone()).unwrap();
-            spot.name = s;
-            self.lights.push(Arc::new(Box::new(spot)));
-            num_spot_lights += 1;
         }
         loop {
             let s = format!("vec-light.{}", num_vec_lights);
-            if json[&s].is_null() {
-                break;
+            match serde_json::from_value::<VectorLight>(json[&s].clone()) {
+                Err(_error) => break,
+                Ok(mut v) => {
+                    v.name = s;
+                    v.dir = v.dir.normalize();
+                    self.lights.push(Arc::new(Box::new(v)));
+                    num_vec_lights += 1;
+                }
             }
-            let mut vec: VectorLight = serde_json::from_value(json[&s].clone()).unwrap();
-            vec.name = s;
-            vec.dir = vec.dir.normalize();
-            self.lights.push(Arc::new(Box::new(vec)));
-            num_vec_lights += 1;
         }
 
         loop {
             let s = format!("plane.{}", num_planes);
-            if json[&s].is_null() {
-                break;
+            match serde_json::from_value::<Plane>(json[s].clone()) {
+                Err(_error) => break,
+                Ok(p) => {
+                    self.objects.push(Arc::new(Box::new(p)));
+                    num_planes += 1;
+                }
             }
-            let p: Plane = serde_json::from_value(json[&s].clone()).unwrap();
-            self.objects.push(Arc::new(Box::new(p)));
-            num_planes += 1;
         }
         loop {
             let s = format!("sphere.{}", num_spheres);
-            if json[&s].is_null() {
-                break;
+            match serde_json::from_value::<Sphere>(json[s].clone()) {
+                Err(_error) => break,
+                Ok(o) => {
+                    self.objects.push(Arc::new(Box::new(o)));
+                    num_spheres += 1;
+                }
             }
-            let sphere: Sphere = serde_json::from_value(json[&s].clone()).unwrap();
-            self.objects.push(Arc::new(Box::new(sphere)));
-            num_spheres += 1;
+        }
+        loop {
+            let s = format!("triangle.{}", num_triangles);
+            match serde_json::from_value::<Triangle>(json[s].clone()) {
+                Err(_error) => break,
+                Ok(o) => {
+                    self.objects.push(Arc::new(Box::new(o)));
+                    num_triangles += 1;
+                }
+            }
         }
         loop {
             let name = format!("obj.{}.path", num_objs);
@@ -463,12 +555,24 @@ impl RenderJob {
             let rxname = format!("obj.{}.rotx", num_objs);
             let ryname = format!("obj.{}.roty", num_objs);
             let rzname = format!("obj.{}.rotz", num_objs);
-            let angle_x = json[&rxname].as_f64().unwrap();
-            let angle_y = json[&ryname].as_f64().unwrap();
-            let angle_z = json[&rzname].as_f64().unwrap();
-            let angle_x_rad = angle_x.to_radians();
-            let angle_y_rad = angle_y.to_radians();
-            let angle_z_rad = angle_z.to_radians();
+            let mut angle_x = 0.0;
+            let mut angle_y = 0.0;
+            let mut angle_z = 0.0;
+            let mut angle_x_rad = 0.0;
+            let mut angle_y_rad = 0.0;
+            let mut angle_z_rad = 0.0;
+            if let Some(alpha) = json[&rxname].as_f64() {
+                angle_x = alpha;
+                angle_x_rad = angle_x.to_radians();
+            }
+            if let Some(alpha) = json[&ryname].as_f64() {
+                angle_y = alpha;
+                angle_y_rad = angle_y.to_radians();
+            }
+            if let Some(alpha) = json[&rzname].as_f64() {
+                angle_z = alpha;
+                angle_z_rad = angle_z.to_radians();
+            }
 
             let mut opt = tobj::LoadOptions::default();
             opt.triangulate = true; // converts polygon into triangles
@@ -543,15 +647,6 @@ impl RenderJob {
                     angle_z
                 );
             });
-        }
-        loop {
-            let s = format!("triangle.{}", num_triangles);
-            if json[&s].is_null() {
-                break;
-            }
-            let triangle: Triangle = serde_json::from_value(json[&s].clone()).unwrap();
-            self.objects.push(Arc::new(Box::new(triangle)));
-            num_triangles += 1;
         }
         println!(
             "-- mesh={} triangles={} spheres={} planes={} materials={}",

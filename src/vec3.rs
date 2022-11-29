@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
+use rand::Rng;
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct Vec3 {
@@ -27,6 +28,7 @@ impl Default for Vec3 {
         }
     }
 }
+
 
 impl fmt::Debug for Vec3 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -120,25 +122,25 @@ impl Vec3 {
             z: 0.0,
         }
     }
-    pub fn new(x: f64, y: f64, z: f64) -> Vec3 {
-        Vec3 { x: x, y: y, z: z }
+    pub fn new(x: f64, y: f64, z: f64) -> Self {
+        Self { x: x, y: y, z: z }
     }
     pub fn unity_x() -> Self {
-        Vec3 {
+        Self {
             x: 1.0,
             y: 0.0,
             z: 0.0,
         }
     }
     pub fn unity_y() -> Self {
-        Vec3 {
+        Self {
             x: 0.0,
             y: 1.0,
             z: 0.0,
         }
     }
     pub fn unity_z() -> Self {
-        Vec3 {
+        Self {
             x: 0.0,
             y: 0.0,
             z: 1.0,
@@ -150,12 +152,12 @@ impl Vec3 {
     pub fn dot(self, rhs: Vec3) -> f64 {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
-    pub fn normalize(self) -> Vec3 {
+    pub fn normalize(self) -> Self {
         let norm = self.norm();
         assert!(norm > 0.0);
         self / norm
     }
-    pub fn reflect(self, normal: Vec3) -> Vec3 {
+    pub fn reflect(self, normal: Vec3) -> Self {
         self - normal * self.dot(normal) * 2.0
     }
     pub fn cross(self, rhs: Vec3) -> Vec3 {
@@ -165,21 +167,21 @@ impl Vec3 {
             z: self.x * rhs.y - self.y * rhs.x,
         }
     }
-    pub fn multiply(self, matrix: Matrix3) -> Vec3 {
+    pub fn multiply(self, matrix: Matrix3) -> Self {
         let v0 = [self.x, self.y, self.z];
-        let mut v = [0.0, 0.0, 0.0];
+        let mut v = [0.0; 3];
         for i in 0..3 {
             for j in 0..3 {
                 v[i] += v0[j] * matrix.mat[i + j * 3];
             }
         }
-        Vec3 {
+        Self {
             x: v[0],
             y: v[1],
             z: v[2],
         }
     }
-    pub fn rotx(self, alpha: f64) -> Vec3 {
+    pub fn rotx(self, alpha: f64) -> Self {
         let cos = alpha.cos();
         let sin = alpha.sin();
         let m = Matrix3 {
@@ -187,7 +189,7 @@ impl Vec3 {
         };
         self.multiply(m)
     }
-    pub fn roty(self, alpha: f64) -> Vec3 {
+    pub fn roty(self, alpha: f64) -> Self {
         let cos = alpha.cos();
         let sin = alpha.sin();
         let m = Matrix3 {
@@ -195,12 +197,25 @@ impl Vec3 {
         };
         self.multiply(m)
     }
-    pub fn rotz(self, alpha: f64) -> Vec3 {
+    pub fn rotz(self, alpha: f64) -> Self {
         let cos = alpha.cos();
         let sin = alpha.sin();
         let m = Matrix3 {
             mat: [cos, -sin, 0.0, sin, cos, 0.0, 0.0, 0.0, 1.0],
         };
         self.multiply(m)
+    }
+    pub fn gen_rnd_sphere() -> Self {
+        let mut rng = rand::thread_rng();
+        loop {
+            let v = Vec3 {
+                x: rng.gen_range(-1.0..1.0),
+                y: rng.gen_range(-1.0..1.0),
+                z: rng.gen_range(-1.0..1.0),
+            };
+            if v.norm() <= 1.0 {
+                return v.normalize();
+            }
+        };
     }
 }

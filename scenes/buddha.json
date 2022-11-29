@@ -1,7 +1,5 @@
 {
   "obj.0.path": "obj/buddha.obj",
-  "obj.0.rotx": 0,
-  "obj.0.roty": 0,
   "obj.0.rotz": 90,
   "obj.0.material": 0,
   "camera": {
@@ -23,7 +21,6 @@
     "vfov": 53.0
   },
     "material.0": {
-      "checkered": false,
       "shininess": 100,
       "ks": 0.6,
       "kd": {

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul};
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct RGB {
     pub r: f32,
     pub g: f32,
@@ -12,6 +12,11 @@ pub struct RGB {
 impl fmt::Debug for RGB {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "RGB: {{ r={} g={} b={} }}", self.r, self.g, self.b)
+    }
+}
+impl Default for RGB {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -81,12 +86,15 @@ impl AddAssign<RGB> for RGB {
 }
 
 impl RGB {
-    pub fn new() -> RGB {
+    pub fn new() -> Self {
         RGB {
             r: 0.0,
             g: 0.0,
             b: 0.0,
         }
+    }
+    pub fn is_zero(&self) -> bool {
+        self.r == 0.0 && self.g == 0.0 && self.b == 0.0
     }
     pub fn difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> f32 {
         let avg = (c00 + c01 + c10 + c11) * 0.25;
