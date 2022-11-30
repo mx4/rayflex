@@ -19,6 +19,7 @@ use raymax::light::SpotLight;
 use raymax::light::VectorLight;
 use raymax::material::Material;
 use raymax::vec3::Point;
+use raymax::vec3::Float;
 use raymax::vec3::Vec3;
 use raymax::Ray;
 use raymax::RenderStats;
@@ -68,7 +69,7 @@ impl RenderJob {
             return RGB::new();
         }
         let mut s_id = 0;
-        let mut t = f64::MAX;
+        let mut t = Float::MAX;
 
         let hit_obj = self
             .objects
@@ -141,7 +142,7 @@ impl RenderJob {
             return RGB::new();
         }
         let mut s_id = 0;
-        let mut t = f64::MAX;
+        let mut t = Float::MAX;
 
         let hit_obj = self
             .objects
@@ -180,12 +181,12 @@ impl RenderJob {
         &self,
         stats: &mut RenderStats,
         pmap: &mut HashMap<u64, RGB>,
-        u: f64,
-        v: f64,
+        u: Float,
+        v: Float,
     ) -> RGB {
         let mut key = 0;
         if self.cfg.use_hashmap {
-            key = ((u + 0.5) * 1000_000_0000_000_f64 + 1000_000_f64 * (v + 0.5)) as u64;
+            key = ((u + 0.5) * 1000_000_0000_000.0 + 1000_000.0 * (v + 0.5)) as u64;
             if self.cfg.use_adaptive_sampling {
                 if let Some(c) = pmap.get(&key) {
                     return *c;
@@ -210,10 +211,10 @@ impl RenderJob {
     fn calc_ray_box_path(
         &self,
         stats: &mut RenderStats,
-        pos_u: f64,
-        pos_v: f64,
-        du: f64,
-        dv: f64,
+        pos_u: Float,
+        pos_v: Float,
+        du: Float,
+        dv: Float,
     ) -> RGB {
         assert!(!self.cfg.use_adaptive_sampling);
         assert!(self.cfg.path_tracing > 1);
@@ -241,10 +242,10 @@ impl RenderJob {
         &self,
         stats: &mut RenderStats,
         pmap: &mut HashMap<u64, RGB>,
-        pos_u: f64,
-        pos_v: f64,
-        du: f64,
-        dv: f64,
+        pos_u: Float,
+        pos_v: Float,
+        du: Float,
+        dv: Float,
         lvl: u32,
     ) -> RGB {
         if !self.cfg.use_adaptive_sampling {
@@ -277,26 +278,26 @@ impl RenderJob {
             let suffix;
             let val;
             if n > 1_000_000_000_000 {
-                val = n as f64 / 1_000_000_000_000.0;
+                val = n as Float / 1_000_000_000_000.0;
                 suffix = "T";
             } else if n > 1_000_000_000 {
-                val = n as f64 / 1_000_000_000.0;
+                val = n as Float / 1_000_000_000.0;
                 suffix = "G";
             } else if n >= 1_000_000 {
-                val = n as f64 / 1_000_000.0;
+                val = n as Float / 1_000_000.0;
                 suffix = "M";
             } else {
-                val = n as f64;
+                val = n as Float;
                 suffix = " ";
                 precision = 0
             }
             format!("{:6.precision$} {suffix}", val)
         };
         let elapsed = start_time.elapsed();
-        let num_rays = (stats.num_rays_sampling + stats.num_rays_reflection) as f64;
-        let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as f64 / 1000.0);
-        let ray_lat_str = format!("{:.3} usec", elapsed.as_micros() as f64 / num_rays as f64);
-        let kray_per_secs = num_rays / elapsed.as_secs_f64() / 1_000_f64;
+        let num_rays = (stats.num_rays_sampling + stats.num_rays_reflection) as Float;
+        let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as Float / 1000.0);
+        let ray_lat_str = format!("{:.3} usec", elapsed.as_micros() as Float / num_rays as Float);
+        let kray_per_secs = num_rays / (elapsed.as_secs_f32() as Float) / 1_000 as Float;
         let mut v = kray_per_secs;
         let mut suffix = "K";
         if kray_per_secs >= 1000.0 {
@@ -359,17 +360,17 @@ impl RenderJob {
     fn render_pixel_box(&self, x0: u32, y0: u32, sz_x: u32, sz_y: u32, stats: &mut RenderStats) {
         let u = 1.0;
         let v = 1.0;
-        let du = u / self.cfg.res_x as f64;
-        let dv = v / self.cfg.res_y as f64;
+        let du = u / self.cfg.res_x as Float;
+        let dv = v / self.cfg.res_y as Float;
         let y_max = (y0 + sz_y).min(self.cfg.res_y);
         let x_max = (x0 + sz_x).min(self.cfg.res_x);
 
         let mut pmap = HashMap::new();
 
         for y in y0..y_max {
-            let pos_v = v / 2.0 - (y as f64) * dv;
+            let pos_v = v / 2.0 - (y as Float) * dv;
             for x in x0..x_max {
-                let pos_u = u / 2.0 - (x as f64) * du;
+                let pos_u = u / 2.0 - (x as Float) * du;
                 let c;
                 if self.cfg.path_tracing > 1 {
                     c = self.calc_ray_box_path(stats, pos_u, pos_v, du, dv);
@@ -474,7 +475,7 @@ impl RenderJob {
         println!("-- img resolution: {}{}", res_str, smp_str);
 
         let mut camera: Camera = serde_json::from_value(json["camera"].clone()).unwrap();
-        camera.aspect = self.cfg.res_x as f64 / self.cfg.res_y as f64;
+        camera.aspect = self.cfg.res_x as Float / self.cfg.res_y as Float;
         camera.init();
         self.camera = Some(camera);
 
@@ -563,15 +564,15 @@ impl RenderJob {
             let mut angle_z_rad = 0.0;
             if let Some(alpha) = json[&rxname].as_f64() {
                 angle_x = alpha;
-                angle_x_rad = angle_x.to_radians();
+                angle_x_rad = angle_x.to_radians() as Float;
             }
             if let Some(alpha) = json[&ryname].as_f64() {
                 angle_y = alpha;
-                angle_y_rad = angle_y.to_radians();
+                angle_y_rad = angle_y.to_radians() as Float;
             }
             if let Some(alpha) = json[&rzname].as_f64() {
                 angle_z = alpha;
-                angle_z_rad = angle_z.to_radians();
+                angle_z_rad = angle_z.to_radians() as Float;
             }
 
             let mut opt = tobj::LoadOptions::default();
@@ -596,15 +597,15 @@ impl RenderJob {
                     let i0 = mesh.indices[3 * i + 0] as usize;
                     let i1 = mesh.indices[3 * i + 1] as usize;
                     let i2 = mesh.indices[3 * i + 2] as usize;
-                    let x0 = mesh.positions[3 * i0 + 0] as f64;
-                    let y0 = mesh.positions[3 * i0 + 1] as f64;
-                    let z0 = mesh.positions[3 * i0 + 2] as f64;
-                    let x1 = mesh.positions[3 * i1 + 0] as f64;
-                    let y1 = mesh.positions[3 * i1 + 1] as f64;
-                    let z1 = mesh.positions[3 * i1 + 2] as f64;
-                    let x2 = mesh.positions[3 * i2 + 0] as f64;
-                    let y2 = mesh.positions[3 * i2 + 1] as f64;
-                    let z2 = mesh.positions[3 * i2 + 2] as f64;
+                    let x0 = mesh.positions[3 * i0 + 0] as Float;
+                    let y0 = mesh.positions[3 * i0 + 1] as Float;
+                    let z0 = mesh.positions[3 * i0 + 2] as Float;
+                    let x1 = mesh.positions[3 * i1 + 0] as Float;
+                    let y1 = mesh.positions[3 * i1 + 1] as Float;
+                    let z1 = mesh.positions[3 * i1 + 2] as Float;
+                    let x2 = mesh.positions[3 * i2 + 0] as Float;
+                    let y2 = mesh.positions[3 * i2 + 1] as Float;
+                    let z2 = mesh.positions[3 * i2 + 2] as Float;
                     let mut p0 = Point {
                         x: x0,
                         y: y0,

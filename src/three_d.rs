@@ -4,11 +4,12 @@ use crate::aabb::AABB;
 use crate::vec3::Point;
 use crate::vec3::Vec2;
 use crate::vec3::Vec3;
+use crate::vec3::Float;
 use crate::Ray;
 use crate::RenderStats;
 use serde::{Deserialize, Serialize};
 
-pub const EPSILON: f64 = 1e-12;
+pub const EPSILON: Float = 1e-12;
 
 pub trait Object {
     fn display(&self);
@@ -16,8 +17,8 @@ pub trait Object {
         &self,
         stats: &mut RenderStats,
         ray: &Ray,
-        tmin: f64,
-        tmax: &mut f64,
+        tmin: Float,
+        tmax: &mut Float,
         any: bool,
         oid: &mut usize,
     ) -> bool;
@@ -29,7 +30,7 @@ pub trait Object {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Sphere {
     pub center: Point,
-    pub radius: f64,
+    pub radius: Float,
     pub material_id: usize,
 }
 
@@ -95,8 +96,8 @@ impl Object for Plane {
         &self,
         stats: &mut RenderStats,
         ray: &Ray,
-        tmin: f64,
-        tmax: &mut f64,
+        tmin: Float,
+        tmax: &mut Float,
         _any: bool,
         _oid: &mut usize,
     ) -> bool {
@@ -137,7 +138,7 @@ impl Object for Plane {
 }
 
 impl Sphere {
-    pub fn new(center: Point, radius: f64, material_id: usize) -> Self {
+    pub fn new(center: Point, radius: Float, material_id: usize) -> Self {
         Self {
             center: center,
             radius: radius,
@@ -158,9 +159,10 @@ impl Object for Sphere {
         normal / self.radius
     }
     fn get_texture_2d(&self, point: Point) -> Vec2 {
+        let pi = std::f64::consts::PI as Float;
         let v = (point - self.center) / self.radius;
-        let x = (1.0 + v.y.atan2(v.x) / std::f64::consts::PI) * 0.5;
-        let y = v.z.acos() / std::f64::consts::PI;
+        let x = (1.0 + v.y.atan2(v.x) / pi) * 0.5;
+        let y = v.z.acos() / pi;
         Vec2 {
             x: x as f32,
             y: y as f32,
@@ -171,8 +173,8 @@ impl Object for Sphere {
         &self,
         stats: &mut RenderStats,
         ray: &Ray,
-        tmin: f64,
-        tmax: &mut f64,
+        tmin: Float,
+        tmax: &mut Float,
         _any: bool,
         _oid: &mut usize,
     ) -> bool {
@@ -194,7 +196,7 @@ impl Object for Sphere {
         if t1 < tmin {
             return false;
         }
-        let t0: f64;
+        let t0: Float;
         if t2 < tmin {
             t0 = t1;
         } else {
@@ -233,8 +235,8 @@ impl Object for Triangle {
         &self,
         stats: &mut RenderStats,
         ray: &Ray,
-        tmin: f64,
-        tmax: &mut f64,
+        tmin: Float,
+        tmax: &mut Float,
         _any: bool,
         _oid: &mut usize,
     ) -> bool {
@@ -290,8 +292,8 @@ impl Object for Mesh {
         &self,
         stats: &mut RenderStats,
         ray: &Ray,
-        tmin: f64,
-        tmax: &mut f64,
+        tmin: Float,
+        tmax: &mut Float,
         any: bool,
         oid: &mut usize,
     ) -> bool {

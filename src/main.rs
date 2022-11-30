@@ -17,6 +17,7 @@ use raymax::three_d::Sphere;
 use raymax::three_d::Triangle;
 use raymax::vec3::Point;
 use raymax::vec3::Vec3;
+use raymax::vec3::Float;
 
 mod render;
 use render::RenderConfig;
@@ -239,7 +240,7 @@ fn generate_scene(
                 z: 1.0,
             },
             55.0,                        // vfov
-            res_x as f64 / res_y as f64, // aspect
+            res_x as Float / res_y as Float, // aspect
         );
         json["camera"] = serde_json::to_value(camera).unwrap();
     }

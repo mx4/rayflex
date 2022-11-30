@@ -1,5 +1,6 @@
 use crate::vec3::Point;
 use crate::vec3::Vec3;
+use crate::vec3::Float;
 use crate::Ray;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
@@ -9,11 +10,11 @@ pub struct Camera {
     pub pos: Point,
     pub look_at: Point,
     pub up: Vec3,
-    pub vfov: f64,
+    pub vfov: Float,
     #[serde(skip)]
     pub dir: Vec3,
     #[serde(skip)]
-    pub aspect: f64,
+    pub aspect: Float,
     #[serde(skip)]
     pub screen_u: Vec3,
     #[serde(skip)]
@@ -33,7 +34,7 @@ impl Camera {
         self.screen_v = v * 2.0 * half_height;
     }
 
-    pub fn new(pos: Point, look_at: Point, up: Vec3, vfov: f64, aspect: f64) -> Self {
+    pub fn new(pos: Point, look_at: Point, up: Vec3, vfov: Float, aspect: Float) -> Self {
         let mut c = Self {
             pos: pos,
             look_at: look_at,
@@ -49,7 +50,7 @@ impl Camera {
     }
     // u: -0.5 .. 0.5
     // v: -0.5 .. 0.5
-    pub fn get_ray(&self, u: f64, v: f64) -> Ray {
+    pub fn get_ray(&self, u: Float, v: Float) -> Ray {
         let pixel = self.pos + self.dir + self.screen_u * u + self.screen_v * v;
         Ray::new(self.pos, pixel - self.pos)
     }

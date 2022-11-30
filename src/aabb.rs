@@ -4,6 +4,7 @@ use std::time::Instant;
 use crate::three_d::Object;
 use crate::three_d::Plane;
 use crate::three_d::Triangle;
+use crate::vec3::Float;
 use crate::vec3::Point;
 use crate::vec3::Vec3;
 use crate::Ray;
@@ -216,7 +217,7 @@ impl AABB {
             MAX_DEPTH,
             self.count_leaves(),
             MAX_NUM_TRIANGLES,
-            elapsed.as_millis() as f64 / 1000.0
+            elapsed.as_millis() as Float / 1000.0
         );
         println!("-- aabb: p_min: {:?}", p_min);
         println!("-- aabb: p_max: {:?}", p_max);
@@ -245,8 +246,8 @@ impl AABB {
         &self,
         stats: &mut RenderStats,
         ray: &Ray,
-        tmin: f64,
-        tmax: &mut f64,
+        tmin: Float,
+        tmax: &mut Float,
         any: bool,
         oid: &mut usize,
     ) -> bool {
@@ -299,7 +300,7 @@ impl AABB {
                     return true;
                 }
 
-                let mut t_yz = f64::MAX;
+                let mut t_yz = Float::MAX;
                 let mut t_xz = t_yz;
                 let mut t_xy = t_yz;
                 let mut p = [false; 3];
@@ -314,13 +315,13 @@ impl AABB {
 
                 // if the intersection is before the aabb, discard
                 if t_yz <= t_aabb {
-                    t_yz = f64::MAX;
+                    t_yz = Float::MAX;
                 }
                 if t_xy <= t_aabb {
-                    t_xy = f64::MAX;
+                    t_xy = Float::MAX;
                 }
                 if t_xz <= t_aabb {
-                    t_xz = f64::MAX;
+                    t_xz = Float::MAX;
                 }
 
                 p[0] = p[0] && t_yz <= t_xz && t_yz <= t_xy;
@@ -339,7 +340,7 @@ impl AABB {
     }
 
     // https://tavianator.com/cgit/dimension.git/tree/libdimension/bvh/bvh.c#n194
-    fn check_intersect(&self, ray: &Ray, tmax: f64, t: &mut f64) -> bool {
+    fn check_intersect(&self, ray: &Ray, tmax: Float, t: &mut Float) -> bool {
         let tx1 = (self.p_min.x - ray.orig.x) * ray.inv_dir.x;
         let tx2 = (self.p_max.x - ray.orig.x) * ray.inv_dir.x;
 

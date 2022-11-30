@@ -3,11 +3,13 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
 use rand::Rng;
 
+pub type Float = f32;
+
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct Vec3 {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
+    pub x: Float,
+    pub y: Float,
+    pub z: Float,
 }
 
 #[derive(Clone, Copy)]
@@ -64,9 +66,9 @@ impl Sub for Vec3 {
     }
 }
 
-impl Div<f64> for Vec3 {
+impl Div<Float> for Vec3 {
     type Output = Vec3;
-    fn div(self, rhs: f64) -> Vec3 {
+    fn div(self, rhs: Float) -> Vec3 {
         Vec3 {
             x: self.x / rhs,
             y: self.y / rhs,
@@ -75,9 +77,9 @@ impl Div<f64> for Vec3 {
     }
 }
 
-impl Mul<f64> for Vec3 {
+impl Mul<Float> for Vec3 {
     type Output = Vec3;
-    fn mul(self, rhs: f64) -> Vec3 {
+    fn mul(self, rhs: Float) -> Vec3 {
         Vec3 {
             x: self.x * rhs,
             y: self.y * rhs,
@@ -103,7 +105,7 @@ impl Vec2 {
 }
 
 pub struct Matrix3 {
-    mat: [f64; 9],
+    mat: [Float; 9],
 }
 
 impl Matrix3 {
@@ -122,7 +124,7 @@ impl Vec3 {
             z: 0.0,
         }
     }
-    pub fn new(x: f64, y: f64, z: f64) -> Self {
+    pub fn new(x: Float, y: Float, z: Float) -> Self {
         Self { x: x, y: y, z: z }
     }
     pub fn unity_x() -> Self {
@@ -146,10 +148,10 @@ impl Vec3 {
             z: 1.0,
         }
     }
-    pub fn norm(self) -> f64 {
+    pub fn norm(self) -> Float {
         self.dot(self).sqrt()
     }
-    pub fn dot(self, rhs: Vec3) -> f64 {
+    pub fn dot(self, rhs: Vec3) -> Float {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
     pub fn normalize(self) -> Self {
@@ -181,7 +183,7 @@ impl Vec3 {
             z: v[2],
         }
     }
-    pub fn rotx(self, alpha: f64) -> Self {
+    pub fn rotx(self, alpha: Float) -> Self {
         let cos = alpha.cos();
         let sin = alpha.sin();
         let m = Matrix3 {
@@ -189,7 +191,7 @@ impl Vec3 {
         };
         self.multiply(m)
     }
-    pub fn roty(self, alpha: f64) -> Self {
+    pub fn roty(self, alpha: Float) -> Self {
         let cos = alpha.cos();
         let sin = alpha.sin();
         let m = Matrix3 {
@@ -197,7 +199,7 @@ impl Vec3 {
         };
         self.multiply(m)
     }
-    pub fn rotz(self, alpha: f64) -> Self {
+    pub fn rotz(self, alpha: Float) -> Self {
         let cos = alpha.cos();
         let sin = alpha.sin();
         let m = Matrix3 {
