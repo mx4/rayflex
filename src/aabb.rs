@@ -4,6 +4,7 @@ use std::time::Instant;
 use crate::three_d::Object;
 use crate::three_d::Plane;
 use crate::three_d::Triangle;
+use crate::three_d::Triangles;
 use crate::vec3::Float;
 use crate::vec3::Point;
 use crate::vec3::Vec3;
@@ -26,17 +27,19 @@ pub struct AABB {
     pub aabbs: Option<Vec<AABB>>,
     pub triangles: Vec<AABBTriangle>,
     triangles_root: Arc<Vec<Triangle>>,
+    triangles_soa: Arc<Triangles>,
 }
 
 impl AABB {
-    pub fn new(triangles: Arc<Vec<Triangle>>) -> AABB {
-        AABB {
+    pub fn new(triangles: Arc<Vec<Triangle>>, triangles_soa: Arc<Triangles>) -> AABB {
+        Self {
             p_min: Point::zero(),
             p_max: Point::zero(),
             is_leaf: false,
             triangles: vec![],
             aabbs: None,
             triangles_root: triangles,
+            triangles_soa: triangles_soa,
         }
     }
     fn init_with_point(p_min: &mut Point, p_max: &mut Point, point: &Point) {
@@ -55,14 +58,14 @@ impl AABB {
     }
     fn find_bounds(&self, p_min: &mut Point, p_max: &mut Point) {
         let mut init = false;
-        for triangle in self.triangles_root.iter() {
+        self.triangles_root.iter().for_each(|triangle| {
             if !init {
                 *p_min = triangle.points[0];
                 *p_max = triangle.points[0];
                 init = true;
             }
             Self::init_with_triangle(p_min, p_max, &triangle);
-        }
+        });
     }
     fn point_inside(&self, p: Point) -> bool {
         p.x >= self.p_min.x
@@ -173,7 +176,7 @@ impl AABB {
         self.is_leaf = false;
         self.aabbs = Some(Vec::with_capacity(8));
         for i in 0..8 {
-            let mut aabb = AABB::new(self.triangles_root.clone());
+            let mut aabb = AABB::new(self.triangles_root.clone(), self.triangles_soa.clone());
             aabb.setup_node(v_min[i], v_max[i], &v_triangles, depth + 1);
             self.aabbs.as_mut().unwrap().push(aabb);
         }
@@ -202,7 +205,7 @@ impl AABB {
             .max()
             .unwrap()
     }
-    pub fn init_aabb(&mut self) {
+    pub fn init(&mut self) {
         let mut p_min = Vec3::zero();
         let mut p_max = Vec3::zero();
         self.find_bounds(&mut p_min, &mut p_max);
@@ -274,9 +277,8 @@ impl AABB {
 
         if self.is_leaf {
             for triangle_id in &self.triangles {
-                if self.triangles_root[*triangle_id]
-                    .intercept(stats, ray, tmin, tmax, any, &mut oid0)
-                {
+                let t = self.triangles_soa.get_triangle(*triangle_id);
+                if t.intercept(stats, ray, tmin, tmax, any, &mut oid0) {
                     hit = true;
                     *oid = *triangle_id;
                     if any {
@@ -286,10 +288,10 @@ impl AABB {
             }
             return hit;
         } else {
-            let mid = self.p_min + (self.p_max - self.p_min) / 2.0;
-            let plane_yz = Plane::new(mid, Vec3::new(1.0, 0.0, 0.0), 0);
-            let plane_xz = Plane::new(mid, Vec3::new(0.0, 1.0, 0.0), 0);
-            let plane_xy = Plane::new(mid, Vec3::new(0.0, 0.0, 1.0), 0);
+            let mid = (self.p_max + self.p_min) / 2.0;
+            let plane_yz = Plane::new(mid, Vec3::unity_x(), 0);
+            let plane_xz = Plane::new(mid, Vec3::unity_y(), 0);
+            let plane_xy = Plane::new(mid, Vec3::unity_z(), 0);
             let mut close_idx = self.nearest_node(ray.orig + ray.dir * t_aabb, mid);
             let mut tmin0 = tmin;
 

@@ -10,7 +10,7 @@
       "z": 0.5
     },
     "pos": {
-      "x": -6.0,
+      "x": -5.0,
       "y": 0.0,
       "z": 1.0
     },
@@ -162,6 +162,15 @@
     },
     "material_id": 6,
     "radius": 0.8
+  },
+  "sphere.3": {
+    "center": {
+      "x": -0.7,
+      "y": 0.3,
+      "z": -0.6
+    },
+    "material_id": 6,
+    "radius": 0.4
   },
   "triangle.0": {
     "material_id": 5,

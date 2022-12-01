@@ -1,15 +1,14 @@
 use std::sync::Arc;
 
 use crate::aabb::AABB;
+use crate::vec3::Float;
 use crate::vec3::Point;
 use crate::vec3::Vec2;
 use crate::vec3::Vec3;
-use crate::vec3::Float;
+use crate::vec3::EPSILON;
 use crate::Ray;
 use crate::RenderStats;
 use serde::{Deserialize, Serialize};
-
-pub const EPSILON: Float = 1e-12;
 
 pub trait Object {
     fn display(&self);
@@ -49,21 +48,73 @@ pub struct Triangle {
     pub mesh_id: usize,
 }
 
+pub struct Triangles {
+    pub point_x: Vec<Float>,
+    pub point_y: Vec<Float>,
+    pub point_z: Vec<Float>,
+    pub material_id: Vec<usize>,
+}
+
+impl Triangles {
+    pub fn new(n: usize) -> Self {
+        Self {
+            point_x: Vec::with_capacity(3 * n),
+            point_y: Vec::with_capacity(3 * n),
+            point_z: Vec::with_capacity(3 * n),
+            material_id: Vec::with_capacity(n),
+        }
+    }
+    pub fn get_triangle(&self, idx: usize) -> Triangle {
+        let p0 = Point {
+            x: self.point_x[3 * idx],
+            y: self.point_y[3 * idx],
+            z: self.point_z[3 * idx],
+        };
+        let p1 = Point {
+            x: self.point_x[3 * idx + 1],
+            y: self.point_y[3 * idx + 1],
+            z: self.point_z[3 * idx + 1],
+        };
+        let p2 = Point {
+            x: self.point_x[3 * idx + 2],
+            y: self.point_y[3 * idx + 2],
+            z: self.point_z[3 * idx + 2],
+        };
+        Triangle {
+            points: [p0, p1, p2],
+            material_id: self.material_id[idx],
+            mesh_id: 0,
+        }
+    }
+}
+
 pub struct Mesh {
     pub material_id: usize,
     pub triangles: Arc<Vec<Triangle>>,
+    pub triangles_soa: Arc<Triangles>,
     pub aabb: AABB,
 }
 
 impl Mesh {
     pub fn new(triangles: Vec<Triangle>, mat_id: usize) -> Self {
+        let mut triangles_soa = Triangles::new(triangles.len());
+        triangles.iter().for_each(|t| {
+            triangles_soa.material_id.push(t.material_id);
+            t.points.iter().for_each(|p| {
+                triangles_soa.point_x.push(p.x);
+                triangles_soa.point_y.push(p.y);
+                triangles_soa.point_z.push(p.z);
+            });
+        });
         let arc_triangles = Arc::new(triangles);
+        let triangles_soa_arc = Arc::new(triangles_soa);
         let mut m = Mesh {
             triangles: arc_triangles.clone(),
             material_id: mat_id,
-            aabb: AABB::new(arc_triangles),
+            aabb: AABB::new(arc_triangles, triangles_soa_arc.clone()),
+            triangles_soa: triangles_soa_arc,
         };
-        m.aabb.init_aabb();
+        m.aabb.init();
         m
     }
 }
@@ -181,33 +232,26 @@ impl Object for Sphere {
         stats.num_intersects_sphere += 1;
         let a = ray.dir.dot(ray.dir);
         let v0 = ray.orig - self.center;
-        let b = 2.0 * ray.dir.dot(v0);
+        let half_b = ray.dir.dot(v0);
         let v1 = self.center - ray.orig;
         let c = v1.dot(v1) - self.radius * self.radius;
 
-        let delta = b * b - 4.0 * a * c;
+        let delta = half_b * half_b - a * c;
 
         if delta < 0.0 {
             return false;
         }
         let delta_sqrt = delta.sqrt();
-        let t1 = (-b + delta_sqrt) / (2.0 * a);
-        let t2 = (-b - delta_sqrt) / (2.0 * a);
-        if t1 < tmin {
-            return false;
-        }
-        let t0: Float;
-        if t2 < tmin {
-            t0 = t1;
-        } else {
-            t0 = t2;
-        }
-        if t0 >= *tmax {
-            return false;
+        let t1 = (-half_b - delta_sqrt) / a;
+        let t2 = (-half_b + delta_sqrt) / a;
+
+        let t_vals = [t1, t2];
+        if let Some(t_opt) = t_vals.iter().find(|&&t| t > tmin && t < *tmax) {
+            *tmax = *t_opt;
+            return true;
         }
 
-        *tmax = t0;
-        true
+        false
     }
 }
 

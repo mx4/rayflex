@@ -1,9 +1,21 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
-use rand::Rng;
 
 pub type Float = f32;
+pub const EPSILON: Float = 1e-6;
+
+fn u128_fold(v: u128) -> u64 {
+    return ((v >> 64) ^ v) as u64;
+}
+
+// wyhash
+fn fast_rand(rnd_state: &mut u64) -> u64 {
+    *rnd_state += 0x60bee2bee120fc15;
+    let mut tmp = *rnd_state as u128 * 0xa3b195354a39b70d;
+    tmp = u128_fold(tmp) as u128 * 0x1b03738712fad5c9;
+    return u128_fold(tmp);
+}
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct Vec3 {
@@ -30,7 +42,6 @@ impl Default for Vec3 {
         }
     }
 }
-
 
 impl fmt::Debug for Vec3 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -117,36 +128,20 @@ impl Matrix3 {
 }
 
 impl Vec3 {
-    pub fn zero() -> Vec3 {
-        Vec3 {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        }
-    }
-    pub fn new(x: Float, y: Float, z: Float) -> Self {
+    fn new(x: Float, y: Float, z: Float) -> Self {
         Self { x: x, y: y, z: z }
     }
+    pub fn zero() -> Self {
+        Vec3::new(0.0, 0.0, 0.0)
+    }
     pub fn unity_x() -> Self {
-        Self {
-            x: 1.0,
-            y: 0.0,
-            z: 0.0,
-        }
+        Vec3::new(1.0, 0.0, 0.0)
     }
     pub fn unity_y() -> Self {
-        Self {
-            x: 0.0,
-            y: 1.0,
-            z: 0.0,
-        }
+        Vec3::new(0.0, 1.0, 0.0)
     }
     pub fn unity_z() -> Self {
-        Self {
-            x: 0.0,
-            y: 0.0,
-            z: 1.0,
-        }
+        Vec3::new(0.0, 0.0, 1.0)
     }
     pub fn norm(self) -> Float {
         self.dot(self).sqrt()
@@ -177,11 +172,7 @@ impl Vec3 {
                 v[i] += v0[j] * matrix.mat[i + j * 3];
             }
         }
-        Self {
-            x: v[0],
-            y: v[1],
-            z: v[2],
-        }
+        Vec3::new(v[0], v[1], v[2])
     }
     pub fn rotx(self, alpha: Float) -> Self {
         let cos = alpha.cos();
@@ -207,17 +198,19 @@ impl Vec3 {
         };
         self.multiply(m)
     }
-    pub fn gen_rnd_sphere() -> Self {
-        let mut rng = rand::thread_rng();
+    pub fn gen_rnd_sphere(rnd_state: &mut u64) -> Self {
+        let max = u64::MAX as Float;
         loop {
             let v = Vec3 {
-                x: rng.gen_range(-1.0..1.0),
-                y: rng.gen_range(-1.0..1.0),
-                z: rng.gen_range(-1.0..1.0),
+                x: fast_rand(rnd_state) as Float / max - 0.5,
+                y: fast_rand(rnd_state) as Float / max - 0.5,
+                z: fast_rand(rnd_state) as Float / max - 0.5,
             };
-            if v.norm() <= 1.0 {
+
+            let n = v.norm();
+            if n > EPSILON && n <= 1.0 {
                 return v.normalize();
             }
-        };
+        }
     }
 }

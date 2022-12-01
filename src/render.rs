@@ -1,5 +1,6 @@
 use colored::Colorize;
 use indicatif::ProgressBar;
+use rand::Rng;
 use rayon::prelude::*;
 use serde_json;
 use std::collections::HashMap;
@@ -8,7 +9,6 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use rand::Rng;
 
 use raymax::camera::Camera;
 use raymax::color::RGB;
@@ -18,9 +18,10 @@ use raymax::light::Light;
 use raymax::light::SpotLight;
 use raymax::light::VectorLight;
 use raymax::material::Material;
-use raymax::vec3::Point;
 use raymax::vec3::Float;
+use raymax::vec3::Point;
 use raymax::vec3::Vec3;
+use raymax::vec3::EPSILON;
 use raymax::Ray;
 use raymax::RenderStats;
 
@@ -29,7 +30,6 @@ use raymax::three_d::Object;
 use raymax::three_d::Plane;
 use raymax::three_d::Sphere;
 use raymax::three_d::Triangle;
-use raymax::three_d::EPSILON;
 
 pub struct RenderConfig {
     pub path_tracing: u32,
@@ -136,7 +136,13 @@ impl RenderJob {
             cmax * s + cyan * (1.0 - s)
         }
     }
-    fn trace_ray_path(&self, stats: &mut RenderStats, ray: &Ray, depth: u32) -> RGB {
+    fn trace_ray_path(
+        &self,
+        stats: &mut RenderStats,
+        rnd_state: &mut u64,
+        ray: &Ray,
+        depth: u32,
+    ) -> RGB {
         if depth > self.cfg.reflection_max_depth {
             stats.num_rays_reflection_max += 1;
             return RGB::new();
@@ -157,7 +163,7 @@ impl RenderJob {
         let hit_mat_id = hit_obj.unwrap().get_material_id();
         let hit_material = &self.materials[hit_mat_id];
 
-        if ! hit_material.ke.is_zero() {
+        if !hit_material.ke.is_zero() {
             return hit_material.ke;
         }
 
@@ -166,10 +172,10 @@ impl RenderJob {
         stats.num_rays_reflection += 1;
         let mut reflected_ray = ray.get_reflection(hit_point, hit_normal);
         if hit_material.ks == 0.0 {
-            let dir = reflected_ray.dir.normalize() + Vec3::gen_rnd_sphere();
+            let dir = reflected_ray.dir.normalize() + Vec3::gen_rnd_sphere(rnd_state);
             reflected_ray.dir = dir.normalize();
         }
-        let c0 = self.trace_ray_path(stats, &reflected_ray, depth + 1);
+        let c0 = self.trace_ray_path(stats, rnd_state, &reflected_ray, depth + 1);
         if hit_material.ks == 0.0 {
             c0 * hit_material.kd
         } else {
@@ -219,17 +225,22 @@ impl RenderJob {
         assert!(!self.cfg.use_adaptive_sampling);
         assert!(self.cfg.path_tracing > 1);
 
-        let mut rng = rand::thread_rng();
         let mut c = RGB::new();
+        let mut rng = rand::thread_rng();
+        let mut rnd_state = rng.gen_range(0..u64::MAX);
 
         for _i in 0..self.cfg.path_tracing {
             let off_u = rng.gen_range(0.0..du);
             let off_v = rng.gen_range(0.0..dv);
-            let ray = self.camera.as_ref().unwrap().get_ray(pos_u + off_u, pos_v + off_v);
+            let ray = self
+                .camera
+                .as_ref()
+                .unwrap()
+                .get_ray(pos_u + off_u, pos_v + off_v);
 
             stats.num_rays_sampling += 1;
 
-            c += self.trace_ray_path(stats, &ray, 0);
+            c += self.trace_ray_path(stats, &mut rnd_state, &ray, 0);
         }
         return c / self.cfg.path_tracing as f32;
     }
@@ -296,7 +307,10 @@ impl RenderJob {
         let elapsed = start_time.elapsed();
         let num_rays = (stats.num_rays_sampling + stats.num_rays_reflection) as Float;
         let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as Float / 1000.0);
-        let ray_lat_str = format!("{:.3} usec", elapsed.as_micros() as Float / num_rays as Float);
+        let ray_lat_str = format!(
+            "{:.3} usec",
+            elapsed.as_micros() as Float / num_rays as Float
+        );
         let kray_per_secs = num_rays / (elapsed.as_secs_f32() as Float) / 1_000 as Float;
         let mut v = kray_per_secs;
         let mut suffix = "K";
@@ -383,7 +397,7 @@ impl RenderJob {
         }
     }
 
-    pub fn render_image_lines(
+    fn render_image_lines(
         &mut self,
         pb: &mut ProgressBar,
         total_stats: &mut Mutex<RenderStats>,
@@ -401,8 +415,11 @@ impl RenderJob {
         });
     }
 
-    pub fn render_image_box(&mut self, pb: &mut ProgressBar, total_stats: &mut Mutex<RenderStats>) {
-        let step = 32;
+    fn render_image_box(&mut self, pb: &mut ProgressBar, total_stats: &mut Mutex<RenderStats>) {
+        let mut step = 32;
+        if self.cfg.path_tracing > 1 {
+            step = 10;
+        }
         let ny = (self.cfg.res_y + step - 1) / step;
         let nx = (self.cfg.res_x + step - 1) / step;
 

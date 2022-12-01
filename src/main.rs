@@ -15,9 +15,9 @@ use raymax::material::Material;
 use raymax::three_d::Plane;
 use raymax::three_d::Sphere;
 use raymax::three_d::Triangle;
+use raymax::vec3::Float;
 use raymax::vec3::Point;
 use raymax::vec3::Vec3;
-use raymax::vec3::Float;
 
 mod render;
 use render::RenderConfig;
@@ -44,15 +44,15 @@ struct Options {
     reflection_max_depth: u32,
     #[structopt(short = "b", long, default_value = "1")]
     add_box: u32,
-    #[structopt(short = "g", long, help="use gamma correction")]
+    #[structopt(short = "g", long, help = "use gamma correction")]
     use_gamma: bool,
     #[structopt(short = "a", long)]
     use_adaptive_sampling: bool,
-    #[structopt(long, help="scan per line vs box")]
+    #[structopt(long, help = "scan per line vs box")]
     use_lines: bool,
-    #[structopt(long, help="use hashmap to speed-up antialiasing")]
+    #[structopt(long, help = "use hashmap to speed-up antialiasing")]
     use_hashmap: bool,
-    #[structopt(short="-p", long, help="do path tracing", default_value = "1")]
+    #[structopt(short = "-p", long, help = "do path tracing", default_value = "1")]
     path_tracing: u32,
 }
 
@@ -239,7 +239,7 @@ fn generate_scene(
                 y: 0.0,
                 z: 1.0,
             },
-            55.0,                        // vfov
+            55.0,                            // vfov
             res_x as Float / res_y as Float, // aspect
         );
         json["camera"] = serde_json::to_value(camera).unwrap();

@@ -1,6 +1,6 @@
+use crate::vec3::Float;
 use crate::vec3::Point;
 use crate::vec3::Vec3;
-use crate::vec3::Float;
 use crate::Ray;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
