@@ -11,7 +11,7 @@ fn u128_fold(v: u128) -> u64 {
 
 // wyhash
 fn fast_rand(rnd_state: &mut u64) -> u64 {
-    *rnd_state += 0x60bee2bee120fc15;
+    *rnd_state = (*rnd_state).wrapping_add(0x60bee2bee120fc15);
     let mut tmp = *rnd_state as u128 * 0xa3b195354a39b70d;
     tmp = u128_fold(tmp) as u128 * 0x1b03738712fad5c9;
     return u128_fold(tmp);
