@@ -3,10 +3,10 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 pub type Float = f32;
-pub const EPSILON: Float = 1e-6;
+pub const EPSILON: Float = 1e-7;
 
 fn u128_fold(v: u128) -> u64 {
-    return ((v >> 64) ^ v) as u64;
+    ((v >> 64) ^ v) as u64
 }
 
 // wyhash
@@ -14,10 +14,10 @@ fn fast_rand(rnd_state: &mut u64) -> u64 {
     *rnd_state = (*rnd_state).wrapping_add(0x60bee2bee120fc15);
     let mut tmp = *rnd_state as u128 * 0xa3b195354a39b70d;
     tmp = u128_fold(tmp) as u128 * 0x1b03738712fad5c9;
-    return u128_fold(tmp);
+    u128_fold(tmp)
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub struct Vec3 {
     pub x: Float,
     pub y: Float,
@@ -32,16 +32,6 @@ pub struct Vec2 {
 
 pub type Point = Vec3;
 pub type Point2 = Vec2;
-
-impl Default for Vec3 {
-    fn default() -> Self {
-        Vec3 {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        }
-    }
-}
 
 impl fmt::Debug for Vec3 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -109,27 +99,13 @@ impl AddAssign<Vec3> for Vec3 {
     }
 }
 
-impl Vec2 {
-    pub fn new() -> Vec2 {
-        Vec2 { x: 0.0, y: 0.0 }
-    }
-}
-
 pub struct Matrix3 {
     mat: [Float; 9],
 }
 
-impl Matrix3 {
-    pub fn new() -> Matrix3 {
-        Matrix3 {
-            mat: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-        }
-    }
-}
-
 impl Vec3 {
     fn new(x: Float, y: Float, z: Float) -> Self {
-        Self { x: x, y: y, z: z }
+        Self { x, y, z }
     }
     pub fn zero() -> Self {
         Vec3::new(0.0, 0.0, 0.0)
@@ -167,6 +143,7 @@ impl Vec3 {
     pub fn multiply(self, matrix: Matrix3) -> Self {
         let v0 = [self.x, self.y, self.z];
         let mut v = [0.0; 3];
+        #[allow(clippy::needless_range_loop)]
         for i in 0..3 {
             for j in 0..3 {
                 v[i] += v0[j] * matrix.mat[i + j * 3];

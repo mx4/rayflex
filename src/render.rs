@@ -2,7 +2,6 @@ use colored::Colorize;
 use indicatif::ProgressBar;
 use rand::Rng;
 use rayon::prelude::*;
-use serde_json;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -45,9 +44,9 @@ pub struct RenderConfig {
 
 pub struct RenderJob {
     camera: Option<Camera>,
-    objects: Vec<Arc<Box<dyn Object + 'static + Send + Sync>>>,
-    lights: Vec<Arc<Box<dyn Light + 'static + Send + Sync>>>,
-    materials: Vec<Arc<Box<Material>>>,
+    objects: Vec<Arc<dyn Object + 'static + Send + Sync>>,
+    lights: Vec<Arc<dyn Light + 'static + Send + Sync>>,
+    materials: Vec<Arc<Material>>,
     image: Mutex<Image>,
     cfg: RenderConfig,
 }
@@ -60,7 +59,7 @@ impl RenderJob {
             objects: vec![],
             lights: vec![],
             materials: vec![],
-            cfg: cfg,
+            cfg,
         }
     }
     fn trace_ray(&self, stats: &mut RenderStats, ray: &Ray, depth: u32) -> RGB {
@@ -71,43 +70,39 @@ impl RenderJob {
         let mut s_id = 0;
         let mut t = Float::MAX;
 
-        let hit_obj = self
+        let hit_obj_opt = self
             .objects
             .iter()
-            .filter(|obj| obj.intercept(stats, &ray, EPSILON, &mut t, false, &mut s_id))
+            .filter(|obj| obj.intercept(stats, ray, EPSILON, &mut t, false, &mut s_id))
             .last();
 
-        if hit_obj.is_some() {
+        if let Some(hit_obj) = hit_obj_opt {
             let hit_point = ray.orig + ray.dir * t;
-            let hit_normal = hit_obj.unwrap().get_normal(hit_point, s_id);
-            let hit_mat_id = hit_obj.unwrap().get_material_id();
+            let hit_normal = hit_obj.get_normal(hit_point, s_id);
+            let hit_mat_id = hit_obj.get_material_id();
             let hit_material = &self.materials[hit_mat_id];
 
             let mut c = self.lights.iter().fold(RGB::new(), |acc, light| {
                 let mut c_light = RGB::new();
 
                 if !light.is_spot() {
-                    c_light = light.get_contrib(ray, &hit_material, hit_point, hit_normal);
+                    c_light = light.get_contrib(ray, hit_material, hit_point, hit_normal);
                 } else {
                     let light_vec = light.get_vector(hit_point) * -1.0;
                     let light_ray = Ray::new(hit_point, light_vec);
-                    self.objects
-                        .iter()
-                        .find(|obj| {
-                            let mut tmax0 = 1.0;
-                            let mut oid0 = 0;
-                            obj.intercept(stats, &light_ray, EPSILON, &mut tmax0, true, &mut oid0)
-                        })
-                        .is_none()
-                        .then(|| {
-                            c_light = light.get_contrib(ray, &hit_material, hit_point, hit_normal)
-                        });
+                    if !self.objects.iter().any(|obj| {
+                        let mut tmax0 = 1.0;
+                        let mut oid0 = 0;
+                        obj.intercept(stats, &light_ray, EPSILON, &mut tmax0, true, &mut oid0)
+                    }) {
+                        c_light = light.get_contrib(ray, hit_material, hit_point, hit_normal)
+                    }
                 }
                 acc + c_light
             });
 
             if hit_material.checkered {
-                let hit_text2d = hit_obj.unwrap().get_texture_2d(hit_point);
+                let hit_text2d = hit_obj.get_texture_2d(hit_point);
                 c = hit_material.do_checker(c, hit_text2d);
             }
 
@@ -153,7 +148,7 @@ impl RenderJob {
         let hit_obj = self
             .objects
             .iter()
-            .filter(|obj| obj.intercept(stats, &ray, EPSILON, &mut t, false, &mut s_id))
+            .filter(|obj| obj.intercept(stats, ray, EPSILON, &mut t, false, &mut s_id))
             .last();
 
         if hit_obj.is_none() {
@@ -192,7 +187,7 @@ impl RenderJob {
     ) -> RGB {
         let mut key = 0;
         if self.cfg.use_hashmap {
-            key = ((u + 0.5) * 1000_000_0000_000.0 + 1000_000.0 * (v + 0.5)) as u64;
+            key = ((u + 0.5) * 10_000_000_000_000.0 + 1_000_000.0 * (v + 0.5)) as u64;
             if self.cfg.use_adaptive_sampling {
                 if let Some(c) = pmap.get(&key) {
                     return *c;
@@ -242,13 +237,14 @@ impl RenderJob {
 
             c += self.trace_ray_path(stats, &mut rnd_state, &ray, 0);
         }
-        return c / self.cfg.path_tracing as f32;
+        c / self.cfg.path_tracing as f32
     }
 
     /*
      * pos_u: -0.5 .. 0.5
      * pos_v: -0.5 .. 0.5
      */
+    #[allow(clippy::too_many_arguments)]
     fn calc_ray_box(
         &self,
         stats: &mut RenderStats,
@@ -385,25 +381,20 @@ impl RenderJob {
             let pos_v = v / 2.0 - (y as Float) * dv;
             for x in x0..x_max {
                 let pos_u = u / 2.0 - (x as Float) * du;
-                let c;
-                if self.cfg.path_tracing > 1 {
-                    c = self.calc_ray_box_path(stats, pos_u, pos_v, du, dv);
+                let c = if self.cfg.path_tracing > 1 {
+                    self.calc_ray_box_path(stats, pos_u, pos_v, du, dv)
                 } else {
-                    c = self.calc_ray_box(stats, &mut pmap, pos_u, pos_v, du, dv, 0);
-                }
+                    self.calc_ray_box(stats, &mut pmap, pos_u, pos_v, du, dv, 0)
+                };
 
                 self.image.lock().unwrap().push_pixel(x, y, c);
             }
         }
     }
 
-    fn render_image_lines(
-        &mut self,
-        pb: &mut ProgressBar,
-        total_stats: &mut Mutex<RenderStats>,
-    ) {
+    fn render_image_lines(&mut self, pb: &mut ProgressBar, total_stats: &mut Mutex<RenderStats>) {
         (0..self.cfg.res_y).into_par_iter().for_each(|y| {
-            let mut stats = RenderStats::new();
+            let mut stats: RenderStats = Default::default();
 
             if crate::CTRLC_HIT.load(Ordering::SeqCst) {
                 pb.inc(self.cfg.res_y.into());
@@ -424,7 +415,7 @@ impl RenderJob {
         let nx = (self.cfg.res_x + step - 1) / step;
 
         (0..ny * nx).into_par_iter().for_each(|v| {
-            let mut stats = RenderStats::new();
+            let mut stats: RenderStats = Default::default();
             let x = (v % nx) * step;
             let y = (v / nx) * step;
 
@@ -443,7 +434,7 @@ impl RenderJob {
         self.image = Mutex::new(Image::new(self.cfg.res_x, self.cfg.res_y));
         let start_time = Instant::now();
         assert!(self.camera.is_some());
-        let mut total_stats = Mutex::new(RenderStats::new());
+        let mut total_stats: Mutex<RenderStats> = Mutex::new(Default::default());
         let mut pb = ProgressBar::new((self.cfg.res_x * self.cfg.res_y) as u64);
 
         if self.cfg.use_lines {
@@ -485,9 +476,9 @@ impl RenderJob {
             }
         }
         let res_str = format!("{}x{}", self.cfg.res_x, self.cfg.res_y).bold();
-        let mut smp_str = format!("").cyan();
+        let mut smp_str = "".cyan();
         if self.cfg.use_adaptive_sampling {
-            smp_str = format!(" w/ adaptive sampling").cyan();
+            smp_str = " w/ adaptive sampling".cyan();
         }
         println!("-- img resolution: {}{}", res_str, smp_str);
 
@@ -497,7 +488,7 @@ impl RenderJob {
         self.camera = Some(camera);
 
         if let Ok(ambient) = serde_json::from_value::<AmbientLight>(json["ambient"].clone()) {
-            self.lights.push(Arc::new(Box::new(ambient)));
+            self.lights.push(Arc::new(ambient));
         }
 
         loop {
@@ -505,7 +496,7 @@ impl RenderJob {
             match serde_json::from_value::<Material>(json[&s].clone()) {
                 Err(_error) => break,
                 Ok(mat) => {
-                    self.materials.push(Arc::new(Box::new(mat)));
+                    self.materials.push(Arc::new(mat));
                     num_materials += 1;
                 }
             }
@@ -516,7 +507,7 @@ impl RenderJob {
                 Err(_error) => break,
                 Ok(mut spot) => {
                     spot.name = s;
-                    self.lights.push(Arc::new(Box::new(spot)));
+                    self.lights.push(Arc::new(spot));
                     num_spot_lights += 1;
                 }
             }
@@ -528,7 +519,7 @@ impl RenderJob {
                 Ok(mut v) => {
                     v.name = s;
                     v.dir = v.dir.normalize();
-                    self.lights.push(Arc::new(Box::new(v)));
+                    self.lights.push(Arc::new(v));
                     num_vec_lights += 1;
                 }
             }
@@ -539,7 +530,7 @@ impl RenderJob {
             match serde_json::from_value::<Plane>(json[s].clone()) {
                 Err(_error) => break,
                 Ok(p) => {
-                    self.objects.push(Arc::new(Box::new(p)));
+                    self.objects.push(Arc::new(p));
                     num_planes += 1;
                 }
             }
@@ -549,7 +540,7 @@ impl RenderJob {
             match serde_json::from_value::<Sphere>(json[s].clone()) {
                 Err(_error) => break,
                 Ok(o) => {
-                    self.objects.push(Arc::new(Box::new(o)));
+                    self.objects.push(Arc::new(o));
                     num_spheres += 1;
                 }
             }
@@ -559,7 +550,7 @@ impl RenderJob {
             match serde_json::from_value::<Triangle>(json[s].clone()) {
                 Err(_error) => break,
                 Ok(o) => {
-                    self.objects.push(Arc::new(Box::new(o)));
+                    self.objects.push(Arc::new(o));
                     num_triangles += 1;
                 }
             }
@@ -592,11 +583,13 @@ impl RenderJob {
                 angle_z_rad = angle_z.to_radians() as Float;
             }
 
-            let mut opt = tobj::LoadOptions::default();
-            opt.triangulate = true; // converts polygon into triangles
-            opt.ignore_lines = true;
-            opt.ignore_points = true;
-            let (models, _materials) = tobj::load_obj(&path, &opt).expect("tobj");
+            let opt = tobj::LoadOptions {
+                triangulate: true, // converts polygon into triangles
+                ignore_lines: true,
+                ignore_points: true,
+                ..Default::default()
+            };
+            let (models, _materials) = tobj::load_obj(path, &opt).expect("tobj");
             assert!(models.len() == 1);
             models.iter().for_each(|m| {
                 let mesh = &m.mesh;
@@ -611,16 +604,16 @@ impl RenderJob {
                 let mut triangles = Vec::with_capacity(n);
                 let mut num_skipped = 0;
                 for i in 0..n {
-                    let i0 = mesh.indices[3 * i + 0] as usize;
+                    let i0 = mesh.indices[3 * i] as usize;
                     let i1 = mesh.indices[3 * i + 1] as usize;
                     let i2 = mesh.indices[3 * i + 2] as usize;
-                    let x0 = mesh.positions[3 * i0 + 0] as Float;
+                    let x0 = mesh.positions[3 * i0] as Float;
                     let y0 = mesh.positions[3 * i0 + 1] as Float;
                     let z0 = mesh.positions[3 * i0 + 2] as Float;
-                    let x1 = mesh.positions[3 * i1 + 0] as Float;
+                    let x1 = mesh.positions[3 * i1] as Float;
                     let y1 = mesh.positions[3 * i1 + 1] as Float;
                     let z1 = mesh.positions[3 * i1 + 2] as Float;
-                    let x2 = mesh.positions[3 * i2 + 0] as Float;
+                    let x2 = mesh.positions[3 * i2] as Float;
                     let y2 = mesh.positions[3 * i2 + 1] as Float;
                     let z2 = mesh.positions[3 * i2 + 2] as Float;
                     let mut p0 = Point {
@@ -653,8 +646,7 @@ impl RenderJob {
                 if num_skipped > 0 {
                     println!("-- skipped {} malformed triangles", num_skipped);
                 }
-                self.objects
-                    .push(Arc::new(Box::new(Mesh::new(triangles, 0))));
+                self.objects.push(Arc::new(Mesh::new(triangles, 0)));
                 num_objs += 1;
                 println!(
                     "-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",

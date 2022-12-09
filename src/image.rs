@@ -19,8 +19,8 @@ fn gamma_encode(linear: f32) -> f32 {
 impl Image {
     pub fn new(res_x: u32, res_y: u32) -> Self {
         Self {
-            res_x: res_x,
-            res_y: res_y,
+            res_x,
+            res_y,
             img_buffer: Rgb32FImage::new(res_x, res_y),
         }
     }

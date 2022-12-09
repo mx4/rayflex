@@ -39,7 +39,7 @@ impl AABB {
             triangles: vec![],
             aabbs: None,
             triangles_root: triangles,
-            triangles_soa: triangles_soa,
+            triangles_soa,
         }
     }
     fn init_with_point(p_min: &mut Point, p_max: &mut Point, point: &Point) {
@@ -64,7 +64,7 @@ impl AABB {
                 *p_max = triangle.points[0];
                 init = true;
             }
-            Self::init_with_triangle(p_min, p_max, &triangle);
+            Self::init_with_triangle(p_min, p_max, triangle);
         });
     }
     fn point_inside(&self, p: Point) -> bool {
@@ -89,9 +89,9 @@ impl AABB {
          * XXX: not correct if the AABB doesn't touch an edge!!
          */
         let mut t0 = 0.0;
-        return self.check_intersect(&ray0, 1.0, &mut t0)
+        self.check_intersect(&ray0, 1.0, &mut t0)
             || self.check_intersect(&ray1, 1.0, &mut t0)
-            || self.check_intersect(&ray2, 1.0, &mut t0);
+            || self.check_intersect(&ray2, 1.0, &mut t0)
     }
     fn setup_node(
         &mut self,
@@ -242,7 +242,7 @@ impl AABB {
         if z_test {
             v += 1 << 2;
         }
-        return v;
+        v
     }
 
     pub fn intercept(
@@ -328,14 +328,14 @@ impl AABB {
 
                 p[0] = p[0] && t_yz <= t_xz && t_yz <= t_xy;
                 p[1] = p[1] && t_xz <= t_yz && t_xz <= t_xy;
-                p[2] = p[2] && t_xy <= t_xz && t_yz <= t_yz;
+                p[2] = p[2] && t_xy <= t_xz && t_xy <= t_yz;
 
                 if !p.iter().any(|&x| x) {
                     break;
                 }
 
                 tmin0 = t_yz.min(t_xy).min(t_xz);
-                close_idx = close_idx ^ (1 << p.iter().position(|&x| x).unwrap());
+                close_idx ^= 1 << p.iter().position(|&x| x).unwrap();
             }
         }
         hit

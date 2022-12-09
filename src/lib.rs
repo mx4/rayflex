@@ -26,8 +26,8 @@ impl Ray {
         };
         Ray {
             orig: point,
-            dir: dir,
-            inv_dir: inv_dir,
+            dir,
+            inv_dir,
         }
     }
     pub fn get_reflection(&self, point: Point, normal: Vec3) -> Ray {
@@ -35,7 +35,7 @@ impl Ray {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct RenderStats {
     pub num_rays_sampling: u64,
     pub num_rays_sampling_max: u64,
@@ -48,18 +48,6 @@ pub struct RenderStats {
 }
 
 impl RenderStats {
-    pub fn new() -> RenderStats {
-        RenderStats {
-            num_rays_sampling: 0,
-            num_rays_sampling_max: 0,
-            num_rays_reflection: 0,
-            num_rays_reflection_max: 0,
-            num_intersects_plane: 0,
-            num_intersects_sphere: 0,
-            num_intersects_triangle: 0,
-            num_intersects_aabb: 0,
-        }
-    }
     pub fn add(&mut self, other: RenderStats) {
         self.num_rays_sampling += other.num_rays_sampling;
         self.num_rays_sampling_max += other.num_rays_sampling_max;

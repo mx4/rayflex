@@ -1,6 +1,5 @@
 use colored::Colorize;
 use rand::Rng;
-use serde_json;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -300,27 +299,27 @@ fn generate_scene(
         } * sz
             + orig; //
 
-        let t0 = Triangle::new([a.clone(), b.clone(), c.clone()], 0);
-        let t1 = Triangle::new([a.clone(), c.clone(), d.clone()], 0);
-        let t2 = Triangle::new([a.clone(), d.clone(), dp.clone()], 0);
-        let t3 = Triangle::new([ap.clone(), a.clone(), dp.clone()], 0);
-        let t4 = Triangle::new([ap.clone(), bp.clone(), cp.clone()], 0);
-        let t5 = Triangle::new([ap.clone(), cp.clone(), dp.clone()], 0);
-        let t6 = Triangle::new([d.clone(), c.clone(), cp.clone()], 0);
-        let t7 = Triangle::new([d.clone(), cp.clone(), dp.clone()], 0);
-        let t8 = Triangle::new([a.clone(), bp.clone(), b.clone()], 0);
-        let t9 = Triangle::new([a.clone(), ap.clone(), bp.clone()], 0);
+        let t0 = Triangle::new([a, b, c], 0);
+        let t1 = Triangle::new([a, c, d], 0);
+        let t2 = Triangle::new([a, d, dp], 0);
+        let t3 = Triangle::new([ap, a, dp], 0);
+        let t4 = Triangle::new([ap, bp, cp], 0);
+        let t5 = Triangle::new([ap, cp, dp], 0);
+        let t6 = Triangle::new([d, c, cp], 0);
+        let t7 = Triangle::new([d, cp, dp], 0);
+        let t8 = Triangle::new([a, bp, b], 0);
+        let t9 = Triangle::new([a, ap, bp], 0);
 
-        json["triangle.0"] = serde_json::to_value(&t0).unwrap();
-        json["triangle.1"] = serde_json::to_value(&t1).unwrap();
-        json["triangle.2"] = serde_json::to_value(&t2).unwrap();
-        json["triangle.3"] = serde_json::to_value(&t3).unwrap();
-        json["triangle.4"] = serde_json::to_value(&t4).unwrap();
-        json["triangle.5"] = serde_json::to_value(&t5).unwrap();
-        json["triangle.6"] = serde_json::to_value(&t6).unwrap();
-        json["triangle.7"] = serde_json::to_value(&t7).unwrap();
-        json["triangle.8"] = serde_json::to_value(&t8).unwrap();
-        json["triangle.9"] = serde_json::to_value(&t9).unwrap();
+        json["triangle.0"] = serde_json::to_value(t0).unwrap();
+        json["triangle.1"] = serde_json::to_value(t1).unwrap();
+        json["triangle.2"] = serde_json::to_value(t2).unwrap();
+        json["triangle.3"] = serde_json::to_value(t3).unwrap();
+        json["triangle.4"] = serde_json::to_value(t4).unwrap();
+        json["triangle.5"] = serde_json::to_value(t5).unwrap();
+        json["triangle.6"] = serde_json::to_value(t6).unwrap();
+        json["triangle.7"] = serde_json::to_value(t7).unwrap();
+        json["triangle.8"] = serde_json::to_value(t8).unwrap();
+        json["triangle.9"] = serde_json::to_value(t9).unwrap();
         json["num_triangles"] = serde_json::json!(10);
     }
 
@@ -406,7 +405,7 @@ fn generate_scene(
             z: rng.gen_range(-2.0..2.0),
         };
         let sphere = Sphere {
-            center: center,
+            center,
             radius: rng.gen_range(0.2..0.4),
             material_id: rng.gen_range(0..10),
         };
@@ -415,7 +414,7 @@ fn generate_scene(
     }
     let s0 = serde_json::to_string_pretty(&json)?;
     println!("Writing scene file {}", scene_file.display());
-    return fs::write(&scene_file, s0);
+    fs::write(&scene_file, s0)
 }
 
 fn print_opt(opt: &Options) {

@@ -17,15 +17,6 @@ pub struct Material {
 }
 
 impl Material {
-    pub fn new() -> Material {
-        Material {
-            kd: RGB::new(),
-            ke: RGB::new(),
-            ks: 0.0,
-            shininess: 0,
-            checkered: false,
-        }
-    }
     pub fn do_checker(&self, c: RGB, text2d: Vec2) -> RGB {
         assert!(self.checkered);
         let pattern = ((text2d.x * 4.0).fract() > 0.5) ^ ((text2d.y * 4.0).fract() > 0.5);

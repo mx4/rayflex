@@ -122,8 +122,8 @@ impl Mesh {
 impl Triangle {
     pub fn new(points: [Point; 3], material_id: usize) -> Self {
         Self {
-            points: points,
-            material_id: material_id,
+            points,
+            material_id,
             mesh_id: 0,
         }
     }
@@ -133,9 +133,9 @@ impl Plane {
     pub fn new(point: Point, normal: Vec3, material_id: usize) -> Self {
         let n = normal.normalize();
         Self {
-            point: point,
+            point,
             normal: n,
-            material_id: material_id,
+            material_id,
         }
     }
 }
@@ -191,9 +191,9 @@ impl Object for Plane {
 impl Sphere {
     pub fn new(center: Point, radius: Float, material_id: usize) -> Self {
         Self {
-            center: center,
-            radius: radius,
-            material_id: material_id,
+            center,
+            radius,
+            material_id,
         }
     }
 }
@@ -296,7 +296,7 @@ impl Object for Triangle {
         let f = 1.0 / a;
         let s = ray.orig - self.points[0];
         let u = f * s.dot(h);
-        if u < 0.0 || u > 1.0 {
+        if !(0.0..=1.0).contains(&u) {
             return false;
         }
 

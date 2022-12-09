@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul};
 
-#[derive(Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub struct RGB {
     pub r: f32,
     pub g: f32,
@@ -12,11 +12,6 @@ pub struct RGB {
 impl fmt::Debug for RGB {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "RGB: {{ r={} g={} b={} }}", self.r, self.g, self.b)
-    }
-}
-impl Default for RGB {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

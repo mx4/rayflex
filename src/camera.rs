@@ -36,14 +36,14 @@ impl Camera {
 
     pub fn new(pos: Point, look_at: Point, up: Vec3, vfov: Float, aspect: Float) -> Self {
         let mut c = Self {
-            pos: pos,
-            look_at: look_at,
+            pos,
+            look_at,
             screen_u: Vec3::zero(),
             screen_v: Vec3::zero(),
             dir: Vec3::zero(),
-            up: up,
-            vfov: vfov,
-            aspect: aspect,
+            up,
+            vfov,
+            aspect,
         };
         c.init();
         c
@@ -55,7 +55,7 @@ impl Camera {
         Ray::new(self.pos, pixel - self.pos)
     }
     pub fn display(&self) {
-        let s = format!("camera:").green();
+        let s = "camera:".green();
         let s_pos = format!("pos: {:?}", self.pos).dimmed();
         let s_dir = format!("dir: {:?}", self.dir).dimmed();
         let s_u = format!("  u: {:?}", self.screen_u).dimmed();
