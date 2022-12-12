@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use structopt::StructOpt;
 
+use raymax::RaymaxApp;
 use raymax::camera::Camera;
 use raymax::color::RGB;
 use raymax::light::AmbientLight;
@@ -53,6 +54,8 @@ struct Options {
     use_hashmap: bool,
     #[structopt(short = "-p", long, help = "do path tracing", default_value = "1")]
     path_tracing: u32,
+    #[structopt(short = "-u", long, help = "use ui")]
+    use_ui: bool,
 }
 
 fn generate_scene(
@@ -436,6 +439,17 @@ fn print_opt(opt: &Options) {
     println!("{s}");
 }
 
+fn ui_main() {
+    tracing_subscriber::fmt::init();
+
+    let native_options = eframe::NativeOptions::default();
+    eframe::run_native(
+        "progress bar example",
+        native_options,
+        Box::new(|cc| Box::new(RaymaxApp::new(cc))),
+    );
+}
+
 fn main() -> std::io::Result<()> {
     let opt = Options::from_args();
 
@@ -443,6 +457,11 @@ fn main() -> std::io::Result<()> {
         CTRLC_HIT.store(true, Ordering::SeqCst);
     })
     .expect("ctrl-c");
+
+    if opt.use_ui {
+        ui_main();
+        return Ok(());
+    }
 
     let cfg = RenderConfig {
         use_adaptive_sampling: opt.use_adaptive_sampling,

@@ -6,6 +6,8 @@ pub mod light;
 pub mod material;
 pub mod three_d;
 pub mod vec3;
+pub mod app;
+pub use app::RaymaxApp;
 
 use vec3::Point;
 use vec3::Vec3;
