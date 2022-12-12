@@ -1,19 +1,23 @@
 pub mod aabb;
+pub mod app;
 pub mod camera;
 pub mod color;
+pub mod ctrlc_hit;
 pub mod image;
 pub mod light;
 pub mod material;
 pub mod three_d;
 pub mod vec3;
-pub mod app;
-pub mod ctrlc_hit;
 
 pub mod render;
 pub use app::RaymaxApp;
 
 use vec3::Point;
 use vec3::Vec3;
+
+pub struct ProgressFunc {
+    pub func: Box<dyn Fn(f32) + Send + Sync>,
+}
 
 #[derive(Debug)]
 pub struct Ray {

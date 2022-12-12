@@ -1,4 +1,5 @@
 use colored::Colorize;
+use egui::ColorImage;
 use indicatif::ProgressBar;
 use rand::Rng;
 use rayon::prelude::*;
@@ -24,14 +25,14 @@ use crate::vec3::EPSILON;
 use crate::Ray;
 use crate::RenderStats;
 
+use crate::ctrlc_hit::CTRLC_HIT;
 use crate::three_d::Mesh;
 use crate::three_d::Object;
 use crate::three_d::Plane;
 use crate::three_d::Sphere;
 use crate::three_d::Triangle;
-use crate::ctrlc_hit::CTRLC_HIT;
+use crate::ProgressFunc;
 
-#[derive(Default, Debug)]
 pub struct RenderConfig {
     pub path_tracing: u32,
     pub use_lines: bool,
@@ -42,27 +43,46 @@ pub struct RenderConfig {
     pub reflection_max_depth: u32,
     pub res_x: u32,
     pub res_y: u32,
+    pub update_func: ProgressFunc,
 }
-
 
 pub struct RenderJob {
     camera: Option<Camera>,
     objects: Vec<Arc<dyn Object + 'static + Send + Sync>>,
     lights: Vec<Arc<dyn Light + 'static + Send + Sync>>,
     materials: Vec<Arc<Material>>,
-    image: Mutex<Image>,
+    pub image: Arc<Mutex<Image>>,
     cfg: RenderConfig,
+    progress_total: Mutex<usize>,
+    progress_bar: ProgressBar,
 }
 
 impl RenderJob {
+    fn report_progress(&self, v: u32) {
+        let denom = self.cfg.res_x * self.cfg.res_y;
+        let mut total = self.progress_total.lock().unwrap();
+        let before = (*total).div_euclid((denom / 1024) as usize);
+        *total += v as usize;
+        let after = (*total).div_euclid((denom / 1024) as usize);
+        if before != after {
+            (self.cfg.update_func.func)(*total as f32 / denom as f32);
+            self.progress_bar.inc(v.into());
+        }
+    }
+
+    pub fn get_image(&self) -> Arc<Mutex<Image>> {
+        self.image.clone()
+    }
     pub fn new(cfg: RenderConfig) -> Self {
         Self {
             camera: None,
-            image: Mutex::new(Image::new(0, 0)),
+            image: Arc::new(Mutex::new(Image::new(false, 0, 0))),
             objects: vec![],
             lights: vec![],
             materials: vec![],
             cfg,
+            progress_total: Mutex::new(0),
+            progress_bar: ProgressBar::new(1),
         }
     }
     fn trace_ray(&self, stats: &mut RenderStats, ray: &Ray, depth: u32) -> RGB {
@@ -395,58 +415,63 @@ impl RenderJob {
         }
     }
 
-    fn render_image_lines(&mut self, pb: &mut ProgressBar, total_stats: &mut Mutex<RenderStats>) {
+    fn render_image_lines(&mut self, total_stats: &mut Mutex<RenderStats>) {
         (0..self.cfg.res_y).into_par_iter().for_each(|y| {
             let mut stats: RenderStats = Default::default();
 
             if CTRLC_HIT.load(Ordering::SeqCst) {
-                pb.inc(self.cfg.res_y.into());
+                self.report_progress(self.cfg.res_x);
                 return;
             }
             self.render_pixel_box(0, y, self.cfg.res_x, 1, &mut stats);
-            pb.inc(self.cfg.res_y.into());
+            self.report_progress(self.cfg.res_x);
             total_stats.lock().unwrap().add(stats);
         });
     }
 
-    fn render_image_box(&mut self, pb: &mut ProgressBar, total_stats: &mut Mutex<RenderStats>) {
+    fn render_image_box(&mut self, total_stats: &mut Mutex<RenderStats>) {
         let mut step = 32;
         if self.cfg.path_tracing > 1 {
             step = 10;
         }
         let ny = (self.cfg.res_y + step - 1) / step;
         let nx = (self.cfg.res_x + step - 1) / step;
-
         (0..ny * nx).into_par_iter().for_each(|v| {
             let mut stats: RenderStats = Default::default();
             let x = (v % nx) * step;
             let y = (v / nx) * step;
 
             if CTRLC_HIT.load(Ordering::SeqCst) {
-                pb.inc((step * step) as u64);
+                self.report_progress(step * step);
                 return;
             }
             self.render_pixel_box(x, y, step, step, &mut stats);
-
-            pb.inc((step * step) as u64);
+            self.report_progress(step * step);
             total_stats.lock().unwrap().add(stats);
         });
     }
 
-    pub fn render_scene(&mut self) {
-        self.image = Mutex::new(Image::new(self.cfg.res_x, self.cfg.res_y));
+    pub fn render_scene(&mut self, img: Option<Arc<Mutex<ColorImage>>>) {
+        self.image = Arc::new(Mutex::new(Image::new(
+            self.cfg.use_gamma,
+            self.cfg.res_x,
+            self.cfg.res_y,
+        )));
+        if let Some(cimg) = img {
+            self.image.lock().unwrap().set_img(cimg);
+        }
         let start_time = Instant::now();
         assert!(self.camera.is_some());
         let mut total_stats: Mutex<RenderStats> = Mutex::new(Default::default());
-        let mut pb = ProgressBar::new((self.cfg.res_x * self.cfg.res_y) as u64);
+        self.progress_bar = ProgressBar::new((self.cfg.res_x * self.cfg.res_y) as u64);
 
         if self.cfg.use_lines {
-            self.render_image_lines(&mut pb, &mut total_stats);
+            self.render_image_lines(&mut total_stats);
         } else {
-            self.render_image_box(&mut pb, &mut total_stats);
+            self.render_image_box(&mut total_stats);
         }
 
-        pb.finish_and_clear();
+        self.progress_bar.finish_and_clear();
         self.print_stats(start_time, *total_stats.lock().unwrap());
     }
 
@@ -680,6 +705,6 @@ impl RenderJob {
             .image
             .lock()
             .unwrap()
-            .save_image(PathBuf::from(&img_file), self.cfg.use_gamma);
+            .save_image(PathBuf::from(&img_file));
     }
 }

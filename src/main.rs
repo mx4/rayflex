@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use structopt::StructOpt;
 
-use raymax::RaymaxApp;
 use raymax::camera::Camera;
 use raymax::color::RGB;
 use raymax::light::AmbientLight;
@@ -18,12 +17,12 @@ use raymax::three_d::Triangle;
 use raymax::vec3::Float;
 use raymax::vec3::Point;
 use raymax::vec3::Vec3;
-
-use raymax::render::RenderConfig;
-use raymax::render::RenderJob;
+use raymax::RaymaxApp;
 
 use raymax::ctrlc_hit::CTRLC_HIT;
-
+use raymax::render::RenderConfig;
+use raymax::render::RenderJob;
+use raymax::ProgressFunc;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "rtest", about = "minimal raytracer")]
@@ -444,7 +443,7 @@ fn ui_main() {
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
-        "progress bar example",
+        "raymax",
         native_options,
         Box::new(|cc| Box::new(RaymaxApp::new(cc))),
     );
@@ -473,6 +472,9 @@ fn main() -> std::io::Result<()> {
         use_lines: opt.use_lines,
         use_hashmap: opt.use_hashmap,
         path_tracing: opt.path_tracing,
+        update_func: ProgressFunc {
+            func: Box::new(|_pct| {}),
+        },
     };
 
     if opt.num_spheres_to_generate != 0 {
@@ -484,7 +486,7 @@ fn main() -> std::io::Result<()> {
     let mut job = RenderJob::new(cfg);
 
     job.load_scene(opt.scene_file)?;
-    job.render_scene();
+    job.render_scene(None);
     job.save_image(opt.img_file)?;
 
     Ok(())
