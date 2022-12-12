@@ -1,5 +1,6 @@
 use egui::Color32;
 use egui::ColorImage;
+use egui::TextureHandle;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
@@ -13,27 +14,33 @@ const WIDTH: usize = 400;
 const HEIGHT: usize = 400;
 
 pub struct RaymaxApp {
-    filename: String,
+    scene_file: String,
+    output_file: String,
     height: usize,
     width: usize,
     use_antialias: bool,
     use_gamma: bool,
     do_path_tracing: bool,
+    path_level: u32,
     progress: Arc<Mutex<f32>>,
-    img: Arc<Mutex<ColorImage>>,
+    img: Arc<Mutex<Box<ColorImage>>>,
+    texture_handle: Option<TextureHandle>,
 }
 
 impl Default for RaymaxApp {
     fn default() -> Self {
         Self {
-            filename: "scenes/cornell-box.json".to_owned(),
+            scene_file: "scenes/cornell-box.json".to_owned(),
+            output_file: "pic.png".to_owned(),
             progress: Arc::new(Mutex::new(0.0)),
-            img: Arc::new(Mutex::new(ColorImage::new([WIDTH, HEIGHT], Color32::BLACK))),
-            use_antialias: true,
-            use_gamma: false,
+            img: Arc::new(Mutex::new(Box::new(ColorImage::new([WIDTH, HEIGHT], Color32::BLACK)))),
+            use_antialias: false,
+            use_gamma: true,
             width: WIDTH,
             height: HEIGHT,
-            do_path_tracing: false,
+            do_path_tracing: true,
+            path_level: 100,
+            texture_handle: None,
         }
     }
 }
@@ -44,30 +51,42 @@ impl RaymaxApp {
     }
 }
 
-fn start_rendering(progress: Arc<Mutex<f32>>, _img: Arc<Mutex<ColorImage>>, ctx: egui::Context) {
-    let cfg : RenderConfig = Default::default();
+fn start_rendering(progress: Arc<Mutex<f32>>,
+                   texture_handle: TextureHandle,
+                   width: usize,
+                   height: usize,
+                   scene_file: String,
+                   output_file: String,
+                   use_gamma: bool,
+                   use_antialias: bool,
+                   path_level: u32,
+                   img: Arc<Mutex<Box<ColorImage>>>,
+                   ctx: egui::Context) {
+    let cfg = RenderConfig {
+        path_tracing: path_level,
+        use_gamma,
+        use_adaptive_sampling: use_antialias,
+        res_x: width as u32,
+        res_y: height as u32,
+        reflection_max_depth: 4,
+        adaptive_max_depth: 5,
+        use_lines: false,
+        use_hashmap: false,
+    };
+
+   // *texture_handle = ctx.load_texture("rendered_pixels", *img.lock().unwrap().clone(), Default::default())
 
     println!("{:?}", cfg);
     let mut job = RenderJob::new(cfg);
 
-    job.load_scene(PathBuf::from("scene.json")).expect("bar");
+    job.load_scene(PathBuf::from(scene_file)).expect("bar");
     job.render_scene();
-    job.save_image(PathBuf::from("/tmp/foo.png")).expect("foo");
+    job.save_image(PathBuf::from(output_file)).expect("foo");
 
     *progress.lock().unwrap() += 1.0;
     ctx.request_repaint();
 }
 
-fn create_image(ctx: &egui::Context, image: Arc<Mutex<ColorImage>>) -> egui::TextureHandle {
-    let mut img = image.lock().unwrap();
-    let width = img.width();
-    for x in 0..width {
-        for y in 0..img.height() {
-            img.pixels[y * width + x] = Color32::from_rgb(255, 155, 0);
-        }
-    }
-    ctx.load_texture("rendered_pixels", img.clone(), Default::default())
-}
 
 impl eframe::App for RaymaxApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
@@ -85,23 +104,31 @@ impl eframe::App for RaymaxApp {
             ui.heading("Settings");
 
             ui.horizontal(|ui| {
-                ui.label("filename: ");
-                ui.add(egui::TextEdit::singleline(&mut self.filename).hint_text("scene-file.json"));
+                ui.label("scene file: ");
+                ui.add(egui::TextEdit::singleline(&mut self.scene_file).hint_text("scene-file.json"));
             });
             ui.horizontal(|ui| {
-                ui.add(egui::Slider::new(&mut self.width, 0..=4096)
+                ui.label("output file: ");
+                ui.add(egui::TextEdit::singleline(&mut self.output_file).hint_text("pic.png"));
+            });
+            ui.horizontal(|ui| {
+                ui.add(egui::Slider::new(&mut self.width, 0..=2048)
                                           .text("Width")
                                           .suffix(" pix")
                                           .step_by(32.0));
             });
             ui.horizontal(|ui| {
-                ui.add(egui::Slider::new(&mut self.height, 0..=4096)
+                ui.add(egui::Slider::new(&mut self.height, 0..=2048)
                                           .text("Height")
                                           .suffix(" pix")
                                           .step_by(32.0));
             });
+            ui.checkbox(&mut self.do_path_tracing, "use path-tracing");
+            ui.add_enabled(self.do_path_tracing,
+                 egui::Slider::new(&mut self.path_level, 2..=2048)
+                                          .text("Iterations"));
+
             ui.vertical(|ui| {
-                ui.checkbox(&mut self.do_path_tracing, "use path-tracing");
                 ui.checkbox(&mut self.use_gamma, "gamma correction");
                 ui.checkbox(&mut self.use_antialias, "adaptive antialiasing");
             });
@@ -109,18 +136,31 @@ impl eframe::App for RaymaxApp {
             ui.add(egui::ProgressBar::new(*self.progress.lock().unwrap()).text("pct"));
             if ui.button("Start/Restart").clicked() {
                 let ctx_clone = ctx.clone();
-                self.img = Arc::new(Mutex::new(ColorImage::new([self.width, self.height], Color32::BLACK)));
+                self.img = Arc::new(Mutex::new(Box::new(ColorImage::new([self.width, self.height], Color32::BLACK))));
                 let img_clone = self.img.clone();
                 let value_clone = self.progress.clone();
-                thread::spawn(|| start_rendering(value_clone, img_clone, ctx_clone));
+                let scene_file = self.scene_file.clone();
+                let output_file = self.output_file.clone();
+                let use_gamma = self.use_gamma;
+                let use_antialias = self.use_antialias;
+                let path_level = self.path_level;
+                let width = self.width;
+                let height = self.height;
+                
+                let texture_handle = ctx.load_texture("rendered_pixels", *img_clone.lock().unwrap().clone(), Default::default());
+                self.texture_handle = Some(texture_handle.clone());
+                thread::spawn(move|| start_rendering(value_clone, texture_handle,
+                                                     width, height, scene_file, output_file,
+                                                     use_gamma, use_antialias, path_level,
+                                                     img_clone, ctx_clone));
             }
             egui::warn_if_debug_build(ui);
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            let img_clone = self.img.clone();
-            let texture = create_image(ctx, img_clone);
-            ui.add(egui::Image::new(texture.id(), texture.size_vec2()));
+            if let Some(texture) = &self.texture_handle {
+                ui.add(egui::Image::new(texture.id(), texture.size_vec2()));
+            }
         });
     }
 }
