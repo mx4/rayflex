@@ -2,7 +2,7 @@ use colored::Colorize;
 use rand::Rng;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 use structopt::StructOpt;
 
 use raymax::RaymaxApp;
@@ -19,11 +19,11 @@ use raymax::vec3::Float;
 use raymax::vec3::Point;
 use raymax::vec3::Vec3;
 
-mod render;
-use render::RenderConfig;
-use render::RenderJob;
+use raymax::render::RenderConfig;
+use raymax::render::RenderJob;
 
-static CTRLC_HIT: AtomicBool = AtomicBool::new(false);
+use raymax::ctrlc_hit::CTRLC_HIT;
+
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "rtest", about = "minimal raytracer")]

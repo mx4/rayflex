@@ -7,6 +7,9 @@ pub mod material;
 pub mod three_d;
 pub mod vec3;
 pub mod app;
+pub mod ctrlc_hit;
+
+pub mod render;
 pub use app::RaymaxApp;
 
 use vec3::Point;

@@ -3,7 +3,11 @@ use egui::ColorImage;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
-use std::time::Duration;
+use std::path::PathBuf;
+//use std::time::Duration;
+
+use crate::render::RenderConfig;
+use crate::render::RenderJob;
 
 const WIDTH: usize = 400;
 const HEIGHT: usize = 400;
@@ -40,17 +44,18 @@ impl RaymaxApp {
     }
 }
 
-fn bg_timer(progress: Arc<Mutex<f32>>, _img: Arc<Mutex<ColorImage>>, ctx: egui::Context) {
-    let one_msec = Duration::from_millis(1);
-    *progress.lock().unwrap() = 0.0;
-    loop {
-        thread::sleep(one_msec);
-        *progress.lock().unwrap() += 0.0005;
-        ctx.request_repaint();
-        if *progress.lock().unwrap() >= 1.0 {
-            break;
-        }
-    }
+fn start_rendering(progress: Arc<Mutex<f32>>, _img: Arc<Mutex<ColorImage>>, ctx: egui::Context) {
+    let cfg : RenderConfig = Default::default();
+
+    println!("{:?}", cfg);
+    let mut job = RenderJob::new(cfg);
+
+    job.load_scene(PathBuf::from("scene.json")).expect("bar");
+    job.render_scene();
+    job.save_image(PathBuf::from("/tmp/foo.png")).expect("foo");
+
+    *progress.lock().unwrap() += 1.0;
+    ctx.request_repaint();
 }
 
 fn create_image(ctx: &egui::Context, image: Arc<Mutex<ColorImage>>) -> egui::TextureHandle {
@@ -107,7 +112,7 @@ impl eframe::App for RaymaxApp {
                 self.img = Arc::new(Mutex::new(ColorImage::new([self.width, self.height], Color32::BLACK)));
                 let img_clone = self.img.clone();
                 let value_clone = self.progress.clone();
-                thread::spawn(|| bg_timer(value_clone, img_clone, ctx_clone));
+                thread::spawn(|| start_rendering(value_clone, img_clone, ctx_clone));
             }
             egui::warn_if_debug_build(ui);
         });

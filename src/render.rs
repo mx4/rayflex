@@ -9,27 +9,29 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use raymax::camera::Camera;
-use raymax::color::RGB;
-use raymax::image::Image;
-use raymax::light::AmbientLight;
-use raymax::light::Light;
-use raymax::light::SpotLight;
-use raymax::light::VectorLight;
-use raymax::material::Material;
-use raymax::vec3::Float;
-use raymax::vec3::Point;
-use raymax::vec3::Vec3;
-use raymax::vec3::EPSILON;
-use raymax::Ray;
-use raymax::RenderStats;
+use crate::camera::Camera;
+use crate::color::RGB;
+use crate::image::Image;
+use crate::light::AmbientLight;
+use crate::light::Light;
+use crate::light::SpotLight;
+use crate::light::VectorLight;
+use crate::material::Material;
+use crate::vec3::Float;
+use crate::vec3::Point;
+use crate::vec3::Vec3;
+use crate::vec3::EPSILON;
+use crate::Ray;
+use crate::RenderStats;
 
-use raymax::three_d::Mesh;
-use raymax::three_d::Object;
-use raymax::three_d::Plane;
-use raymax::three_d::Sphere;
-use raymax::three_d::Triangle;
+use crate::three_d::Mesh;
+use crate::three_d::Object;
+use crate::three_d::Plane;
+use crate::three_d::Sphere;
+use crate::three_d::Triangle;
+use crate::ctrlc_hit::CTRLC_HIT;
 
+#[derive(Default, Debug)]
 pub struct RenderConfig {
     pub path_tracing: u32,
     pub use_lines: bool,
@@ -41,6 +43,7 @@ pub struct RenderConfig {
     pub res_x: u32,
     pub res_y: u32,
 }
+
 
 pub struct RenderJob {
     camera: Option<Camera>,
@@ -396,7 +399,7 @@ impl RenderJob {
         (0..self.cfg.res_y).into_par_iter().for_each(|y| {
             let mut stats: RenderStats = Default::default();
 
-            if crate::CTRLC_HIT.load(Ordering::SeqCst) {
+            if CTRLC_HIT.load(Ordering::SeqCst) {
                 pb.inc(self.cfg.res_y.into());
                 return;
             }
@@ -419,7 +422,7 @@ impl RenderJob {
             let x = (v % nx) * step;
             let y = (v / nx) * step;
 
-            if crate::CTRLC_HIT.load(Ordering::SeqCst) {
+            if CTRLC_HIT.load(Ordering::SeqCst) {
                 pb.inc((step * step) as u64);
                 return;
             }
