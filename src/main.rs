@@ -1,8 +1,10 @@
 use colored::Colorize;
+use indicatif::ProgressBar;
 use rand::Rng;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use structopt::StructOpt;
 
 use raymax::camera::Camera;
@@ -22,7 +24,6 @@ use raymax::RaymaxApp;
 use raymax::ctrlc_hit::CTRLC_HIT;
 use raymax::render::RenderConfig;
 use raymax::render::RenderJob;
-use raymax::ProgressFunc;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "rtest", about = "minimal raytracer")]
@@ -462,6 +463,12 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
+    if opt.num_spheres_to_generate != 0 {
+        return generate_scene(opt.num_spheres_to_generate, opt.scene_file, opt.add_box > 0);
+    }
+
+    print_opt(&opt);
+
     let cfg = RenderConfig {
         use_adaptive_sampling: opt.use_adaptive_sampling,
         use_gamma: opt.use_gamma,
@@ -472,21 +479,18 @@ fn main() -> std::io::Result<()> {
         use_lines: opt.use_lines,
         use_hashmap: opt.use_hashmap,
         path_tracing: opt.path_tracing,
-        update_func: ProgressFunc {
-            func: Box::new(|_pct| {}),
-        },
     };
-
-    if opt.num_spheres_to_generate != 0 {
-        return generate_scene(opt.num_spheres_to_generate, opt.scene_file, opt.add_box > 0);
-    }
-
-    print_opt(&opt);
 
     let mut job = RenderJob::new(cfg);
 
     job.load_scene(opt.scene_file)?;
+    let pb = Arc::new(ProgressBar::new(1000));
+    let pb_clone = pb.clone();
+    job.set_progress_func(Box::new(move |pct| {
+        pb_clone.set_length((pct * 1000.0) as u64);
+    }));
     job.render_scene(None);
+    pb.finish_and_clear();
     job.save_image(opt.img_file)?;
 
     Ok(())

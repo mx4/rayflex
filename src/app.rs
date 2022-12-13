@@ -8,7 +8,6 @@ use std::thread;
 
 use crate::render::RenderConfig;
 use crate::render::RenderJob;
-use crate::ProgressFunc;
 
 const WIDTH: usize = 400;
 const HEIGHT: usize = 400;
@@ -68,7 +67,7 @@ fn start_rendering(
     let update_func = move |pct: f32| {
         *progress.lock().unwrap() = pct.min(1.0);
         let mut texture_handle = texture.clone();
-        
+
         texture_handle.set(img_clone.lock().unwrap().clone(), Default::default());
         ctx.request_repaint();
     };
@@ -82,14 +81,12 @@ fn start_rendering(
         adaptive_max_depth: 5,
         use_lines: false,
         use_hashmap: false,
-        update_func: ProgressFunc {
-            func: Box::new(update_func),
-        },
     };
 
     let mut job = RenderJob::new(cfg);
 
     job.load_scene(PathBuf::from(scene_file)).expect("bar");
+    job.set_progress_func(Box::new(update_func));
     job.render_scene(Some(img));
     job.save_image(PathBuf::from(output_file)).expect("foo");
 }

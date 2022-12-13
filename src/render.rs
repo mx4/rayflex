@@ -1,6 +1,5 @@
 use colored::Colorize;
 use egui::ColorImage;
-use indicatif::ProgressBar;
 use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -43,7 +42,6 @@ pub struct RenderConfig {
     pub reflection_max_depth: u32,
     pub res_x: u32,
     pub res_y: u32,
-    pub update_func: ProgressFunc,
 }
 
 pub struct RenderJob {
@@ -54,10 +52,13 @@ pub struct RenderJob {
     pub image: Arc<Mutex<Image>>,
     cfg: RenderConfig,
     progress_total: Mutex<usize>,
-    progress_bar: ProgressBar,
+    pub progress_func: ProgressFunc,
 }
 
 impl RenderJob {
+    pub fn set_progress_func(&mut self, func: Box<dyn Fn(f32) + Send + Sync>) {
+        self.progress_func.func = func;
+    }
     fn report_progress(&self, v: u32) {
         let denom = self.cfg.res_x * self.cfg.res_y;
         let mut total = self.progress_total.lock().unwrap();
@@ -65,8 +66,7 @@ impl RenderJob {
         *total += v as usize;
         let after = (*total).div_euclid((denom / 1024) as usize);
         if before != after {
-            (self.cfg.update_func.func)(*total as f32 / denom as f32);
-            self.progress_bar.inc(v.into());
+            (self.progress_func.func)(*total as f32 / denom as f32);
         }
     }
 
@@ -82,7 +82,9 @@ impl RenderJob {
             materials: vec![],
             cfg,
             progress_total: Mutex::new(0),
-            progress_bar: ProgressBar::new(1),
+            progress_func: ProgressFunc {
+                func: Box::new(|_| {}),
+            },
         }
     }
     fn trace_ray(&self, stats: &mut RenderStats, ray: &Ray, depth: u32) -> RGB {
@@ -463,7 +465,6 @@ impl RenderJob {
         let start_time = Instant::now();
         assert!(self.camera.is_some());
         let mut total_stats: Mutex<RenderStats> = Mutex::new(Default::default());
-        self.progress_bar = ProgressBar::new((self.cfg.res_x * self.cfg.res_y) as u64);
 
         if self.cfg.use_lines {
             self.render_image_lines(&mut total_stats);
@@ -471,7 +472,6 @@ impl RenderJob {
             self.render_image_box(&mut total_stats);
         }
 
-        self.progress_bar.finish_and_clear();
         self.print_stats(start_time, *total_stats.lock().unwrap());
     }
 
