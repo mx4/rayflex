@@ -214,7 +214,7 @@ impl eframe::App for RaymaxApp {
                 }
                 ui.add_enabled(
                     self.do_path_tracing,
-                    egui::Slider::new(&mut self.path_level, 2..=2048).text("Iterations"),
+                    egui::Slider::new(&mut self.path_level, 2..=4096).text("Iterations"),
                 );
 
                 ui.vertical(|ui| {

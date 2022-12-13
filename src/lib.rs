@@ -10,7 +10,6 @@ pub mod vec3;
 
 pub mod render;
 pub use app::egui_main;
-pub use app::RaymaxApp;
 
 use vec3::Point;
 use vec3::Vec3;
