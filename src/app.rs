@@ -124,10 +124,10 @@ impl RaymaxApp {
             use_adaptive_sampling: self.use_antialias,
             res_x: self.width as u32,
             res_y: self.height as u32,
-            reflection_max_depth: 4,
-            adaptive_max_depth: 5,
+            reflection_max_depth: 5,
+            adaptive_max_depth: 2,
             use_lines: false,
-            use_hashmap: false,
+            use_hashmap: true,
         };
 
         thread::spawn(move || {

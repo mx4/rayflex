@@ -213,7 +213,8 @@ impl RenderJob {
     ) -> RGB {
         let mut key = 0;
         if self.cfg.use_hashmap {
-            key = ((u + 0.5) * 10_000_000_000_000.0 + 1_000_000.0 * (v + 0.5)) as u64;
+            // need to use f64 otherwise loss of precision bites us
+            key = (1e12 * (u as f64 + 0.5) + 1e6 * (v as f64 + 0.5)) as u64;
             if self.cfg.use_adaptive_sampling {
                 if let Some(c) = pmap.get(&key) {
                     return *c;
