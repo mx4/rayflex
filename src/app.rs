@@ -141,7 +141,7 @@ impl RaymaxApp {
 pub fn egui_main() {
     tracing_subscriber::fmt::init();
 
-    let native_options: eframe::NativeOptions = eframe::NativeOptions {
+    let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(
             (SIDE_PANEL_WIDTH + WIDTH + 50) as f32,
             (HEIGHT + 50) as f32,
@@ -167,10 +167,20 @@ impl eframe::App for RaymaxApp {
             });
         });
 
+
+
         egui::SidePanel::left("side_panel")
             .max_width(SIDE_PANEL_WIDTH as f32)
             .show(ctx, |ui| {
                 ui.heading("Settings");
+
+                // ui.add(egui::ComboBox::from_label("Scenes")
+                //     .selected_text(format!("{}", self.radio[0]))
+                //     .show_ui(ui, |ui| {
+                //     for i in 0..self.radio.len() {
+                //        ui.selectable_value(&mut &self.radio, &self.radio, &self.radio[i]);
+                //     }
+                // }););
 
                 ui.horizontal(|ui| {
                     ui.label("scene file: ");
@@ -179,26 +189,28 @@ impl eframe::App for RaymaxApp {
                             .hint_text("scene-file.json"),
                     );
                 });
+                ui.add(egui::Separator::default());
                 ui.horizontal(|ui| {
                     ui.label("output file: ");
                     ui.add(egui::TextEdit::singleline(&mut self.output_file).hint_text("pic.png"));
                 });
                 ui.horizontal(|ui| {
                     ui.add(
-                        egui::Slider::new(&mut self.width, 0..=2048)
-                            .text("Width")
+                        egui::Slider::new(&mut self.width, 32..=2048)
+                            .text("width")
                             .suffix(" pix")
-                            .step_by(32.0),
+                            .step_by(64.0),
                     );
                 });
                 ui.horizontal(|ui| {
                     ui.add(
-                        egui::Slider::new(&mut self.height, 0..=2048)
+                        egui::Slider::new(&mut self.height, 32..=2048)
                             .text("Height")
-                            .suffix(" pix")
-                            .step_by(32.0),
+                            .suffix(" px")
+                            .step_by(64.0),
                     );
                 });
+                ui.add(egui::Separator::default());
                 ui.checkbox(&mut self.do_path_tracing, "use path-tracing");
                 if !self.do_path_tracing {
                     self.path_level = 1;
@@ -212,6 +224,7 @@ impl eframe::App for RaymaxApp {
                     ui.checkbox(&mut self.use_gamma, "gamma correction");
                     ui.checkbox(&mut self.use_antialias, "adaptive antialiasing");
                 });
+                ui.add(egui::Separator::default());
 
                 let mut txt;
                 let v = *self.progress.lock().unwrap();
@@ -223,6 +236,7 @@ impl eframe::App for RaymaxApp {
                     txt = "".to_owned();
                 }
                 ui.add(egui::ProgressBar::new(v).text(txt));
+                ui.add(egui::Separator::default());
                 if self.rendering_active.load(Ordering::SeqCst) {
                     txt = "Stop".to_owned();
                 } else {
