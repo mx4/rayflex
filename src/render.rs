@@ -466,7 +466,7 @@ impl RenderJob {
             self.cfg.res_y,
         )));
         if let Some(cimg) = img {
-            self.image.lock().unwrap().set_img(cimg);
+            self.image.lock().unwrap().provide_img_buf(cimg);
         }
         let start_time = Instant::now();
         assert!(self.camera.is_some());
