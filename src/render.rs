@@ -66,7 +66,8 @@ impl RenderJob {
         *total += v as usize;
         let after = (*total).div_euclid((denom / 1024) as usize);
         if before != after {
-            (self.progress_func.func)(*total as f32 / denom as f32);
+            let pct = *total as f32 / denom as f32;
+            (self.progress_func.func)(pct);
         }
     }
 
