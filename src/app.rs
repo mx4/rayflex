@@ -28,6 +28,7 @@ pub struct RaymaxApp {
     texture_handle: Option<TextureHandle>,
     rendering_active: Arc<AtomicBool>,
     rendering_needs_stop: Arc<AtomicBool>,
+    scene_choice: usize,
 }
 
 impl Default for RaymaxApp {
@@ -45,6 +46,7 @@ impl Default for RaymaxApp {
             texture_handle: None,
             rendering_active: Arc::new(AtomicBool::new(false)),
             rendering_needs_stop: Arc::new(AtomicBool::new(false)),
+            scene_choice: 0,
         }
     }
 }
@@ -156,31 +158,40 @@ pub fn egui_main() {
 }
 
 impl eframe::App for RaymaxApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Quit").clicked() {
-                        frame.close();
-                    }
-                });
-            });
-        });
-
-
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let vec_str = [
+            "cornell-box".to_owned(),
+            "trolley".to_owned(),
+            "cow".to_owned(),
+            "teapot".to_owned(),
+            "buddha".to_owned(),
+            "sphere-box".to_owned(),
+            "sphere-nobox".to_owned(),
+        ];
 
         egui::SidePanel::left("side_panel")
             .max_width(SIDE_PANEL_WIDTH as f32)
             .show(ctx, |ui| {
                 ui.heading("Settings");
 
-                // ui.add(egui::ComboBox::from_label("Scenes")
-                //     .selected_text(format!("{}", self.radio[0]))
-                //     .show_ui(ui, |ui| {
-                //     for i in 0..self.radio.len() {
-                //        ui.selectable_value(&mut &self.radio, &self.radio, &self.radio[i]);
-                //     }
-                // }););
+                egui::ComboBox::from_label("Pick scene")
+                    .selected_text(vec_str[self.scene_choice].clone())
+                    .show_ui(ui, |ui| {
+                        for (i, s) in vec_str.iter().enumerate() {
+                            let value = ui.selectable_value(&mut self.scene_choice, i, s);
+                            if value.clicked() {
+                                self.scene_choice = i;
+                                self.scene_file = format!("scenes/{}.json", vec_str[i]);
+                                if i == 0 {
+                                    self.do_path_tracing = true;
+                                    self.use_gamma = true;
+                                } else {
+                                    self.do_path_tracing = false;
+                                    self.use_gamma = false;
+                                }
+                            }
+                        }
+                    });
 
                 ui.horizontal(|ui| {
                     ui.label("scene file: ");
@@ -214,6 +225,7 @@ impl eframe::App for RaymaxApp {
                 ui.checkbox(&mut self.do_path_tracing, "use path-tracing");
                 if !self.do_path_tracing {
                     self.path_level = 1;
+                    self.use_antialias = false;
                 }
                 ui.add_enabled(
                     self.do_path_tracing,
@@ -222,7 +234,9 @@ impl eframe::App for RaymaxApp {
 
                 ui.vertical(|ui| {
                     ui.checkbox(&mut self.use_gamma, "gamma correction");
-                    ui.checkbox(&mut self.use_antialias, "adaptive antialiasing");
+                    ui.add_enabled(
+                        !self.do_path_tracing,
+                        egui::Checkbox::new(&mut self.use_antialias, "adaptive antialiasing"));
                 });
                 ui.add(egui::Separator::default());
 
