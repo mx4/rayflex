@@ -3,7 +3,7 @@ use colored::Colorize;
 use egui::Color32;
 use egui::ColorImage;
 use image::{Rgb, RgbImage};
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Instant;
@@ -53,7 +53,7 @@ impl Image {
         self.img_buffer.lock().unwrap().pixels[(y * self.res_x + x) as usize] =
             Color32::from_rgb(r, g, b);
     }
-    pub fn save_image(&mut self, file: PathBuf) -> std::io::Result<()> {
+    pub fn save_image(&mut self, file: &Path) -> std::io::Result<()> {
         let start_time = Instant::now();
 
         let mut img = RgbImage::new(self.res_x, self.res_y);
@@ -65,7 +65,7 @@ impl Image {
             }
         }
 
-        img.save(file.clone()).expect("png write");
+        img.save(file).expect("png write");
         let elapsed = start_time.elapsed();
         let lat_msec = elapsed.as_millis() as f64 / 1000.0;
         println!(

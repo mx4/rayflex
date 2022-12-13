@@ -469,11 +469,13 @@ fn main() -> std::io::Result<()> {
         use_lines: opt.use_lines,
         use_hashmap: opt.use_hashmap,
         path_tracing: opt.path_tracing,
+        scene_file: opt.scene_file,
+        image_file: opt.img_file,
     };
 
     let mut job = RenderJob::new(cfg);
 
-    job.load_scene(opt.scene_file)?;
+    job.load_scene()?;
     let pb = Arc::new(ProgressBar::new(1000));
     let pb_clone = pb.clone();
     job.set_progress_func(Box::new(move |pct| {
@@ -482,7 +484,7 @@ fn main() -> std::io::Result<()> {
     job.alloc_image();
     job.render_scene(exit_req);
     pb.finish_and_clear();
-    job.save_image(opt.img_file)?;
+    job.save_image()?;
 
     Ok(())
 }

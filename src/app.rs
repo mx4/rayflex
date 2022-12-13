@@ -51,21 +51,18 @@ impl Default for RaymaxApp {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+
 fn start_rendering(
     rendering_active: Arc<AtomicBool>,
     rendering_needs_stop: Arc<AtomicBool>,
     cfg: RenderConfig,
     progress: Arc<Mutex<f32>>,
     texture: TextureHandle,
-    scene_file: String,
-    output_file: String,
     ctx: egui::Context,
 ) {
     let mut job = RenderJob::new(cfg);
 
-    job.load_scene(PathBuf::from(scene_file))
-        .expect("scene file");
+    job.load_scene().expect("scene file");
 
     job.alloc_image();
     let img = job.image.lock().unwrap().get_img();
@@ -79,8 +76,7 @@ fn start_rendering(
     };
     job.set_progress_func(Box::new(update_func));
     job.render_scene(rendering_needs_stop.clone());
-    job.save_image(PathBuf::from(output_file))
-        .expect("output file");
+    job.save_image().expect("output file");
 
     rendering_active.store(false, Ordering::SeqCst);
     rendering_needs_stop.store(false, Ordering::SeqCst);
@@ -99,8 +95,6 @@ impl RaymaxApp {
         self.rendering_active.store(true, Ordering::SeqCst);
         let ctx_clone = ctx.clone();
         let value_clone = self.progress.clone();
-        let scene_file = self.scene_file.clone();
-        let output_file = self.output_file.clone();
         let rendering_active_clone = self.rendering_active.clone();
         let rendering_needs_stop_clone = self.rendering_needs_stop.clone();
 
@@ -123,6 +117,8 @@ impl RaymaxApp {
             adaptive_max_depth: 2,
             use_lines: false,
             use_hashmap: true,
+            scene_file: PathBuf::from(self.scene_file.clone()),
+            image_file: PathBuf::from(self.output_file.clone()),
         };
 
         thread::spawn(move || {
@@ -132,8 +128,6 @@ impl RaymaxApp {
                 cfg,
                 value_clone,
                 texture_handle,
-                scene_file,
-                output_file,
                 ctx_clone,
             )
         });
@@ -182,13 +176,8 @@ impl eframe::App for RaymaxApp {
                             if value.clicked() {
                                 self.scene_choice = i;
                                 self.scene_file = format!("scenes/{}.json", vec_str[i]);
-                                if i == 0 {
-                                    self.do_path_tracing = true;
-                                    self.use_gamma = true;
-                                } else {
-                                    self.do_path_tracing = false;
-                                    self.use_gamma = false;
-                                }
+                                self.do_path_tracing = i == 0;
+                                self.use_gamma = i == 0;
                             }
                         }
                     });
@@ -209,14 +198,14 @@ impl eframe::App for RaymaxApp {
                     ui.add(
                         egui::Slider::new(&mut self.width, 32..=2048)
                             .text("width")
-                            .suffix(" pix")
+                            .suffix(" px")
                             .step_by(64.0),
                     );
                 });
                 ui.horizontal(|ui| {
                     ui.add(
                         egui::Slider::new(&mut self.height, 32..=2048)
-                            .text("Height")
+                            .text("height")
                             .suffix(" px")
                             .step_by(64.0),
                     );
@@ -236,7 +225,8 @@ impl eframe::App for RaymaxApp {
                     ui.checkbox(&mut self.use_gamma, "gamma correction");
                     ui.add_enabled(
                         !self.do_path_tracing,
-                        egui::Checkbox::new(&mut self.use_antialias, "adaptive antialiasing"));
+                        egui::Checkbox::new(&mut self.use_antialias, "adaptive antialiasing"),
+                    );
                 });
                 ui.add(egui::Separator::default());
 

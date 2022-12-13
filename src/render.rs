@@ -41,6 +41,8 @@ pub struct RenderConfig {
     pub reflection_max_depth: u32,
     pub res_x: u32,
     pub res_y: u32,
+    pub scene_file: PathBuf,
+    pub image_file: PathBuf,
 }
 
 pub struct RenderJob {
@@ -61,12 +63,13 @@ impl RenderJob {
     fn report_progress(&self, v: u32) {
         let denom = self.cfg.res_x * self.cfg.res_y;
         let mut total = self.progress_total.lock().unwrap();
-        let before = (*total).div_euclid((denom / 1024) as usize);
+        let before = (*total).div_euclid((denom / 128) as usize);
         *total += v as usize;
-        let after = (*total).div_euclid((denom / 1024) as usize);
-        if before != after || 100 * (denom as i32 - *total as i32).unsigned_abs() / denom < 1 {
+        let after = (*total).div_euclid((denom / 128) as usize);
+        let d = before != after || 100 * (denom as i32 - *total as i32).unsigned_abs() / denom < 1;
+        if d {
             let pct = *total as f32 / denom as f32;
-            (self.progress_func.func)(pct);
+            (self.progress_func.func)(pct.min(1.0));
         }
     }
 
@@ -481,18 +484,18 @@ impl RenderJob {
         self.print_stats(start_time, *total_stats.lock().unwrap());
     }
 
-    pub fn load_scene(&mut self, scene_file: PathBuf) -> std::io::Result<()> {
-        if !scene_file.is_file() {
-            println!("file '{}' not found.", scene_file.display());
+    pub fn load_scene(&mut self) -> std::io::Result<()> {
+        if !self.cfg.scene_file.is_file() {
+            println!("file '{}' not found.", self.cfg.scene_file.display());
             println!("pwd={}", std::env::current_dir()?.display());
-            panic!("scene file {} not present.", scene_file.display());
+            panic!("scene file {} not present.", self.cfg.scene_file.display());
         }
         println!(
             "loading scene file {}",
-            scene_file.display().to_string().bold()
+            self.cfg.scene_file.display().to_string().bold()
         );
 
-        let data = fs::read_to_string(&scene_file)?;
+        let data = fs::read_to_string(&self.cfg.scene_file)?;
         let json: serde_json::Value = serde_json::from_str(&data)?;
         let mut num_planes = 0;
         let mut num_spheres = 0;
@@ -706,11 +709,7 @@ impl RenderJob {
         Ok(())
     }
 
-    pub fn save_image(&mut self, img_file: PathBuf) -> std::io::Result<()> {
-        return self
-            .image
-            .lock()
-            .unwrap()
-            .save_image(PathBuf::from(&img_file));
+    pub fn save_image(&mut self) -> std::io::Result<()> {
+        return self.image.lock().unwrap().save_image(&self.cfg.image_file);
     }
 }
