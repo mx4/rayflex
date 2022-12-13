@@ -19,7 +19,6 @@ use raymax::three_d::Triangle;
 use raymax::vec3::Float;
 use raymax::vec3::Point;
 use raymax::vec3::Vec3;
-use raymax::RaymaxApp;
 
 use raymax::ctrlc_hit::CTRLC_HIT;
 use raymax::render::RenderConfig;
@@ -439,17 +438,6 @@ fn print_opt(opt: &Options) {
     println!("{s}");
 }
 
-fn ui_main() {
-    tracing_subscriber::fmt::init();
-
-    let native_options = eframe::NativeOptions::default();
-    eframe::run_native(
-        "raymax",
-        native_options,
-        Box::new(|cc| Box::new(RaymaxApp::new(cc))),
-    );
-}
-
 fn main() -> std::io::Result<()> {
     let opt = Options::from_args();
 
@@ -459,7 +447,7 @@ fn main() -> std::io::Result<()> {
     .expect("ctrl-c");
 
     if opt.use_ui {
-        ui_main();
+        raymax::egui_main();
         return Ok(());
     }
 

@@ -3,7 +3,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 pub type Float = f32;
-pub const EPSILON: Float = 1e-3;
+pub const EPSILON: Float = 1e-7;
 
 fn u128_fold(v: u128) -> u64 {
     ((v >> 64) ^ v) as u64
