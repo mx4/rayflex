@@ -2,7 +2,6 @@ pub mod aabb;
 pub mod app;
 pub mod camera;
 pub mod color;
-pub mod ctrlc_hit;
 pub mod image;
 pub mod light;
 pub mod material;

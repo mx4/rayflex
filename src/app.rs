@@ -3,6 +3,8 @@ use egui::ColorImage;
 use egui::TextureHandle;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 use std::thread;
 
@@ -25,7 +27,8 @@ pub struct RaymaxApp {
     progress: Arc<Mutex<f32>>,
     img: Arc<Mutex<ColorImage>>,
     texture_handle: Option<TextureHandle>,
-    rendering_active: Arc<Mutex<bool>>,
+    rendering_active: Arc<AtomicBool>,
+    rendering_needs_stop: Arc<AtomicBool>
 }
 
 impl Default for RaymaxApp {
@@ -42,13 +45,15 @@ impl Default for RaymaxApp {
             do_path_tracing: true,
             path_level: 200,
             texture_handle: None,
-            rendering_active: Arc::new(Mutex::new(false)),
+            rendering_active: Arc::new(AtomicBool::new(false)),
+            rendering_needs_stop: Arc::new(AtomicBool::new(false)),
         }
     }
 }
 
 fn start_rendering(
-    rendering_active: Arc<Mutex<bool>>,
+    rendering_active: Arc<AtomicBool>,
+    rendering_needs_stop: Arc<AtomicBool>,
     cfg: RenderConfig,
     progress: Arc<Mutex<f32>>,
     img: Arc<Mutex<ColorImage>>,
@@ -71,10 +76,12 @@ fn start_rendering(
     job.load_scene(PathBuf::from(scene_file))
         .expect("scene file");
     job.set_progress_func(Box::new(update_func));
-    job.render_scene(Some(img));
+    job.render_scene(Some(img), rendering_needs_stop.clone());
     job.save_image(PathBuf::from(output_file))
         .expect("output file");
-    *rendering_active.lock().unwrap() = false;
+
+    rendering_active.store(false, Ordering::SeqCst);
+    rendering_needs_stop.store(false, Ordering::SeqCst);
 }
 
 
@@ -84,11 +91,11 @@ impl RaymaxApp {
     }
 
     fn stop_async(&mut self) {
-    
+        self.rendering_needs_stop.store(true, Ordering::SeqCst);
     }
 
     fn start_async(&mut self, ctx: &egui::Context) {
-        *self.rendering_active.lock().unwrap() = true;
+        self.rendering_active.store(true, Ordering::SeqCst);
         let ctx_clone = ctx.clone();
         self.img = Arc::new(Mutex::new(ColorImage::new(
             [self.width, self.height],
@@ -100,6 +107,7 @@ impl RaymaxApp {
         let scene_file = self.scene_file.clone();
         let output_file = self.output_file.clone();
         let rendering_active_clone = self.rendering_active.clone();
+        let rendering_needs_stop_clone = self.rendering_needs_stop.clone();
 
         let texture_handle;
         {
@@ -125,6 +133,7 @@ impl RaymaxApp {
         thread::spawn(move || {
             start_rendering(
                 rendering_active_clone,
+                rendering_needs_stop_clone,
                 cfg,
                 value_clone,
                 img_clone,
@@ -223,13 +232,13 @@ impl eframe::App for RaymaxApp {
                     txt = "".to_owned();
                 }
                 ui.add(egui::ProgressBar::new(v).text(txt));
-                if *self.rendering_active.lock().unwrap() {
+                if self.rendering_active.load(Ordering::SeqCst) {
                     txt = "Stop".to_owned();
                 } else {
                     txt = "Start".to_owned();
                 }
                 if ui.add_sized([SIDE_PANEL_WIDTH as f32, 30.],egui::Button::new(txt)).clicked() {
-                    if *self.rendering_active.lock().unwrap() {
+                    if self.rendering_active.load(Ordering::SeqCst) {
                         self.stop_async();
                     } else {
                         self.start_async(ctx);
@@ -239,7 +248,6 @@ impl eframe::App for RaymaxApp {
             });
 
         egui::CentralPanel::default()
-            //   .max_width(620.0)
             .show(ctx, |ui| {
                 if let Some(texture) = &self.texture_handle {
                     ui.add(egui::Image::new(texture.id(), texture.size_vec2()));

@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -24,7 +25,6 @@ use crate::vec3::EPSILON;
 use crate::Ray;
 use crate::RenderStats;
 
-use crate::ctrlc_hit::CTRLC_HIT;
 use crate::three_d::Mesh;
 use crate::three_d::Object;
 use crate::three_d::Plane;
@@ -418,11 +418,12 @@ impl RenderJob {
         }
     }
 
-    fn render_image_lines(&mut self, total_stats: &mut Mutex<RenderStats>) {
+    fn render_image_lines(&mut self, total_stats: &mut Mutex<RenderStats>,
+                           exit_req: Arc<AtomicBool>) {
         (0..self.cfg.res_y).into_par_iter().for_each(|y| {
             let mut stats: RenderStats = Default::default();
 
-            if CTRLC_HIT.load(Ordering::SeqCst) {
+            if exit_req.load(Ordering::SeqCst) {
                 self.report_progress(self.cfg.res_x);
                 return;
             }
@@ -432,7 +433,8 @@ impl RenderJob {
         });
     }
 
-    fn render_image_box(&mut self, total_stats: &mut Mutex<RenderStats>) {
+    fn render_image_box(&mut self, total_stats: &mut Mutex<RenderStats>,
+                        exit_req: Arc<AtomicBool>) {
         let mut step = 32;
         if self.cfg.path_tracing > 1 {
             step = 10;
@@ -444,7 +446,7 @@ impl RenderJob {
             let x = (v % nx) * step;
             let y = (v / nx) * step;
 
-            if CTRLC_HIT.load(Ordering::SeqCst) {
+            if exit_req.load(Ordering::SeqCst) {
                 self.report_progress(step * step);
                 return;
             }
@@ -454,7 +456,9 @@ impl RenderJob {
         });
     }
 
-    pub fn render_scene(&mut self, img: Option<Arc<Mutex<ColorImage>>>) {
+    pub fn render_scene(&mut self,
+                        img: Option<Arc<Mutex<ColorImage>>>,
+                        exit_req: Arc<AtomicBool>) {
         self.image = Arc::new(Mutex::new(Image::new(
             self.cfg.use_gamma,
             self.cfg.res_x,
@@ -468,9 +472,9 @@ impl RenderJob {
         let mut total_stats: Mutex<RenderStats> = Mutex::new(Default::default());
 
         if self.cfg.use_lines {
-            self.render_image_lines(&mut total_stats);
+            self.render_image_lines(&mut total_stats, exit_req);
         } else {
-            self.render_image_box(&mut total_stats);
+            self.render_image_box(&mut total_stats, exit_req);
         }
 
         self.print_stats(start_time, *total_stats.lock().unwrap());

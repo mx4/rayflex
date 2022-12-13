@@ -4,6 +4,7 @@ use rand::Rng;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use structopt::StructOpt;
 
@@ -20,7 +21,6 @@ use raymax::vec3::Float;
 use raymax::vec3::Point;
 use raymax::vec3::Vec3;
 
-use raymax::ctrlc_hit::CTRLC_HIT;
 use raymax::render::RenderConfig;
 use raymax::render::RenderJob;
 
@@ -440,9 +440,11 @@ fn print_opt(opt: &Options) {
 
 fn main() -> std::io::Result<()> {
     let opt = Options::from_args();
+    let exit_req = Arc::new(AtomicBool::new(false));
+    let exit_req_clone = exit_req.clone();
 
-    ctrlc::set_handler(|| {
-        CTRLC_HIT.store(true, Ordering::SeqCst);
+    ctrlc::set_handler(move|| {
+        exit_req_clone.store(true, Ordering::SeqCst);
     })
     .expect("ctrl-c");
 
@@ -477,7 +479,7 @@ fn main() -> std::io::Result<()> {
     job.set_progress_func(Box::new(move |pct| {
         pb_clone.set_position((pct * 1000.0) as u64);
     }));
-    job.render_scene(None);
+    job.render_scene(None, exit_req);
     pb.finish_and_clear();
     job.save_image(opt.img_file)?;
 
