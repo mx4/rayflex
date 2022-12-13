@@ -2,9 +2,9 @@ use egui::Color32;
 use egui::ColorImage;
 use egui::TextureHandle;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 
@@ -25,10 +25,9 @@ pub struct RaymaxApp {
     do_path_tracing: bool,
     path_level: u32,
     progress: Arc<Mutex<f32>>,
-    img: Arc<Mutex<ColorImage>>,
     texture_handle: Option<TextureHandle>,
     rendering_active: Arc<AtomicBool>,
-    rendering_needs_stop: Arc<AtomicBool>
+    rendering_needs_stop: Arc<AtomicBool>,
 }
 
 impl Default for RaymaxApp {
@@ -37,7 +36,6 @@ impl Default for RaymaxApp {
             scene_file: "scenes/cornell-box.json".to_owned(),
             output_file: "pic.png".to_owned(),
             progress: Arc::new(Mutex::new(0.0)),
-            img: Arc::new(Mutex::new(ColorImage::new([WIDTH, HEIGHT], Color32::BLACK))),
             use_antialias: false,
             use_gamma: true,
             width: WIDTH,
@@ -51,39 +49,40 @@ impl Default for RaymaxApp {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn start_rendering(
     rendering_active: Arc<AtomicBool>,
     rendering_needs_stop: Arc<AtomicBool>,
     cfg: RenderConfig,
     progress: Arc<Mutex<f32>>,
-    img: Arc<Mutex<ColorImage>>,
     texture: TextureHandle,
     scene_file: String,
     output_file: String,
     ctx: egui::Context,
 ) {
-    let img_clone = img.clone();
-    let update_func = move |pct: f32| {
-        *progress.lock().unwrap() = pct.min(1.0);
-        let mut texture_handle = texture.clone();
-
-        texture_handle.set(img_clone.lock().unwrap().clone(), Default::default());
-        ctx.request_repaint();
-    };
-
     let mut job = RenderJob::new(cfg);
 
     job.load_scene(PathBuf::from(scene_file))
         .expect("scene file");
+
+    job.alloc_image();
+    let img = job.image.lock().unwrap().get_img();
+
+    let update_func = move |pct: f32| {
+        *progress.lock().unwrap() = pct.min(1.0);
+        let mut texture_handle = texture.clone();
+
+        texture_handle.set(img.lock().unwrap().clone(), Default::default());
+        ctx.request_repaint();
+    };
     job.set_progress_func(Box::new(update_func));
-    job.render_scene(Some(img), rendering_needs_stop.clone());
+    job.render_scene(rendering_needs_stop.clone());
     job.save_image(PathBuf::from(output_file))
         .expect("output file");
 
     rendering_active.store(false, Ordering::SeqCst);
     rendering_needs_stop.store(false, Ordering::SeqCst);
 }
-
 
 impl RaymaxApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
@@ -97,12 +96,6 @@ impl RaymaxApp {
     fn start_async(&mut self, ctx: &egui::Context) {
         self.rendering_active.store(true, Ordering::SeqCst);
         let ctx_clone = ctx.clone();
-        self.img = Arc::new(Mutex::new(ColorImage::new(
-            [self.width, self.height],
-            Color32::BLACK,
-        )));
-
-        let img_clone = self.img.clone();
         let value_clone = self.progress.clone();
         let scene_file = self.scene_file.clone();
         let output_file = self.output_file.clone();
@@ -113,7 +106,7 @@ impl RaymaxApp {
         {
             texture_handle = ctx.load_texture(
                 "rendered_pixels",
-                self.img.lock().unwrap().clone(),
+                ColorImage::new([self.width, self.height], Color32::BLACK),
                 Default::default(),
             );
             self.texture_handle = Some(texture_handle.clone());
@@ -136,7 +129,6 @@ impl RaymaxApp {
                 rendering_needs_stop_clone,
                 cfg,
                 value_clone,
-                img_clone,
                 texture_handle,
                 scene_file,
                 output_file,
@@ -162,7 +154,6 @@ pub fn egui_main() {
         Box::new(|cc| Box::new(RaymaxApp::new(cc))),
     );
 }
-
 
 impl eframe::App for RaymaxApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
@@ -237,7 +228,10 @@ impl eframe::App for RaymaxApp {
                 } else {
                     txt = "Start".to_owned();
                 }
-                if ui.add_sized([SIDE_PANEL_WIDTH as f32, 30.],egui::Button::new(txt)).clicked() {
+                if ui
+                    .add_sized([SIDE_PANEL_WIDTH as f32, 30.], egui::Button::new(txt))
+                    .clicked()
+                {
                     if self.rendering_active.load(Ordering::SeqCst) {
                         self.stop_async();
                     } else {
@@ -247,11 +241,10 @@ impl eframe::App for RaymaxApp {
                 egui::warn_if_debug_build(ui);
             });
 
-        egui::CentralPanel::default()
-            .show(ctx, |ui| {
-                if let Some(texture) = &self.texture_handle {
-                    ui.add(egui::Image::new(texture.id(), texture.size_vec2()));
-                }
-            });
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if let Some(texture) = &self.texture_handle {
+                ui.add(egui::Image::new(texture.id(), texture.size_vec2()));
+            }
+        });
     }
 }

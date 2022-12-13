@@ -22,8 +22,8 @@ fn gamma_encode(linear: f32) -> f32 {
 }
 
 impl Image {
-    pub fn provide_img_buf(&mut self, img: Arc<Mutex<ColorImage>>) {
-        self.img_buffer = img;
+    pub fn get_img(&mut self) -> Arc<Mutex<ColorImage>> {
+        self.img_buffer.clone()
     }
     pub fn new(use_gamma: bool, res_x: u32, res_y: u32) -> Self {
         Self {

@@ -1,12 +1,11 @@
 use colored::Colorize;
-use egui::ColorImage;
 use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -52,7 +51,7 @@ pub struct RenderJob {
     pub image: Arc<Mutex<Image>>,
     cfg: RenderConfig,
     progress_total: Mutex<usize>,
-    pub progress_func: ProgressFunc,
+    progress_func: ProgressFunc,
 }
 
 impl RenderJob {
@@ -71,9 +70,6 @@ impl RenderJob {
         }
     }
 
-    pub fn get_image(&self) -> Arc<Mutex<Image>> {
-        self.image.clone()
-    }
     pub fn new(cfg: RenderConfig) -> Self {
         Self {
             camera: None,
@@ -419,8 +415,11 @@ impl RenderJob {
         }
     }
 
-    fn render_image_lines(&mut self, total_stats: &mut Mutex<RenderStats>,
-                           exit_req: Arc<AtomicBool>) {
+    fn render_image_lines(
+        &mut self,
+        total_stats: &mut Mutex<RenderStats>,
+        exit_req: Arc<AtomicBool>,
+    ) {
         (0..self.cfg.res_y).into_par_iter().for_each(|y| {
             let mut stats: RenderStats = Default::default();
 
@@ -434,8 +433,11 @@ impl RenderJob {
         });
     }
 
-    fn render_image_box(&mut self, total_stats: &mut Mutex<RenderStats>,
-                        exit_req: Arc<AtomicBool>) {
+    fn render_image_box(
+        &mut self,
+        total_stats: &mut Mutex<RenderStats>,
+        exit_req: Arc<AtomicBool>,
+    ) {
         let mut step = 32;
         if self.cfg.path_tracing > 1 {
             step = 10;
@@ -457,17 +459,15 @@ impl RenderJob {
         });
     }
 
-    pub fn render_scene(&mut self,
-                        img: Option<Arc<Mutex<ColorImage>>>,
-                        exit_req: Arc<AtomicBool>) {
+    pub fn alloc_image(&mut self) {
         self.image = Arc::new(Mutex::new(Image::new(
             self.cfg.use_gamma,
             self.cfg.res_x,
             self.cfg.res_y,
         )));
-        if let Some(cimg) = img {
-            self.image.lock().unwrap().provide_img_buf(cimg);
-        }
+    }
+
+    pub fn render_scene(&mut self, exit_req: Arc<AtomicBool>) {
         let start_time = Instant::now();
         assert!(self.camera.is_some());
         let mut total_stats: Mutex<RenderStats> = Mutex::new(Default::default());
