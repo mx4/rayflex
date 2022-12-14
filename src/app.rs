@@ -63,7 +63,6 @@ fn start_rendering(
     let mut job = RenderJob::new(cfg);
 
     job.load_scene().expect("scene file");
-
     job.alloc_image();
     let img = job.image.lock().unwrap().get_img();
 
@@ -74,8 +73,11 @@ fn start_rendering(
         texture_handle.set(img.lock().unwrap().clone(), Default::default());
         ctx.request_repaint();
     };
-    job.set_progress_func(Box::new(update_func));
+    job.set_progress_func(Box::new(update_func.clone()));
     job.render_scene(rendering_needs_stop.clone());
+    job.print_stats();
+    // call it one last time to refresh texture
+    update_func(1.0);
     job.save_image().expect("output file");
 
     rendering_active.store(false, Ordering::SeqCst);
@@ -161,6 +163,7 @@ impl eframe::App for RaymaxApp {
             "buddha".to_owned(),
             "sphere-box".to_owned(),
             "sphere-nobox".to_owned(),
+            "test".to_owned(),
         ];
 
         egui::SidePanel::left("side_panel")

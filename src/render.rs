@@ -54,6 +54,8 @@ pub struct RenderJob {
     cfg: RenderConfig,
     progress_total: Mutex<usize>,
     progress_func: ProgressFunc,
+    start_ts: Instant,
+    total_stats: Mutex<RenderStats>,
 }
 
 impl RenderJob {
@@ -85,6 +87,8 @@ impl RenderJob {
             progress_func: ProgressFunc {
                 func: Box::new(|_| {}),
             },
+            start_ts: Instant::now(),
+            total_stats: Mutex::new(Default::default()),
         }
     }
     fn trace_ray(&self, stats: &mut RenderStats, ray: &Ray, depth: u32) -> RGB {
@@ -305,7 +309,8 @@ impl RenderJob {
         (c00 + c01 + c10 + c11) * 0.25
     }
 
-    fn print_stats(&self, start_time: Instant, stats: RenderStats) {
+    pub fn print_stats(&self) {
+        let stats = self.total_stats.lock().unwrap();
         let pretty_print = |n| {
             let mut precision = 3;
             let suffix;
@@ -326,7 +331,7 @@ impl RenderJob {
             }
             format!("{:6.precision$} {suffix}", val)
         };
-        let elapsed = start_time.elapsed();
+        let elapsed = self.start_ts.elapsed();
         let num_rays = (stats.num_rays_sampling + stats.num_rays_reflection) as Float;
         let tot_lat_str = format!("{:.2} sec", elapsed.as_millis() as Float / 1000.0);
         let ray_lat_str = format!(
@@ -420,7 +425,6 @@ impl RenderJob {
 
     fn render_image_lines(
         &mut self,
-        total_stats: &mut Mutex<RenderStats>,
         exit_req: Arc<AtomicBool>,
     ) {
         (0..self.cfg.res_y).into_par_iter().for_each(|y| {
@@ -432,13 +436,12 @@ impl RenderJob {
             }
             self.render_pixel_box(0, y, self.cfg.res_x, 1, &mut stats);
             self.report_progress(self.cfg.res_x);
-            total_stats.lock().unwrap().add(stats);
+            self.total_stats.lock().unwrap().add(stats);
         });
     }
 
     fn render_image_box(
         &mut self,
-        total_stats: &mut Mutex<RenderStats>,
         exit_req: Arc<AtomicBool>,
     ) {
         let mut step = 32;
@@ -458,7 +461,7 @@ impl RenderJob {
             }
             self.render_pixel_box(x, y, step, step, &mut stats);
             self.report_progress(step * step);
-            total_stats.lock().unwrap().add(stats);
+            self.total_stats.lock().unwrap().add(stats);
         });
     }
 
@@ -471,18 +474,15 @@ impl RenderJob {
     }
 
     pub fn render_scene(&mut self, exit_req: Arc<AtomicBool>) {
-        let start_time = Instant::now();
         assert!(self.camera.is_some());
-        let mut total_stats: Mutex<RenderStats> = Mutex::new(Default::default());
 
         if self.cfg.use_lines {
-            self.render_image_lines(&mut total_stats, exit_req);
+            self.render_image_lines(exit_req);
         } else {
-            self.render_image_box(&mut total_stats, exit_req);
+            self.render_image_box(exit_req);
         }
-
-        self.print_stats(start_time, *total_stats.lock().unwrap());
     }
+
 
     pub fn load_scene(&mut self) -> std::io::Result<()> {
         if !self.cfg.scene_file.is_file() {
@@ -500,7 +500,7 @@ impl RenderJob {
         let mut num_planes = 0;
         let mut num_spheres = 0;
         let mut num_triangles = 0;
-        let mut num_obj_triangles = 0;
+        let mut num_triangles_in_all_objs = 0;
         let mut num_materials = 0;
         let mut num_vec_lights = 0;
         let mut num_spot_lights = 0;
@@ -607,6 +607,7 @@ impl RenderJob {
             let mut angle_x_rad = 0.0;
             let mut angle_y_rad = 0.0;
             let mut angle_z_rad = 0.0;
+            let mut num_triangles_in_obj = 0;
             if let Some(alpha) = json[&rxname].as_f64() {
                 angle_x = alpha;
                 angle_x_rad = angle_x.to_radians() as Float;
@@ -626,18 +627,22 @@ impl RenderJob {
                 ignore_points: true,
                 ..Default::default()
             };
-            let (models, _materials) = tobj::load_obj(path, &opt).expect("tobj");
-            assert!(models.len() == 1);
+            let (models, materials) = tobj::load_obj(path, &opt).expect("tobj");
+            let mat = materials.unwrap();
+            mat.iter().for_each(|m| {
+                println!("material: {:?} -- {:?}", m.name, m);
+            });
             models.iter().for_each(|m| {
                 let mesh = &m.mesh;
                 let n = mesh.indices.len() / 3;
                 println!(
-                    "-- model has {} triangles w/ {} vertices",
-                    n,
+                    "-- model {} has {} triangles w/ {} vertices",
+                    m.name, n,
                     mesh.positions.len()
                 );
                 assert!(mesh.indices.len() % 3 == 0);
-                num_obj_triangles += n;
+                num_triangles_in_all_objs += n;
+                num_triangles_in_obj += n;
                 let mut triangles = Vec::with_capacity(n);
                 let mut num_skipped = 0;
                 for i in 0..n {
@@ -685,20 +690,20 @@ impl RenderJob {
                 }
                 self.objects.push(Arc::new(Mesh::new(triangles, 0)));
                 num_objs += 1;
-                println!(
-                    "-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
-                    path.green(),
-                    n,
-                    angle_x,
-                    angle_y,
-                    angle_z
-                );
             });
+            println!(
+                "-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
+                path.green(),
+                num_triangles_in_obj,
+                angle_x,
+                angle_y,
+                angle_z
+            );
         }
         println!(
             "-- mesh={} triangles={} spheres={} planes={} materials={}",
             num_objs,
-            num_triangles + num_obj_triangles,
+            num_triangles + num_triangles_in_all_objs,
             num_spheres,
             num_planes,
             num_materials

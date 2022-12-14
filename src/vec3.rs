@@ -10,6 +10,7 @@ fn u128_fold(v: u128) -> u64 {
 }
 
 // wyhash
+// tried using the crate nanorand::WyRnd but this resulting in 5% degradation
 fn fast_rand(rnd_state: &mut u64) -> u64 {
     *rnd_state = (*rnd_state).wrapping_add(0x60bee2bee120fc15);
     let mut tmp = *rnd_state as u128 * 0xa3b195354a39b70d;

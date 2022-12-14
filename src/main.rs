@@ -484,6 +484,7 @@ fn main() -> std::io::Result<()> {
     job.alloc_image();
     job.render_scene(exit_req);
     pb.finish_and_clear();
+    job.print_stats();
     job.save_image()?;
 
     Ok(())

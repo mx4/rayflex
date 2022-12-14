@@ -1,26 +1,13 @@
 {
-    "material.0": {
-      "shininess": 200,
-      "ks": 0.25,
-      "kd": {
-        "b": 0.8,
-        "g": 1.0,
-        "r": 0.8
-      }
-    },
-    "material.1": {
-      "shininess": 10,
-      "ks": 0.3,
-      "kd": {
-        "b": 1.0,
-        "g": 0.7,
-        "r": 0.7
-      }
-    },
-  "ambient": {
-    "intensity": 0.1,
-    "name": "ambient",
-    "rgb": {
+  "obj.0.path": "obj/cornell-box.obj",
+  "resolution": [
+    400,
+    400
+  ],
+  "material.0": {
+    "shininess": 50,
+    "ks": 0.0,
+    "kd": {
       "b": 1.0,
       "g": 1.0,
       "r": 1.0
@@ -28,66 +15,34 @@
   },
   "camera": {
     "look_at": {
-      "x": 10,
-      "y": 0,
-      "z": -1
+      "x": 0,
+      "y": 2.5,
+      "z": 0
     },
     "up": {
       "x": 0,
-      "y": 0,
-      "z": 1
+      "y": 1,
+      "z": 0
     },
     "pos": {
-      "x": 2,
-      "y": -3,
-      "z": 4
+      "x": 0,
+      "y": 3,
+      "z": 6
     },
     "vfov": 55.0
   },
-  "obj.0.path": "obj/cornell-box.obj",
-  "obj.0.rotx": -90,
-  "obj.0.material": 0,
-  "resolution": [
-    400,
-    400
-  ],
-  "plane.0": {
-    "point": {
+  "vec-light.0": {
+    "dir": {
       "x": 0,
-      "y": 0,
-      "z": -1
+      "y": -0.5,
+      "z": -0.5
     },
-    "normal": {
-      "x": 0,
-      "y": 0,
-      "z": 1 
-    },
-    "material_id": 1
-  },
-  "spot-light.0": {
-    "intensity": 18,
-    "pos": {
-      "x": 3,
-      "y": 4,
-      "z": 5.0
-    },
+    "intensity": 1.5,
+    "name": "vec-light.0",
     "rgb": {
-      "b": 0.8,
-      "g": 0.8,
+      "b": 1.0,
+      "g": 1.0,
       "r": 1.0
-    }
-  },
-  "spot-light.1": {
-    "intensity": 18,
-    "pos": {
-      "x": 3,
-      "y": -1.0,
-      "z": 6.0
-    },
-    "rgb": {
-      "b": 0.800000011920929,
-      "g": 0.30000001192092896,
-      "r": 0.800000011920929
     }
   }
 }

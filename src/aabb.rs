@@ -222,8 +222,8 @@ impl AABB {
             MAX_NUM_TRIANGLES,
             elapsed.as_millis() as Float / 1000.0
         );
-        println!("-- aabb: p_min: {:?}", p_min);
-        println!("-- aabb: p_max: {:?}", p_max);
+        //println!("-- aabb: p_min: {:?}", p_min);
+        //println!("-- aabb: p_max: {:?}", p_max);
     }
 
     fn nearest_node(&self, p: Point, mid: Point) -> usize {
