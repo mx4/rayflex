@@ -114,7 +114,7 @@ fn generate_scene(
             ks: 0.0,
             shininess: 10,
             checkered: false,
-            ke: RGB::new(),
+            ke: RGB::zero(),
             kd: RGB {
                 r: 1.0,
                 g: 1.0,
@@ -124,7 +124,7 @@ fn generate_scene(
         json["material.0"] = serde_json::to_value(mat).unwrap();
         // white glossy
         let mat = Material {
-            ke: RGB::new(),
+            ke: RGB::zero(),
             ks: 0.5,
             shininess: 10,
             checkered: false,
@@ -137,7 +137,7 @@ fn generate_scene(
         json["material.1"] = serde_json::to_value(mat).unwrap();
         // red
         let mat = Material {
-            ke: RGB::new(),
+            ke: RGB::zero(),
             ks: 0.0,
             shininess: 10,
             checkered: false,
@@ -150,7 +150,7 @@ fn generate_scene(
         json["material.2"] = serde_json::to_value(mat).unwrap();
         // green
         let mat = Material {
-            ke: RGB::new(),
+            ke: RGB::zero(),
             shininess: 10,
             ks: 0.0,
             checkered: false,
@@ -163,7 +163,7 @@ fn generate_scene(
         json["material.3"] = serde_json::to_value(mat).unwrap();
         // blue
         let mat = Material {
-            ke: RGB::new(),
+            ke: RGB::zero(),
             shininess: 10,
             ks: 0.0,
             checkered: false,
@@ -178,7 +178,7 @@ fn generate_scene(
         for i in 5..10 {
             let name = format!("material.{}", i);
             let mat = Material {
-                ke: RGB::new(),
+                ke: RGB::zero(),
                 shininess: 10,
                 ks: rng.gen_range(0.0..0.9),
                 checkered: rng.gen_range(0..2) == 0,

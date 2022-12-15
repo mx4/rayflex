@@ -94,7 +94,7 @@ impl RenderJob {
     fn trace_ray(&self, stats: &mut RenderStats, ray: &Ray, depth: u32) -> RGB {
         if depth > self.cfg.reflection_max_depth {
             stats.num_rays_reflection_max += 1;
-            return RGB::new();
+            return RGB::zero();
         }
         let mut s_id = 0;
         let mut t = Float::MAX;
@@ -111,8 +111,8 @@ impl RenderJob {
             let hit_mat_id = hit_obj.get_material_id();
             let hit_material = &self.materials[hit_mat_id];
 
-            let mut c = self.lights.iter().fold(RGB::new(), |acc, light| {
-                let mut c_light = RGB::new();
+            let mut c = self.lights.iter().fold(RGB::zero(), |acc, light| {
+                let mut c_light = RGB::zero();
 
                 if !light.is_spot() {
                     c_light = light.get_contrib(ray, hit_material, hit_point, hit_normal);
@@ -144,19 +144,10 @@ impl RenderJob {
             }
             c
         } else {
-            //let z = (ray.dir.z + 0.5).clamp(0.0, 1.0) as f32;
             let screen_v = self.camera.as_ref().unwrap().screen_v.normalize();
             let s = ray.dir.dot(screen_v).abs() / ray.dir.norm();
-            let cmax = RGB {
-                r: 1.0,
-                g: 1.0,
-                b: 1.0,
-            };
-            let cyan = RGB {
-                r: 0.4,
-                g: 0.6,
-                b: 0.9,
-            };
+            let cmax = RGB::new(1.0, 1.0, 1.0);
+            let cyan = RGB::new(0.4, 0.6, 0.9);
             cmax * s + cyan * (1.0 - s)
         }
     }
@@ -169,7 +160,7 @@ impl RenderJob {
     ) -> RGB {
         if depth > self.cfg.reflection_max_depth {
             stats.num_rays_reflection_max += 1;
-            return RGB::new();
+            return RGB::zero();
         }
         let mut s_id = 0;
         let mut t = Float::MAX;
@@ -181,7 +172,7 @@ impl RenderJob {
             .last();
 
         if hit_obj.is_none() {
-            return RGB::new();
+            return RGB::zero();
         }
 
         let hit_mat_id = hit_obj.unwrap().get_material_id();
@@ -250,7 +241,7 @@ impl RenderJob {
         assert!(!self.cfg.use_adaptive_sampling);
         assert!(self.cfg.path_tracing > 1);
 
-        let mut c = RGB::new();
+        let mut c = RGB::zero();
         let mut rng = rand::thread_rng();
         let mut rnd_state = rng.gen_range(0..u64::MAX);
 

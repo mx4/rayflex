@@ -81,12 +81,11 @@ impl AddAssign<RGB> for RGB {
 }
 
 impl RGB {
-    pub fn new() -> Self {
-        RGB {
-            r: 0.0,
-            g: 0.0,
-            b: 0.0,
-        }
+    pub fn zero() -> Self {
+        RGB::new(0.0, 0.0, 0.0)
+    }
+    pub fn new(r: f32, g: f32, b: f32) -> Self {
+        RGB { r, g, b }
     }
     pub fn is_zero(&self) -> bool {
         self.r == 0.0 && self.g == 0.0 && self.b == 0.0
