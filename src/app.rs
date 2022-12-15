@@ -51,7 +51,6 @@ impl Default for RaymaxApp {
     }
 }
 
-
 fn start_rendering(
     rendering_active: Arc<AtomicBool>,
     rendering_needs_stop: Arc<AtomicBool>,
@@ -137,8 +136,6 @@ impl RaymaxApp {
 }
 
 pub fn egui_main() {
-    tracing_subscriber::fmt::init();
-
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(
             (SIDE_PANEL_WIDTH + WIDTH + 50) as f32,

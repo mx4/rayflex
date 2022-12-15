@@ -178,10 +178,7 @@ impl Object for Plane {
         if v_y < 0.0 {
             v_y = -v_y + 0.125;
         }
-        Vec2 {
-            x: v_x as f32,
-            y: v_y as f32,
-        }
+        Vec2 { x: v_x, y: v_y }
     }
     fn get_material_id(&self) -> usize {
         self.material_id
@@ -214,10 +211,7 @@ impl Object for Sphere {
         let v = (point - self.center) / self.radius;
         let x = (1.0 + v.y.atan2(v.x) / pi) * 0.5;
         let y = v.z.acos() / pi;
-        Vec2 {
-            x: x as f32,
-            y: y as f32,
-        }
+        Vec2 { x, y }
     }
 
     fn intercept(

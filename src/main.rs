@@ -439,6 +439,7 @@ fn print_opt(opt: &Options) {
 }
 
 fn main() -> std::io::Result<()> {
+    tracing_subscriber::fmt::init();
     let opt = Options::from_args();
     let exit_req = Arc::new(AtomicBool::new(false));
     let exit_req_clone = exit_req.clone();

@@ -146,7 +146,7 @@ impl RenderJob {
         } else {
             //let z = (ray.dir.z + 0.5).clamp(0.0, 1.0) as f32;
             let screen_v = self.camera.as_ref().unwrap().screen_v.normalize();
-            let s = ray.dir.dot(screen_v).abs() as f32 / ray.dir.norm() as f32;
+            let s = ray.dir.dot(screen_v).abs() / ray.dir.norm();
             let cmax = RGB {
                 r: 1.0,
                 g: 1.0,
@@ -423,10 +423,7 @@ impl RenderJob {
         }
     }
 
-    fn render_image_lines(
-        &mut self,
-        exit_req: Arc<AtomicBool>,
-    ) {
+    fn render_image_lines(&mut self, exit_req: Arc<AtomicBool>) {
         (0..self.cfg.res_y).into_par_iter().for_each(|y| {
             let mut stats: RenderStats = Default::default();
 
@@ -440,10 +437,7 @@ impl RenderJob {
         });
     }
 
-    fn render_image_box(
-        &mut self,
-        exit_req: Arc<AtomicBool>,
-    ) {
+    fn render_image_box(&mut self, exit_req: Arc<AtomicBool>) {
         let mut step = 32;
         if self.cfg.path_tracing > 1 {
             step = 10;
@@ -482,7 +476,6 @@ impl RenderJob {
             self.render_image_box(exit_req);
         }
     }
-
 
     pub fn load_scene(&mut self) -> std::io::Result<()> {
         if !self.cfg.scene_file.is_file() {
@@ -628,16 +621,25 @@ impl RenderJob {
                 ..Default::default()
             };
             let (models, materials) = tobj::load_obj(path, &opt).expect("tobj");
-            let mat = materials.unwrap();
-            mat.iter().for_each(|m| {
-                println!("material: {:?} -- {:?}", m.name, m);
-            });
+            if let Ok(mat) = materials {
+                mat.iter().for_each(|m| {
+                    println!("material: {:?} -- {:?}", m.name, m);
+                });
+            } else {
+                println!(
+                    "{} {:?}",
+                    "Error loading materials:".red().bold(),
+                    materials.unwrap_err()
+                );
+            }
+
             models.iter().for_each(|m| {
                 let mesh = &m.mesh;
                 let n = mesh.indices.len() / 3;
                 println!(
                     "-- model {} has {} triangles w/ {} vertices",
-                    m.name, n,
+                    m.name,
+                    n,
                     mesh.positions.len()
                 );
                 assert!(mesh.indices.len() % 3 == 0);

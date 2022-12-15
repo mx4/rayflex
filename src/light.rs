@@ -48,15 +48,15 @@ impl Light for SpotLight {
         let light_vec = self.pos - obj_point;
         let dist_sq = light_vec.dot(light_vec);
         let light_vec_norm = light_vec / dist_sq.sqrt();
-        c_res = mat.kd * obj_normal.dot(light_vec_norm).max(0.0) as f32;
+        c_res = mat.kd * obj_normal.dot(light_vec_norm).max(0.0);
 
         {
             let reflected_ray = ray.get_reflection(obj_point, obj_normal);
             let dir = reflected_ray.dir.normalize();
-            c_res += self.rgb * mat.ks * light_vec_norm.dot(dir).powi(80) as f32;
+            c_res += self.rgb * mat.ks * light_vec_norm.dot(dir).powi(80);
         }
 
-        c_res * self.intensity / (1.0 + dist_sq as f32)
+        c_res * self.intensity / (1.0 + dist_sq)
     }
     fn display(&self) {
         let s = format!("{:3} {:?} {:?}", self.intensity, self.pos, self.rgb).dimmed();
@@ -122,7 +122,7 @@ impl Light for VectorLight {
     fn get_contrib(&self, _ray: &Ray, mat: &Material, obj_point: Point, obj_normal: Vec3) -> RGB {
         let c_res = mat.kd * self.rgb * self.intensity;
         let light_vec = self.get_vector(obj_point) * -1.0;
-        let v_prod = obj_normal.dot(light_vec).min(0.0) as f32;
+        let v_prod = obj_normal.dot(light_vec).min(0.0);
 
         c_res * v_prod.powi(4)
     }
