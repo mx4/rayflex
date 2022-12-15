@@ -22,7 +22,7 @@ use raymax::vec3::Point;
 use raymax::vec3::Vec3;
 
 use raymax::render::RenderConfig;
-use raymax::render::RenderJob;
+use raymax::scene::load_scene;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "rtest", about = "minimal raytracer")]
@@ -474,9 +474,9 @@ fn main() -> std::io::Result<()> {
         image_file: opt.img_file,
     };
 
-    let mut job = RenderJob::new(cfg);
+    let res = load_scene(cfg);
+    let mut job = res.unwrap();
 
-    job.load_scene()?;
     let pb = Arc::new(ProgressBar::new(1000));
     let pb_clone = pb.clone();
     job.set_progress_func(Box::new(move |pct| {

@@ -105,7 +105,7 @@ pub struct Matrix3 {
 }
 
 impl Vec3 {
-    fn new(x: Float, y: Float, z: Float) -> Self {
+    pub fn new(x: Float, y: Float, z: Float) -> Self {
         Self { x, y, z }
     }
     pub fn zero() -> Self {

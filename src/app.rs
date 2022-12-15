@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use std::thread;
 
 use crate::render::RenderConfig;
-use crate::render::RenderJob;
+use crate::scene::load_scene;
 
 const WIDTH: usize = 600;
 const HEIGHT: usize = 600;
@@ -59,9 +59,9 @@ fn start_rendering(
     texture: TextureHandle,
     ctx: egui::Context,
 ) {
-    let mut job = RenderJob::new(cfg);
+    let res = load_scene(cfg);
+    let mut job = res.unwrap();
 
-    job.load_scene().expect("scene file");
     job.alloc_image();
     let img = job.image.lock().unwrap().get_img();
 
