@@ -110,7 +110,7 @@ impl RenderJob {
                 c = hit_material.do_checker(c, hit_text2d);
             }
 
-            if hit_material.ks > 0.0 {
+            if !hit_material.ks.is_zero() {
                 stats.num_rays_reflection += 1;
                 let reflected_ray = ray.get_reflection(hit_point, hit_normal);
                 let c_reflect = self.trace_ray(stats, &reflected_ray, depth + 1);
@@ -161,12 +161,12 @@ impl RenderJob {
         let hit_normal = hit_obj.unwrap().get_normal(hit_point, s_id);
         stats.num_rays_reflection += 1;
         let mut reflected_ray = ray.get_reflection(hit_point, hit_normal);
-        if hit_material.ks == 0.0 {
+        if hit_material.ks.is_zero() {
             let dir = reflected_ray.dir.normalize() + Vec3::gen_rnd_sphere(rnd_state);
             reflected_ray.dir = dir.normalize();
         }
         let c0 = self.trace_ray_path(stats, rnd_state, &reflected_ray, depth + 1);
-        if hit_material.ks == 0.0 {
+        if hit_material.ks.is_zero() {
             c0 * hit_material.kd
         } else {
             c0 * hit_material.ks
@@ -182,7 +182,7 @@ impl RenderJob {
     ) -> RGB {
         let mut key = 0;
         if self.cfg.use_hashmap {
-            // need to use f64 otherwise loss of precision bites us
+            // need to use f64 otherwise the loss of precision bites us
             key = (1e12 * (u as f64 + 0.5) + 1e6 * (v as f64 + 0.5)) as u64;
             if self.cfg.use_adaptive_sampling {
                 if let Some(c) = pmap.get(&key) {

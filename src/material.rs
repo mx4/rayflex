@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Material {
     #[serde(default)]
-    pub ks: f32,
+    pub ks: RGB,
     #[serde(default)]
     pub kd: RGB,
     #[serde(default)]

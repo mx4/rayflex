@@ -92,34 +92,43 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
             ..Default::default()
         };
         let (models, materials) = tobj::load_obj(path, &opt).expect("tobj");
-        if let Ok(mat) = materials {
+        let base_mat_idx = scene.num_materials;
+        if let Ok(mat) = materials.clone() {
             mat.iter().for_each(|m| {
                 println!("-- material {} -- {:?}", m.name.green(), m);
                 let mat = Material {
                     ke: RGB::zero(),
                     shininess: m.shininess, // floating point?
-                    ks: m.specular[0], // full RGB needed
+                    ks: RGB::new(m.specular[0], m.specular[1], m.specular[2]),
                     checkered: false,
                     kd: RGB::new(m.diffuse[0], m.diffuse[1], m.diffuse[2]),
                 };
+                scene.materials.push(Arc::new(mat));
+                scene.num_materials += 1;
             });
         } else {
             println!(
                 "{} {:?}",
                 "Error loading materials:".red().bold(),
-                materials.unwrap_err()
+                materials.clone().unwrap_err()
             );
         }
 
         models.iter().for_each(|m| {
             let mesh = &m.mesh;
             let n = mesh.indices.len() / 3;
+
+            let mut material_str = "".to_owned();
+            if mesh.material_id.is_some() && materials.is_ok() {
+                material_str = materials.as_ref().unwrap()[mesh.material_id.unwrap()].name.clone();
+            }
+
             println!(
-                "-- model {:12} has {} triangles w/ {} vertices -- mat={:?}",
+                "-- model {:12} has {} triangles w/ {} vertices -- {}",
                 m.name.blue(),
                 n,
                 mesh.positions.len(),
-                mesh.material_id,
+                material_str.green()
             );
             assert!(mesh.indices.len() % 3 == 0);
             scene.num_triangles_in_all_objs += n;
@@ -150,7 +159,11 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                 p0 = p0.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
                 p1 = p1.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
                 p2 = p2.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
-                let mut triangle = Triangle::new([p0, p1, p2], 0);
+                let mut mat_id = 0;
+                if let Some(id) = mesh.material_id {
+                    mat_id = base_mat_idx as usize + id;
+                }
+                let mut triangle = Triangle::new([p0, p1, p2], mat_id);
                 triangle.mesh_id = triangles.len();
                 triangles.push(triangle);
             }
@@ -356,7 +369,7 @@ pub fn generate_scene(
     {
         // white
         let mat = Material {
-            ks: 0.0,
+            ks: RGB::zero(),
             shininess: 10.0,
             checkered: false,
             ke: RGB::zero(),
@@ -366,7 +379,7 @@ pub fn generate_scene(
         // white glossy
         let mat = Material {
             ke: RGB::zero(),
-            ks: 0.5,
+            ks: RGB::new(0.5, 0.5, 0.5),
             shininess: 10.0,
             checkered: false,
             kd: RGB::new(1.0, 1.0, 1.0),
@@ -375,7 +388,7 @@ pub fn generate_scene(
         // red
         let mat = Material {
             ke: RGB::zero(),
-            ks: 0.0,
+            ks: RGB::zero(),
             shininess: 10.0,
             checkered: false,
             kd: RGB::new(1.0, 0.0, 0.0),
@@ -385,7 +398,7 @@ pub fn generate_scene(
         let mat = Material {
             ke: RGB::zero(),
             shininess: 10.0,
-            ks: 0.0,
+            ks: RGB::zero(),
             checkered: false,
             kd: RGB::new(0.0, 1.0, 0.0),
         };
@@ -394,7 +407,7 @@ pub fn generate_scene(
         let mat = Material {
             ke: RGB::zero(),
             shininess: 10.0,
-            ks: 0.0,
+            ks: RGB::zero(),
             checkered: false,
             kd: RGB::new(0.0, 0.0, 1.0),
         };
@@ -405,7 +418,11 @@ pub fn generate_scene(
             let mat = Material {
                 ke: RGB::zero(),
                 shininess: 10.0,
-                ks: rng.gen_range(0.0..0.9),
+                ks: RGB {
+                    r: rng.gen_range(0.0..0.9),
+                    g: rng.gen_range(0.0..0.9),
+                    b: rng.gen_range(0.0..0.9),
+                },
                 checkered: rng.gen_range(0..2) == 0,
                 kd: RGB {
                     r: rng.gen_range(0.0..1.0),
