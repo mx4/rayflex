@@ -11,7 +11,7 @@ pub struct Material {
     #[serde(default)]
     pub ke: RGB,
     #[serde(default)]
-    pub shininess: u32, // 0 --> ~1000
+    pub shininess: f32, // 0 --> ~1000
     #[serde(default)]
     pub checkered: bool,
 }

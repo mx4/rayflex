@@ -214,14 +214,16 @@ impl AABB {
         self.setup_node(p_min, p_max, &vec![], 0);
         let elapsed = start_time.elapsed();
 
-        println!(
-            "-- aabb: depth: {}/{} num_leaves={} max_num_triangles={} -- {:.2} sec",
-            self.get_depth(),
-            MAX_DEPTH,
-            self.count_leaves(),
-            MAX_NUM_TRIANGLES,
-            elapsed.as_millis() as Float / 1000.0
-        );
+        if elapsed.as_millis() as Float > 0.1 {
+            println!(
+                "-- aabb: depth: {}/{} num_leaves={} max_num_triangles={} -- {:.2} sec",
+                self.get_depth(),
+                MAX_DEPTH,
+                self.count_leaves(),
+                MAX_NUM_TRIANGLES,
+                elapsed.as_millis() as Float / 1000.0
+            );
+        }
         //println!("-- aabb: p_min: {:?}", p_min);
         //println!("-- aabb: p_max: {:?}", p_max);
     }

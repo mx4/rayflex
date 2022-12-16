@@ -28,11 +28,7 @@ pub struct Ray {
 
 impl Ray {
     pub fn new(point: Point, dir: Vec3) -> Ray {
-        let inv_dir = Vec3 {
-            x: 1.0 / dir.x,
-            y: 1.0 / dir.y,
-            z: 1.0 / dir.z,
-        };
+        let inv_dir = Vec3::one() / dir;
         Ray {
             orig: point,
             dir,

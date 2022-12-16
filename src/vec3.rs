@@ -79,6 +79,17 @@ impl Div<Float> for Vec3 {
     }
 }
 
+impl Div<Vec3> for Vec3 {
+    type Output = Vec3;
+    fn div(self, rhs: Vec3) -> Vec3 {
+        Vec3 {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
+        }
+    }
+}
+
 impl Mul<Float> for Vec3 {
     type Output = Vec3;
     fn mul(self, rhs: Float) -> Vec3 {
@@ -107,6 +118,9 @@ pub struct Matrix3 {
 impl Vec3 {
     pub fn new(x: Float, y: Float, z: Float) -> Self {
         Self { x, y, z }
+    }
+    pub fn one() -> Self {
+        Vec3::new(1.0, 1.0, 1.0)
     }
     pub fn zero() -> Self {
         Vec3::new(0.0, 0.0, 0.0)
