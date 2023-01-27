@@ -1,4 +1,6 @@
+#[cfg(not(target_arch = "wasm32"))]
 use colored::Colorize;
+#[cfg(not(target_arch = "wasm32"))]
 use indicatif::ProgressBar;
 
 use std::path::PathBuf;
@@ -11,6 +13,7 @@ use raymax::render::RenderConfig;
 use raymax::scene::generate_scene;
 use raymax::scene::load_scene;
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(StructOpt, Debug)]
 #[structopt(name = "rtest", about = "minimal raytracer")]
 struct Options {
@@ -44,6 +47,7 @@ struct Options {
     use_ui: bool,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn print_opt(opt: &Options) {
     println!(
         "{}: gamma={} sampling-depth={} reflection-depth={}",
@@ -63,8 +67,16 @@ fn print_opt(opt: &Options) {
     println!("{s}");
 }
 
+#[cfg(target_arch = "wasm32")]
+fn main() -> std::io::Result<()> {
+    raymax::egui_main();
+    return Ok(());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt::init();
+
     let opt = Options::from_args();
     let exit_req = Arc::new(AtomicBool::new(false));
     let exit_req_clone = exit_req.clone();
@@ -105,7 +117,7 @@ fn main() -> std::io::Result<()> {
     let pb = Arc::new(ProgressBar::new(1000));
     let pb_clone = pb.clone();
     job.set_progress_func(Box::new(move |pct| {
-        pb_clone.set_position((pct * 1000.0) as u64);
+                pb_clone.set_position((pct * 1000.0) as u64);
     }));
     job.alloc_image();
     job.render_scene(exit_req);

@@ -1,3 +1,4 @@
+#[cfg(not(target_arch = "wasm32"))]
 use colored::Colorize;
 use rand::Rng;
 use rayon::prelude::*;
@@ -271,6 +272,7 @@ impl RenderJob {
         (c00 + c01 + c10 + c11) * 0.25
     }
 
+#[cfg(not(target_arch = "wasm32"))]
     pub fn print_stats(&self) {
         let stats = self.total_stats.lock().unwrap();
         let pretty_print = |n| {
@@ -291,7 +293,7 @@ impl RenderJob {
                 suffix = " ";
                 precision = 0
             }
-            format!("{:6.precision$} {suffix}", val)
+            format!("{val:6.precision$} {suffix}")
         };
         let elapsed = self.start_ts.elapsed();
         let num_rays = (stats.num_rays_sampling + stats.num_rays_reflection) as Float;
@@ -307,7 +309,7 @@ impl RenderJob {
             v = kray_per_secs / 1000.0;
             suffix = "M";
         }
-        let xray_sec_str = format!("{:.3}", v);
+        let xray_sec_str = format!("{v:.3}");
 
         println!(
             "duration: {} -- {} per ray -- {} {}rays/sec",
@@ -326,7 +328,7 @@ impl RenderJob {
         for (s, n) in intersect_stats {
             println!(
                 "num_intersects {:<10}{:>12}",
-                format!("{}:", s),
+                format!("{s}:"),
                 pretty_print(n)
             );
         }
@@ -353,7 +355,7 @@ impl RenderJob {
         for (s, n, d) in ray_stats {
             println!(
                 "{:<24} {:>12} -- {:3}%",
-                format!("{}:", s),
+                format!("{s}:"),
                 pretty_print(n),
                 100 * n / d
             );

@@ -11,6 +11,9 @@ use std::thread;
 use crate::render::RenderConfig;
 use crate::scene::load_scene;
 
+use log::Level;
+use log::info;
+
 const WIDTH: usize = 600;
 const HEIGHT: usize = 600;
 const SIDE_PANEL_WIDTH: usize = 250;
@@ -74,6 +77,7 @@ fn start_rendering(
     };
     job.set_progress_func(Box::new(update_func.clone()));
     job.render_scene(rendering_needs_stop.clone());
+#[cfg(not(target_arch = "wasm32"))]
     job.print_stats();
     // call it one last time to refresh texture
     update_func(1.0);
@@ -94,6 +98,7 @@ impl RaymaxApp {
 
     fn start_async(&mut self, ctx: &egui::Context) {
         self.rendering_active.store(true, Ordering::SeqCst);
+        info!("start_async");
         let ctx_clone = ctx.clone();
         let value_clone = self.progress.clone();
         let rendering_active_clone = self.rendering_active.clone();
@@ -107,6 +112,7 @@ impl RaymaxApp {
                 Default::default(),
             );
             self.texture_handle = Some(texture_handle.clone());
+            info!("texture");
         }
         let cfg = RenderConfig {
             path_tracing: self.path_level,
@@ -122,7 +128,9 @@ impl RaymaxApp {
             image_file: PathBuf::from(self.output_file.clone()),
         };
 
+        info!("before-thread-spawn");
         thread::spawn(move || {
+            info!("start-rendering");
             start_rendering(
                 rendering_active_clone,
                 rendering_needs_stop_clone,
@@ -132,9 +140,11 @@ impl RaymaxApp {
                 ctx_clone,
             )
         });
+        info!("after-thread-spawn");
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn egui_main() {
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(
@@ -148,6 +158,25 @@ pub fn egui_main() {
         native_options,
         Box::new(|cc| Box::new(RaymaxApp::new(cc))),
     );
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn egui_main() {
+    console_error_panic_hook::set_once();
+    tracing_wasm::set_as_global_default();
+    console_log::init_with_level(Level::Debug);
+
+    let web_options = eframe::WebOptions::default();
+    info!("It works!");
+    wasm_bindgen_futures::spawn_local(async {
+        eframe::start_web(
+            "the_canvas_id", // hardcode it
+	    web_options,
+	    Box::new(|cc| Box::new(RaymaxApp::new(cc))),
+        )
+	.await
+        .expect("failed to start eframe");
+    });
 }
 
 impl eframe::App for RaymaxApp {

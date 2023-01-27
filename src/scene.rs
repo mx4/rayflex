@@ -1,4 +1,6 @@
+#[cfg(not(target_arch = "wasm32"))]
 use colored::Colorize;
+
 use rand::Rng;
 use std::fs;
 use std::path::PathBuf;
@@ -95,6 +97,7 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
         let base_mat_idx = scene.num_materials;
         if let Ok(mat) = materials.clone() {
             mat.iter().for_each(|m| {
+#[cfg(not(target_arch = "wasm32"))]
                 println!("-- material {} -- {:?}", m.name.green(), m);
                 let mat = Material {
                     ke: RGB::zero(),
@@ -107,6 +110,7 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                 scene.num_materials += 1;
             });
         } else {
+#[cfg(not(target_arch = "wasm32"))]
             println!(
                 "{} {:?}",
                 "Error loading materials:".red().bold(),
@@ -120,9 +124,12 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
 
             let mut material_str = "".to_owned();
             if mesh.material_id.is_some() && materials.is_ok() {
-                material_str = materials.as_ref().unwrap()[mesh.material_id.unwrap()].name.clone();
+                material_str = materials.as_ref().unwrap()[mesh.material_id.unwrap()]
+                    .name
+                    .clone();
             }
 
+#[cfg(not(target_arch = "wasm32"))]
             println!(
                 "-- model {:12} has {} triangles w/ {} vertices -- {}",
                 m.name.blue(),
@@ -168,11 +175,12 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                 triangles.push(triangle);
             }
             if num_skipped > 0 {
-                println!("-- skipped {} malformed triangles", num_skipped);
+                println!("-- skipped {num_skipped} malformed triangles");
             }
             scene.objects.push(Arc::new(Mesh::new(triangles, 0)));
             scene.num_objs += 1;
         });
+#[cfg(not(target_arch = "wasm32"))]
         println!(
             "-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
             path.green(),
@@ -273,12 +281,15 @@ fn load_resolution(cfg: &mut RenderConfig, json: &serde_json::Value) -> std::io:
             cfg.res_y = array[1].as_u64().unwrap() as u32;
         }
     }
-    let res_str = format!("{}x{}", cfg.res_x, cfg.res_y).bold();
-    let mut smp_str = "".cyan();
-    if cfg.use_adaptive_sampling {
-        smp_str = " w/ adaptive sampling".cyan();
+#[cfg(not(target_arch = "wasm32"))]
+    {
+        let res_str = format!("{}x{}", cfg.res_x, cfg.res_y).bold();
+        let mut smp_str = "".cyan();
+        if cfg.use_adaptive_sampling {
+            smp_str = " w/ adaptive sampling".cyan();
+        }
+        println!("-- img resolution: {res_str}{smp_str}");
     }
-    println!("-- img resolution: {}{}", res_str, smp_str);
     Ok(())
 }
 
@@ -289,6 +300,7 @@ pub fn load_scene(cfg: RenderConfig) -> std::io::Result<RenderJob> {
         println!("pwd={}", std::env::current_dir()?.display());
         panic!("scene file {} not present.", cfg.scene_file.display());
     }
+#[cfg(not(target_arch = "wasm32"))]
     println!(
         "loading scene file {}",
         cfg.scene_file.display().to_string().bold()
@@ -343,9 +355,7 @@ pub fn generate_scene(
     let res_y = 400;
 
     println!(
-        "Generating scene w/ {} spheres {} materials",
-        num_spheres_to_generate, num_materials
-    );
+        "Generating scene w/ {num_spheres_to_generate} spheres {num_materials} materials");
     json = serde_json::json!({ "resolution": [ res_x, res_y ] });
 
     {
@@ -414,7 +424,7 @@ pub fn generate_scene(
         json["material.4"] = serde_json::to_value(mat).unwrap();
 
         for i in 5..10 {
-            let name = format!("material.{}", i);
+            let name = format!("material.{i}");
             let mat = Material {
                 ke: RGB::zero(),
                 shininess: 10.0,
@@ -542,7 +552,7 @@ pub fn generate_scene(
             radius: rng.gen_range(0.2..0.4),
             material_id: rng.gen_range(0..10),
         };
-        let name = format!("sphere.{}", i);
+        let name = format!("sphere.{i}");
         json[name] = serde_json::to_value(&sphere).unwrap();
     }
     let s0 = serde_json::to_string_pretty(&json)?;
