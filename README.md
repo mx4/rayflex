@@ -1,3 +1,5 @@
+[![CI](https://github.com/mx4/raymax/actions/workflows/ci.yml/badge.svg)](https://github.com/mx4/raymax/actions/workflows/ci.yml)
+
 ### RAYMAX
 
 Rust implementation of a ray-tracer and path-tracer.
@@ -23,7 +25,6 @@ Scenes are described in a json file that contains:
  - the resolution of the resulting picture
 
 ## Screenshots
-
 ![teapot](./assets/teapot.png)
 ![cornell-box](./assets/cornell-box.png)
 ![buddha](./assets/buddha.png)
