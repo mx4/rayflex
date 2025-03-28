@@ -15,7 +15,7 @@ use raymax::scene::load_scene;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(StructOpt, Debug)]
-#[structopt(name = "rtest", about = "minimal raytracer")]
+#[structopt(name = "raymax", about = "ray/path-tracer")]
 struct Options {
     #[structopt(long, default_value = "pic.png")]
     img_file: PathBuf,
