@@ -1,5 +1,5 @@
 [package]
-name = "raymax"
+name = "rayflex"
 version = "0.1.0"
 edition = "2024"
 authors = ["Maxime Austruy <austruym@gmail.com>"]

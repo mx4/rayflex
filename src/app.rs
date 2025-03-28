@@ -17,7 +17,7 @@ const WIDTH: usize = 600;
 const HEIGHT: usize = 600;
 const SIDE_PANEL_WIDTH: usize = 250;
 
-pub struct RaymaxApp {
+pub struct RayflexApp {
     scene_file: String,
     output_file: String,
     height: usize,
@@ -33,7 +33,7 @@ pub struct RaymaxApp {
     scene_choice: usize,
 }
 
-impl Default for RaymaxApp {
+impl Default for RayflexApp {
     fn default() -> Self {
         Self {
             scene_file: "scenes/cornell-box.json".to_owned(),
@@ -86,7 +86,7 @@ fn start_rendering(
     rendering_needs_stop.store(false, Ordering::SeqCst);
 }
 
-impl RaymaxApp {
+impl RayflexApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         Default::default()
     }
@@ -153,9 +153,9 @@ pub fn egui_main() {
         ..eframe::NativeOptions::default()
     };
     eframe::run_native(
-        "raymax",
+        "rayflex",
         native_options,
-        Box::new(|cc| Box::new(RaymaxApp::new(cc))),
+        Box::new(|cc| Box::new(RayflexApp::new(cc))),
     );
 }
 
@@ -171,14 +171,14 @@ pub fn egui_main() {
         eframe::start_web(
             "the_canvas_id", // hardcode it
             web_options,
-            Box::new(|cc| Box::new(RaymaxApp::new(cc))),
+            Box::new(|cc| Box::new(RayflexApp::new(cc))),
         )
         .await
         .expect("failed to start eframe");
     });
 }
 
-impl eframe::App for RaymaxApp {
+impl eframe::App for RayflexApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let vec_str = [
             "cornell-box".to_owned(),

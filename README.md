@@ -1,6 +1,6 @@
-[![CI](https://github.com/mx4/raymax/actions/workflows/ci.yml/badge.svg)](https://github.com/mx4/raymax/actions/workflows/ci.yml)
+[![CI](https://github.com/mx4/rayflex/actions/workflows/ci.yml/badge.svg)](https://github.com/mx4/rayflex/actions/workflows/ci.yml)
 
-### RAYMAX
+### RAYFLEX
 
 Rust implementation of a ray-tracer and path-tracer.
 

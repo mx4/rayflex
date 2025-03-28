@@ -9,13 +9,13 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use structopt::StructOpt;
 
-use raymax::render::RenderConfig;
-use raymax::scene::generate_scene;
-use raymax::scene::load_scene;
+use rayflex::render::RenderConfig;
+use rayflex::scene::generate_scene;
+use rayflex::scene::load_scene;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(StructOpt, Debug)]
-#[structopt(name = "raymax", about = "ray/path-tracer")]
+#[structopt(name = "rayflex", about = "ray/path-tracer")]
 struct Options {
     #[structopt(long, default_value = "pic.png")]
     img_file: PathBuf,
@@ -69,7 +69,7 @@ fn print_opt(opt: &Options) {
 
 #[cfg(target_arch = "wasm32")]
 fn main() -> std::io::Result<()> {
-    raymax::egui_main();
+    rayflex::egui_main();
     return Ok(());
 }
 
@@ -87,7 +87,7 @@ fn main() -> std::io::Result<()> {
     .expect("ctrl-c");
 
     if opt.use_ui {
-        raymax::egui_main();
+        rayflex::egui_main();
         return Ok(());
     }
 
