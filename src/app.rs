@@ -11,7 +11,6 @@ use std::thread;
 use crate::render::RenderConfig;
 use crate::scene::load_scene;
 
-use log::Level;
 use log::info;
 
 const WIDTH: usize = 600;
@@ -77,7 +76,7 @@ fn start_rendering(
     };
     job.set_progress_func(Box::new(update_func.clone()));
     job.render_scene(rendering_needs_stop.clone());
-#[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(target_arch = "wasm32"))]
     job.print_stats();
     // call it one last time to refresh texture
     update_func(1.0);
@@ -171,10 +170,10 @@ pub fn egui_main() {
     wasm_bindgen_futures::spawn_local(async {
         eframe::start_web(
             "the_canvas_id", // hardcode it
-	    web_options,
-	    Box::new(|cc| Box::new(RaymaxApp::new(cc))),
+            web_options,
+            Box::new(|cc| Box::new(RaymaxApp::new(cc))),
         )
-	.await
+        .await
         .expect("failed to start eframe");
     });
 }

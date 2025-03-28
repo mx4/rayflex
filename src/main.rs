@@ -117,7 +117,7 @@ fn main() -> std::io::Result<()> {
     let pb = Arc::new(ProgressBar::new(1000));
     let pb_clone = pb.clone();
     job.set_progress_func(Box::new(move |pct| {
-                pb_clone.set_position((pct * 1000.0) as u64);
+        pb_clone.set_position((pct * 1000.0) as u64);
     }));
     job.alloc_image();
     job.render_scene(exit_req);

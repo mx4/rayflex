@@ -69,7 +69,7 @@ impl Image {
         img.save(file).expect("png write");
         let elapsed = start_time.elapsed();
         let lat_msec = elapsed.as_millis() as f64 / 1000.0;
-#[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_arch = "wasm32"))]
         println!(
             "writing '{}' took {} sec",
             file.display().to_string().bold(),

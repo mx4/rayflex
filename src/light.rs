@@ -60,9 +60,9 @@ impl Light for SpotLight {
         c_res * self.intensity / (1.0 + dist_sq)
     }
     fn display(&self) {
-#[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_arch = "wasm32"))]
         let s = format!("{:3} {:?} {:?}", self.intensity, self.pos, self.rgb).dimmed();
-#[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_arch = "wasm32"))]
         println!("-- {:12}: {s}", self.name.blue());
     }
     fn get_vector(&self, point: Point) -> Vec3 {
@@ -94,9 +94,9 @@ impl Light for AmbientLight {
         mat.kd * self.rgb * self.intensity
     }
     fn display(&self) {
-#[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_arch = "wasm32"))]
         let s = format!("{:3} {:?}", self.intensity, self.rgb).dimmed();
-#[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_arch = "wasm32"))]
         println!("-- {:12}: {s}", "ambient".blue());
     }
     fn get_vector(&self, _point: Point) -> Vec3 {
@@ -135,9 +135,9 @@ impl Light for VectorLight {
         false
     }
     fn display(&self) {
-#[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_arch = "wasm32"))]
         let s = format!("{:3} {:?} {:?}", self.intensity, self.dir, self.rgb).dimmed();
-#[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_arch = "wasm32"))]
         println!("-- {:12}: {s}", self.name.blue());
     }
     fn get_vector(&self, _point: Point) -> Vec3 {

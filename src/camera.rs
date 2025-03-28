@@ -56,17 +56,17 @@ impl Camera {
         Ray::new(self.pos, pixel - self.pos)
     }
     pub fn display(&self) {
-#[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_arch = "wasm32"))]
         {
-        let s = "camera:".green();
-        let s_pos = format!("pos: {:?}", self.pos).dimmed();
-        let s_dir = format!("dir: {:?}", self.dir).dimmed();
-        let s_u = format!("  u: {:?}", self.screen_u).dimmed();
-        let s_v = format!("  v: {:?}", self.screen_v).dimmed();
-        println!("-- {s} {s_pos}");
-        println!("-- {s} {s_dir}");
-        println!("-- {s} {s_u}");
-        println!("-- {s} {s_v}");
+            let s = "camera:".green();
+            let s_pos = format!("pos: {:?}", self.pos).dimmed();
+            let s_dir = format!("dir: {:?}", self.dir).dimmed();
+            let s_u = format!("  u: {:?}", self.screen_u).dimmed();
+            let s_v = format!("  v: {:?}", self.screen_v).dimmed();
+            println!("-- {s} {s_pos}");
+            println!("-- {s} {s_dir}");
+            println!("-- {s} {s_u}");
+            println!("-- {s} {s_v}");
         }
     }
 }
