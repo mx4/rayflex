@@ -21,6 +21,7 @@ Features:
 <img src="./assets/readme-small.png"></img>
 </td>
 </tr>
+</table>
 
 It can run with a user-interface (egui), or via command line interface.
 
