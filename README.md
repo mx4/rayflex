@@ -4,9 +4,6 @@
 
 Rust implementation of a ray-tracer and path-tracer.
 
-<table>
-<tr>
-<td width="50%">
 Features:
  - ray-tracing + path-tracing
  - parallelism with rayon
@@ -15,13 +12,6 @@ Features:
  - light sources
  - antialiasing
  - bugs!
-</td>
-<td width="50%">
-
-<img src="./assets/readme-small.png"></img>
-</td>
-</tr>
-</table>
 
 It can run with a user-interface (egui), or via command line interface.
 
