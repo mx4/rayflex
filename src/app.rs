@@ -1,6 +1,7 @@
 use egui::Color32;
 use egui::ColorImage;
 use egui::TextureHandle;
+use egui::load::SizedTexture;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -144,17 +145,16 @@ impl RayflexApp {
 
 pub fn egui_main() {
     let native_options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(
-            (SIDE_PANEL_WIDTH + WIDTH + 50) as f32,
-            (HEIGHT + 50) as f32,
-        )),
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([(SIDE_PANEL_WIDTH + WIDTH + 50) as f32, (HEIGHT + 50) as f32]),
         ..eframe::NativeOptions::default()
     };
     eframe::run_native(
         "rayflex",
         native_options,
-        Box::new(|cc| Box::new(RayflexApp::new(cc))),
-    );
+        Box::new(|cc| Ok(Box::new(RayflexApp::new(cc)))),
+    )
+    .unwrap();
 }
 
 impl eframe::App for RayflexApp {
@@ -268,7 +268,8 @@ impl eframe::App for RayflexApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(texture) = &self.texture_handle {
-                ui.add(egui::Image::new(texture.id(), texture.size_vec2()));
+                let t = SizedTexture::new(texture, ui.available_size());
+                ui.image(t);
             }
         });
     }
