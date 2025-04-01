@@ -2,10 +2,10 @@ use egui::Color32;
 use egui::ColorImage;
 use egui::TextureHandle;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::thread;
 
 use crate::render::RenderConfig;

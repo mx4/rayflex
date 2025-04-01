@@ -4,9 +4,9 @@ use colored::Colorize;
 use indicatif::ProgressBar;
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use structopt::StructOpt;
 
 use rayflex::render::RenderConfig;

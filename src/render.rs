@@ -10,18 +10,18 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use crate::ProgressFunc;
+use crate::Ray;
+use crate::RenderStats;
 use crate::camera::Camera;
 use crate::color::RGB;
 use crate::image::Image;
 use crate::light::Light;
 use crate::material::Material;
 use crate::three_d::Object;
+use crate::vec3::EPSILON;
 use crate::vec3::Float;
 use crate::vec3::Vec3;
-use crate::vec3::EPSILON;
-use crate::ProgressFunc;
-use crate::Ray;
-use crate::RenderStats;
 
 pub struct RenderConfig {
     pub path_tracing: u32,
@@ -406,8 +406,8 @@ impl RenderJob {
         if self.cfg.path_tracing > 1 {
             step = 10;
         }
-        let ny = (self.cfg.res_y + step - 1) / step;
-        let nx = (self.cfg.res_x + step - 1) / step;
+        let ny = self.cfg.res_y.div_ceil(step);
+        let nx = self.cfg.res_x.div_ceil(step);
         (0..ny * nx).into_par_iter().for_each(|v| {
             let mut stats: RenderStats = Default::default();
             let x = (v % nx) * step;

@@ -1,8 +1,8 @@
+use crate::Ray;
 use crate::color::RGB;
 use crate::material::Material;
 use crate::vec3::Point;
 use crate::vec3::Vec3;
-use crate::Ray;
 #[cfg(not(target_arch = "wasm32"))]
 use colored::Colorize;
 use serde::{Deserialize, Serialize};

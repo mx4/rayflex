@@ -20,10 +20,6 @@ impl Material {
     pub fn do_checker(&self, c: RGB, text2d: Vec2) -> RGB {
         assert!(self.checkered);
         let pattern = ((text2d.x * 4.0).fract() > 0.5) ^ ((text2d.y * 4.0).fract() > 0.5);
-        if pattern {
-            c / 3.0
-        } else {
-            c
-        }
+        if pattern { c / 3.0 } else { c }
     }
 }

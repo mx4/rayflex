@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
+use crate::Ray;
+use crate::RenderStats;
 use crate::aabb::AABB;
+use crate::vec3::EPSILON;
 use crate::vec3::Float;
 use crate::vec3::Point;
 use crate::vec3::Vec2;
 use crate::vec3::Vec3;
-use crate::vec3::EPSILON;
-use crate::Ray;
-use crate::RenderStats;
 use serde::{Deserialize, Serialize};
 
 pub trait Object {

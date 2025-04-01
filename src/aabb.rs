@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::Ray;
+use crate::RenderStats;
 use crate::three_d::Object;
 use crate::three_d::Plane;
 use crate::three_d::Triangle;
@@ -8,8 +10,6 @@ use crate::three_d::Triangles;
 use crate::vec3::Float;
 use crate::vec3::Point;
 use crate::vec3::Vec3;
-use crate::Ray;
-use crate::RenderStats;
 
 const MAX_NUM_TRIANGLES: usize = 30;
 const MAX_DEPTH: u32 = 8;
@@ -93,13 +93,7 @@ impl AABB {
             || self.check_intersect(&ray1, 1.0, &mut t0)
             || self.check_intersect(&ray2, 1.0, &mut t0)
     }
-    fn setup_node(
-        &mut self,
-        p_min: Point,
-        p_max: Point,
-        triangles: &Vec<AABBTriangle>,
-        depth: u32,
-    ) {
+    fn setup_node(&mut self, p_min: Point, p_max: Point, triangles: &[AABBTriangle], depth: u32) {
         self.p_min = p_min;
         self.p_max = p_max;
 
@@ -211,7 +205,7 @@ impl AABB {
         self.find_bounds(&mut p_min, &mut p_max);
 
         let start_time = Instant::now();
-        self.setup_node(p_min, p_max, &vec![], 0);
+        self.setup_node(p_min, p_max, &[], 0);
         let elapsed = start_time.elapsed();
 
         if elapsed.as_millis() as Float > 0.1 {

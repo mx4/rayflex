@@ -7,6 +7,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use crate::ProgressFunc;
+use crate::Vec3;
 use crate::camera::Camera;
 use crate::color::RGB;
 use crate::image::Image;
@@ -19,8 +21,6 @@ use crate::render::RenderConfig;
 use crate::render::RenderJob;
 use crate::vec3::Float;
 use crate::vec3::Point;
-use crate::ProgressFunc;
-use crate::Vec3;
 
 use crate::three_d::Mesh;
 use crate::three_d::Object;
