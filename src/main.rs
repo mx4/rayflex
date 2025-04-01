@@ -1,6 +1,4 @@
-#[cfg(not(target_arch = "wasm32"))]
 use colored::Colorize;
-#[cfg(not(target_arch = "wasm32"))]
 use indicatif::ProgressBar;
 
 use std::path::PathBuf;
@@ -13,7 +11,6 @@ use rayflex::render::RenderConfig;
 use rayflex::scene::generate_scene;
 use rayflex::scene::load_scene;
 
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(StructOpt, Debug)]
 #[structopt(name = "rayflex", about = "ray/path-tracer")]
 struct Options {
@@ -47,7 +44,6 @@ struct Options {
     use_ui: bool,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn print_opt(opt: &Options) {
     println!(
         "{}: gamma={} sampling-depth={} reflection-depth={}",
@@ -67,13 +63,6 @@ fn print_opt(opt: &Options) {
     println!("{s}");
 }
 
-#[cfg(target_arch = "wasm32")]
-fn main() -> std::io::Result<()> {
-    rayflex::egui_main();
-    return Ok(());
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt::init();
 

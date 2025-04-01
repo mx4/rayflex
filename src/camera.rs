@@ -2,7 +2,6 @@ use crate::Ray;
 use crate::vec3::Float;
 use crate::vec3::Point;
 use crate::vec3::Vec3;
-#[cfg(not(target_arch = "wasm32"))]
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
@@ -56,7 +55,6 @@ impl Camera {
         Ray::new(self.pos, pixel - self.pos)
     }
     pub fn display(&self) {
-        #[cfg(not(target_arch = "wasm32"))]
         {
             let s = "camera:".green();
             let s_pos = format!("pos: {:?}", self.pos).dimmed();

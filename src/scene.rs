@@ -1,4 +1,3 @@
-#[cfg(not(target_arch = "wasm32"))]
 use colored::Colorize;
 
 use rand::Rng;
@@ -97,7 +96,6 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
         let base_mat_idx = scene.num_materials;
         if let Ok(mat) = materials.clone() {
             mat.iter().for_each(|m| {
-                #[cfg(not(target_arch = "wasm32"))]
                 println!("-- material {} -- {:?}", m.name.green(), m);
                 let mat = Material {
                     ke: RGB::zero(),
@@ -110,7 +108,6 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                 scene.num_materials += 1;
             });
         } else {
-            #[cfg(not(target_arch = "wasm32"))]
             println!(
                 "{} {:?}",
                 "Error loading materials:".red().bold(),
@@ -129,7 +126,6 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                     .clone();
             }
 
-            #[cfg(not(target_arch = "wasm32"))]
             println!(
                 "-- model {:12} has {} triangles w/ {} vertices -- {}",
                 m.name.blue(),
@@ -180,7 +176,6 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
             scene.objects.push(Arc::new(Mesh::new(triangles, 0)));
             scene.num_objs += 1;
         });
-        #[cfg(not(target_arch = "wasm32"))]
         println!(
             "-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
             path.green(),
@@ -281,7 +276,6 @@ fn load_resolution(cfg: &mut RenderConfig, json: &serde_json::Value) -> std::io:
             cfg.res_y = array[1].as_u64().unwrap() as u32;
         }
     }
-    #[cfg(not(target_arch = "wasm32"))]
     {
         let res_str = format!("{}x{}", cfg.res_x, cfg.res_y).bold();
         let mut smp_str = "".cyan();
@@ -300,7 +294,6 @@ pub fn load_scene(cfg: RenderConfig) -> std::io::Result<RenderJob> {
         println!("pwd={}", std::env::current_dir()?.display());
         panic!("scene file {} not present.", cfg.scene_file.display());
     }
-    #[cfg(not(target_arch = "wasm32"))]
     println!(
         "loading scene file {}",
         cfg.scene_file.display().to_string().bold()

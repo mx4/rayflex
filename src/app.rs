@@ -76,7 +76,6 @@ fn start_rendering(
     };
     job.set_progress_func(Box::new(update_func.clone()));
     job.render_scene(rendering_needs_stop.clone());
-    #[cfg(not(target_arch = "wasm32"))]
     job.print_stats();
     // call it one last time to refresh texture
     update_func(1.0);
@@ -143,7 +142,6 @@ impl RayflexApp {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 pub fn egui_main() {
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(
@@ -157,25 +155,6 @@ pub fn egui_main() {
         native_options,
         Box::new(|cc| Box::new(RayflexApp::new(cc))),
     );
-}
-
-#[cfg(target_arch = "wasm32")]
-pub fn egui_main() {
-    console_error_panic_hook::set_once();
-    tracing_wasm::set_as_global_default();
-    console_log::init_with_level(Level::Debug);
-
-    let web_options = eframe::WebOptions::default();
-    info!("It works!");
-    wasm_bindgen_futures::spawn_local(async {
-        eframe::start_web(
-            "the_canvas_id", // hardcode it
-            web_options,
-            Box::new(|cc| Box::new(RayflexApp::new(cc))),
-        )
-        .await
-        .expect("failed to start eframe");
-    });
 }
 
 impl eframe::App for RayflexApp {

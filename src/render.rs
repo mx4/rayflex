@@ -1,4 +1,3 @@
-#[cfg(not(target_arch = "wasm32"))]
 use colored::Colorize;
 use rand::Rng;
 use rayon::prelude::*;
@@ -272,7 +271,6 @@ impl RenderJob {
         (c00 + c01 + c10 + c11) * 0.25
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn print_stats(&self) {
         let stats = self.total_stats.lock().unwrap();
         let pretty_print = |n| {
