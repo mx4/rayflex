@@ -1,7 +1,9 @@
-name: CI
+name: MacOS
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 env:
@@ -9,7 +11,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     strategy:
       matrix:
         toolchain:
@@ -21,8 +23,6 @@ jobs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: stable
-    - name: install dependencies
-      run: sudo apt-get install -y libfontconfig1-dev
     - name: build
       run: cargo build --verbose
 

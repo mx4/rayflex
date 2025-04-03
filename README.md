@@ -1,4 +1,5 @@
-[![CI](https://github.com/mx4/rayflex/actions/workflows/ci.yml/badge.svg)](https://github.com/mx4/rayflex/actions/workflows/ci.yml)
+[![Linux](https://github.com/mx4/rayflex/actions/workflows/linux.yml/badge.svg)](https://github.com/mx4/rayflex/actions/workflows/linux.yml)
+[![MacOS](https://github.com/mx4/rayflex/actions/workflows/macos.yml/badge.svg)](https://github.com/mx4/rayflex/actions/workflows/macos.yml)
 
 ### RAYFLEX
 

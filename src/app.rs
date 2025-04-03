@@ -249,12 +249,12 @@ impl eframe::App for RayflexApp {
                 ui.add(egui::ProgressBar::new(v).text(txt));
                 ui.add(egui::Separator::default());
                 if self.rendering_active.load(Ordering::SeqCst) {
-                    txt = "Stop".to_owned();
+                    txt = "Stop".to_owned()
                 } else {
-                    txt = "Start".to_owned();
-                }
+                    txt = "Start".to_owned()
+                };
                 if ui
-                    .add_sized([SIDE_PANEL_WIDTH as f32, 30.], egui::Button::new(txt))
+                    .add_sized([SIDE_PANEL_WIDTH as f32, 30.], egui::Button::new(txt.to_owned()))
                     .clicked()
                 {
                     if self.rendering_active.load(Ordering::SeqCst) {
