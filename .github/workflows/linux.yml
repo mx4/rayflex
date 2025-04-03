@@ -1,5 +1,4 @@
 name: Linux
-run-name: "${{ github.head_ref }} ${{ github.sha }} by @${{ github.actor }}"
 
 on:
   push:
