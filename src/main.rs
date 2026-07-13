@@ -1,3 +1,4 @@
+use clap::Parser;
 use colored::Colorize;
 use indicatif::ProgressBar;
 
@@ -5,42 +6,41 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use structopt::StructOpt;
 
 use rayflex::render::RenderConfig;
 use rayflex::scene::generate_scene;
 use rayflex::scene::load_scene;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "rayflex", about = "ray/path-tracer")]
+#[derive(Parser, Debug)]
+#[command(name = "rayflex", about = "ray/path-tracer")]
 struct Options {
-    #[structopt(long, default_value = "pic.png")]
+    #[arg(long, default_value = "pic.png")]
     img_file: PathBuf,
-    #[structopt(short = "l", long, default_value = "scene.json")]
+    #[arg(short = 'l', long, default_value = "scene.json")]
     scene_file: PathBuf,
-    #[structopt(short = "x", long, default_value = "0")]
+    #[arg(short = 'x', long, default_value = "0")]
     res_x: u32,
-    #[structopt(short = "y", long, default_value = "0")]
+    #[arg(short = 'y', long, default_value = "0")]
     res_y: u32,
-    #[structopt(short = "n", long, default_value = "0")]
+    #[arg(short = 'n', long, default_value = "0")]
     num_spheres_to_generate: u32,
-    #[structopt(long, default_value = "2")]
+    #[arg(long, default_value = "2")]
     adaptive_max_depth: u32,
-    #[structopt(long, default_value = "6")]
+    #[arg(long, default_value = "6")]
     reflection_max_depth: u32,
-    #[structopt(short = "b", long, default_value = "1")]
+    #[arg(short = 'b', long, default_value = "1")]
     add_box: u32,
-    #[structopt(short = "g", long, help = "use gamma correction")]
+    #[arg(short = 'g', long, help = "use gamma correction")]
     use_gamma: bool,
-    #[structopt(short = "a", long)]
+    #[arg(short = 'a', long)]
     use_adaptive_sampling: bool,
-    #[structopt(long, help = "scan per line vs box")]
+    #[arg(long, help = "scan per line vs box")]
     use_lines: bool,
-    #[structopt(long, help = "use hashmap to speed-up antialiasing")]
+    #[arg(long, help = "use hashmap to speed-up antialiasing")]
     use_hashmap: bool,
-    #[structopt(short = "-p", long, help = "do path tracing", default_value = "1")]
+    #[arg(short = 'p', long, help = "do path tracing", default_value = "1")]
     path_tracing: u32,
-    #[structopt(short = "-u", long, help = "use ui")]
+    #[arg(short = 'u', long, help = "use ui")]
     use_ui: bool,
 }
 
@@ -64,9 +64,9 @@ fn print_opt(opt: &Options) {
 }
 
 fn main() -> std::io::Result<()> {
-    tracing_subscriber::fmt::init();
+    env_logger::init();
 
-    let opt = Options::from_args();
+    let opt = Options::parse();
     let exit_req = Arc::new(AtomicBool::new(false));
     let exit_req_clone = exit_req.clone();
 
