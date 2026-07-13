@@ -1,9 +1,9 @@
-var cacheName = 'raymax';
+var cacheName = 'rayflex';
 var filesToCache = [
   './',
   './index.html',
-  './raymax-100ba91a62cb0921.js',
-  './raymax-100ba91a62cb0921_bg.wasm',
+  './rayflex.js',
+  './rayflex_bg.wasm',
 ];
 
 /* Start the service worker and cache all of the app's content */

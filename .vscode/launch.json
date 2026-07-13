@@ -7,16 +7,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'raymax'",
+            "name": "Debug executable 'rayflex'",
             "cargo": {
                 "args": [
                     "run",
-                    "--bin=raymax",
-                    "--package=raymax",
+                    "--bin=rayflex",
+                    "--package=rayflex",
                     "--release"
                 ],
                 "filter": {
-                    "name": "raymax",
+                    "name": "rayflex",
                     "kind": "bin"
                 }
             },
@@ -30,16 +30,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'raymax'",
+            "name": "Debug unit tests in library 'rayflex'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=raymax"
+                    "--package=rayflex"
                 ],
                 "filter": {
-                    "name": "raymax",
+                    "name": "rayflex",
                     "kind": "lib"
                 }
             },
@@ -50,17 +50,17 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'raymax'",
+            "name": "Debug unit tests in executable 'rayflex'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=raymax",
-                    "--package=raymax",
+                    "--bin=rayflex",
+                    "--package=rayflex",
                     "--release"
                 ],
                 "filter": {
-                    "name": "raymax",
+                    "name": "rayflex",
                     "kind": "bin"
                 }
             },
@@ -78,7 +78,7 @@
                     "test",
                     "--no-run",
                     "--test=cli",
-                    "--package=raymax"
+                    "--package=rayflex"
                 ],
                 "filter": {
                     "name": "cli",
