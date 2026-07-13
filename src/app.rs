@@ -114,7 +114,7 @@ impl RayflexApp {
             info!("texture");
         }
         let cfg = RenderConfig {
-            path_tracing: self.path_level,
+            path_tracing: if self.do_path_tracing { self.path_level } else { 1 },
             use_gamma: self.use_gamma,
             use_adaptive_sampling: self.use_antialias,
             res_x: self.width as u32,
