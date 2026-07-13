@@ -207,7 +207,7 @@ impl Object for Sphere {
         normal / self.radius
     }
     fn get_texture_2d(&self, point: Point) -> Vec2 {
-        let pi = std::f64::consts::PI as Float;
+        let pi = std::f32::consts::PI;
         let v = (point - self.center) / self.radius;
         let x = (1.0 + v.y.atan2(v.x) / pi) * 0.5;
         let y = v.z.acos() / pi;
