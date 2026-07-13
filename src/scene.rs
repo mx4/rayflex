@@ -462,41 +462,6 @@ pub fn generate_scene(
         );
         json["camera"] = serde_json::to_value(camera).unwrap();
     }
-    if false {
-        let orig = Vec3::new(1.5, -1.5, -1.5);
-        let sz = 0.5;
-        let a = Point::zero() * sz + orig; // a
-        let b = Point::new(1.0, 0.0, 0.0) * sz + orig; // b
-        let d = Point::new(0.0, 0.0, 1.0) * sz + orig; // d
-        let c = Point::new(1.0, 0.0, 1.0) * sz + orig; // c
-        let ap = Point::new(0.0, 1.0, 0.0) * sz + orig; //
-        let bp = Point::new(1.0, 1.0, 0.0) * sz + orig; //
-        let dp = Point::new(0.0, 1.0, 1.0) * sz + orig; //
-        let cp = Point::new(1.0, 1.0, 1.0) * sz + orig; //
-
-        let t0 = Triangle::new([a, b, c], 0);
-        let t1 = Triangle::new([a, c, d], 0);
-        let t2 = Triangle::new([a, d, dp], 0);
-        let t3 = Triangle::new([ap, a, dp], 0);
-        let t4 = Triangle::new([ap, bp, cp], 0);
-        let t5 = Triangle::new([ap, cp, dp], 0);
-        let t6 = Triangle::new([d, c, cp], 0);
-        let t7 = Triangle::new([d, cp, dp], 0);
-        let t8 = Triangle::new([a, bp, b], 0);
-        let t9 = Triangle::new([a, ap, bp], 0);
-
-        json["triangle.0"] = serde_json::to_value(t0).unwrap();
-        json["triangle.1"] = serde_json::to_value(t1).unwrap();
-        json["triangle.2"] = serde_json::to_value(t2).unwrap();
-        json["triangle.3"] = serde_json::to_value(t3).unwrap();
-        json["triangle.4"] = serde_json::to_value(t4).unwrap();
-        json["triangle.5"] = serde_json::to_value(t5).unwrap();
-        json["triangle.6"] = serde_json::to_value(t6).unwrap();
-        json["triangle.7"] = serde_json::to_value(t7).unwrap();
-        json["triangle.8"] = serde_json::to_value(t8).unwrap();
-        json["triangle.9"] = serde_json::to_value(t9).unwrap();
-        json["num_triangles"] = serde_json::json!(10);
-    }
 
     if add_box {
         println!("using box!");

@@ -101,15 +101,4 @@ impl RGB {
     pub fn distance(&self, rhs: RGB) -> f32 {
         ((self.r - rhs.r).powi(2) + (self.g - rhs.g).powi(2) + (self.b - rhs.b).powi(2)).sqrt()
     }
-    pub fn add(&mut self, rgb: &RGB) {
-        assert!(self.r >= 0.0);
-        assert!(self.g >= 0.0);
-        assert!(self.b >= 0.0);
-        assert!(rgb.r >= 0.0);
-        assert!(rgb.g >= 0.0);
-        assert!(rgb.b >= 0.0);
-        self.r += rgb.r;
-        self.g += rgb.g;
-        self.b += rgb.b;
-    }
 }

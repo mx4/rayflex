@@ -2,7 +2,6 @@ use colored::Colorize;
 use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashMap;
-
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
