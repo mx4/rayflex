@@ -58,20 +58,22 @@ impl Image {
 
         let mut img = RgbImage::new(self.res_x, self.res_y);
 
+        let pixels = self.img_buffer.lock().unwrap().pixels.clone();
+
         for y in 0..self.res_y {
             for x in 0..self.res_x {
-                let c = self.img_buffer.lock().unwrap().pixels[(y * self.res_x + x) as usize];
+                let c = pixels[(y * self.res_x + x) as usize];
                 img.put_pixel(x, y, Rgb([c.r(), c.g(), c.b()]));
             }
         }
 
         img.save(file).expect("png write");
         let elapsed = start_time.elapsed();
-        let lat_msec = elapsed.as_millis() as f64 / 1000.0;
+        let lat_sec = elapsed.as_secs_f64();
         println!(
             "writing '{}' took {} sec",
             file.display().to_string().bold(),
-            lat_msec
+            lat_sec
         );
         Ok(())
     }
