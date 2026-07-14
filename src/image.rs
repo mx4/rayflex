@@ -30,7 +30,7 @@ impl Image {
             use_gamma,
             res_x,
             res_y,
-            img_buffer: Arc::new(Mutex::new(ColorImage::new(
+            img_buffer: Arc::new(Mutex::new(ColorImage::filled(
                 [res_x as usize, res_y as usize],
                 Color32::BLACK,
             ))),

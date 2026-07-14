@@ -107,7 +107,7 @@ impl RayflexApp {
         {
             texture_handle = ctx.load_texture(
                 "rendered_pixels",
-                ColorImage::new([self.width, self.height], Color32::BLACK),
+                ColorImage::filled([self.width, self.height], Color32::BLACK),
                 Default::default(),
             );
             self.texture_handle = Some(texture_handle.clone());
@@ -158,7 +158,7 @@ pub fn egui_main() {
 }
 
 impl eframe::App for RayflexApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let vec_str = [
             "cornell-box",
             "trolley",
@@ -170,9 +170,9 @@ impl eframe::App for RayflexApp {
             "test",
         ];
 
-        egui::SidePanel::left("side_panel")
-            .max_width(SIDE_PANEL_WIDTH as f32)
-            .show(ctx, |ui| {
+        egui::Panel::left("side_panel")
+            .max_size(SIDE_PANEL_WIDTH as f32)
+            .show(ui, |ui| {
                 ui.heading("Settings");
 
                 egui::ComboBox::from_label("Pick scene")
@@ -260,13 +260,13 @@ impl eframe::App for RayflexApp {
                     if self.rendering_active.load(Ordering::SeqCst) {
                         self.stop_async();
                     } else {
-                        self.start_async(ctx);
+                        self.start_async(ui.ctx());
                     }
                 }
                 egui::warn_if_debug_build(ui);
             });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             if let Some(texture) = &self.texture_handle {
                 let t = SizedTexture::new(texture, ui.available_size());
                 ui.image(t);
