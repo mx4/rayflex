@@ -28,4 +28,5 @@ Scenes are described in a json file that contains:
 ## Screenshots
 ![teapot](./assets/teapot.png)
 ![cornell-box](./assets/cornell-box.png)
+![trolley](./assets/trolley.png)
 ![buddha](./assets/buddha.png)
