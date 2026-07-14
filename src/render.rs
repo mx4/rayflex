@@ -72,10 +72,10 @@ impl RenderJob {
         }
         let mut s_id = 0;
         let mut t = Float::MAX;
-        // Reflection (secondary) rays need a larger self-intersection bias
-        // than primary rays -- see REFLECTION_EPSILON doc comment.
+        // Secondary (reflection) rays need a larger self-intersection bias
+        // than primary rays -- see SECONDARY_RAY_EPSILON doc comment.
         let tmin = if depth > 0 {
-            crate::vec3::REFLECTION_EPSILON
+            crate::vec3::SECONDARY_RAY_EPSILON
         } else {
             EPSILON
         };
@@ -103,7 +103,19 @@ impl RenderJob {
                     if !self.objects.iter().any(|obj| {
                         let mut tmax0 = 1.0;
                         let mut oid0 = 0;
-                        obj.intercept(stats, &light_ray, EPSILON, &mut tmax0, true, &mut oid0)
+                        // Shadow rays are secondary rays too -- see
+                        // SECONDARY_RAY_EPSILON doc comment. Using the tiny
+                        // primary-ray EPSILON here caused salt-and-pepper
+                        // self-shadowing noise on curved surfaces (e.g.
+                        // spheres) lit by spot lights.
+                        obj.intercept(
+                            stats,
+                            &light_ray,
+                            crate::vec3::SECONDARY_RAY_EPSILON,
+                            &mut tmax0,
+                            true,
+                            &mut oid0,
+                        )
                     }) {
                         c_light = light.get_contrib(ray, hit_material, hit_point, hit_normal)
                     }
@@ -145,10 +157,10 @@ impl RenderJob {
         }
         let mut s_id = 0;
         let mut t = Float::MAX;
-        // Reflection (secondary) rays need a larger self-intersection bias
-        // than primary rays -- see REFLECTION_EPSILON doc comment.
+        // Secondary (reflection) rays need a larger self-intersection bias
+        // than primary rays -- see SECONDARY_RAY_EPSILON doc comment.
         let tmin = if depth > 0 {
-            crate::vec3::REFLECTION_EPSILON
+            crate::vec3::SECONDARY_RAY_EPSILON
         } else {
             EPSILON
         };

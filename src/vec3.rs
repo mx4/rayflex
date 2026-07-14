@@ -9,17 +9,22 @@ pub type Float = f32;
 /// units and many small triangles), where a larger epsilon would be
 /// comparable to individual triangle sizes and cull valid hits.
 pub const EPSILON: Float = 1e-6;
-/// Minimum ray distance for reflection (secondary) rays specifically.
-/// Reflection rays at grazing/near-horizon angles suffer from larger
-/// floating-point error in the computed hit point, because the ray-plane
-/// intersection math (t = dot(v, normal) / dot(dir, normal)) becomes
-/// numerically unstable as the ray direction approaches parallel to the
-/// surface. Using the tiny primary-ray EPSILON here caused the reflected
-/// ray to spuriously re-intersect the same plane it just bounced off,
-/// producing visible dark horizontal banding on reflective floors near
-/// the horizon. This is scoped to reflection rays only so it doesn't
-/// affect primary-ray precision on small-scale meshes (e.g. buddha.obj).
-pub const REFLECTION_EPSILON: Float = 1e-4;
+/// Minimum ray distance for rays that originate from a surface the primary
+/// ray just hit: reflection rays and shadow (light occlusion) rays.
+/// These need a larger self-intersection bias than primary rays because
+/// floating-point error in the computed hit point is more likely to cause
+/// the new ray to spuriously re-intersect the same surface it started
+/// from, especially at grazing angles (e.g. reflections near the horizon,
+/// or shadow rays toward a light near the surface's tangent plane).
+/// Using the tiny primary-ray EPSILON here caused visible artifacts:
+/// dark horizontal banding on reflective floors near the horizon, and
+/// salt-and-pepper noise on curved surfaces (spheres) lit by spot lights,
+/// where shadow rays would spuriously self-shadow the sphere they left.
+/// This is scoped to secondary rays only (not primary rays) so it doesn't
+/// affect primary-ray precision on small-scale meshes (e.g. buddha.obj),
+/// where this larger epsilon would be comparable to triangle size and
+/// incorrectly cull legitimate close-range hits.
+pub const SECONDARY_RAY_EPSILON: Float = 1e-4;
 
 fn u128_fold(v: u128) -> u64 {
     ((v >> 64) ^ v) as u64
