@@ -249,6 +249,7 @@ impl AABB {
         tmax: &mut Float,
         any: bool,
         oid: &mut usize,
+        exclude: Option<usize>,
     ) -> bool {
         let mut t_aabb = *tmax;
 
@@ -273,8 +274,11 @@ impl AABB {
 
         if self.is_leaf {
             for triangle_id in &self.triangles {
+                if exclude == Some(*triangle_id) {
+                    continue;
+                }
                 let t = self.triangles_soa.get_triangle(*triangle_id);
-                if t.intercept(stats, ray, tmin, tmax, any, &mut oid0) {
+                if t.intercept(stats, ray, tmin, tmax, any, &mut oid0, None) {
                     hit = true;
                     *oid = *triangle_id;
                     if any {
@@ -293,7 +297,7 @@ impl AABB {
 
             for _i in 0..4 {
                 if self.aabbs.as_ref().unwrap()[close_idx]
-                    .intercept(stats, ray, tmin, tmax, any, oid)
+                    .intercept(stats, ray, tmin, tmax, any, oid, exclude)
                 {
                     return true;
                 }
@@ -303,9 +307,9 @@ impl AABB {
                 let mut t_xy = t_yz;
                 let mut p = [false; 3];
 
-                p[0] = plane_yz.intercept(stats, ray, tmin0, &mut t_yz, false, &mut oid0);
-                p[1] = plane_xz.intercept(stats, ray, tmin0, &mut t_xz, false, &mut oid0);
-                p[2] = plane_xy.intercept(stats, ray, tmin0, &mut t_xy, false, &mut oid0);
+                p[0] = plane_yz.intercept(stats, ray, tmin0, &mut t_yz, false, &mut oid0, None);
+                p[1] = plane_xz.intercept(stats, ray, tmin0, &mut t_xz, false, &mut oid0, None);
+                p[2] = plane_xy.intercept(stats, ray, tmin0, &mut t_xy, false, &mut oid0, None);
 
                 p[0] = p[0] && t_yz > t_aabb;
                 p[1] = p[1] && t_xz > t_aabb;

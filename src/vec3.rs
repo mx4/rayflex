@@ -3,41 +3,15 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 pub type Float = f32;
-/// Minimum ray distance used to avoid self-intersection ("shadow acne").
-/// Kept tiny so it doesn't reject legitimate intersections on small-scale,
-/// fine-detail meshes (e.g. models with coordinates on the order of 0.1-1
-/// units and many small triangles), where a larger epsilon would be
-/// comparable to individual triangle sizes and cull valid hits.
+/// Minimum ray distance used to avoid self-intersection ("shadow acne")
+/// for primary rays cast from the camera. Secondary rays (reflection,
+/// shadow) instead explicitly exclude the exact primitive they originate
+/// from -- see `HitId` in render.rs -- rather than relying on a distance
+/// epsilon, since no single fixed or scale-relative epsilon works
+/// correctly across scenes of very different scale and mesh feature size
+/// (e.g. cow.json's ~1-10 unit floor vs. trolley.json's ~100+ unit floor
+/// vs. buddha.json's ~0.1-1 unit, extremely fine-detail mesh).
 pub const EPSILON: Float = 1e-6;
-/// Relative scale factor for the self-intersection bias used by rays that
-/// originate from a surface the primary ray just hit: reflection rays and
-/// shadow (light occlusion) rays.
-///
-/// A single fixed absolute epsilon cannot work across scenes of very
-/// different scale: floating-point error in the computed hit point grows
-/// with the magnitude of its coordinates, so a value tuned for a scene
-/// with coordinates around 1-10 units (e.g. cow.json) is too small for a
-/// scene with coordinates around 100+ units (e.g. trolley.json), and too
-/// large for a scene with coordinates around 0.1-1 units (e.g.
-/// buddha.json) where it would be comparable to individual triangle sizes
-/// and incorrectly cull legitimate close-range hits.
-///
-/// Instead, secondary_ray_epsilon() scales this factor by the magnitude
-/// of the ray's origin (the hit point it was cast from), so the bias
-/// stays proportionally correct regardless of scene scale.
-///
-/// Without this, self-intersection causes visible artifacts: dark
-/// horizontal banding on reflective floors near the horizon (reflection
-/// rays), and salt-and-pepper noise on curved surfaces lit by spot lights
-/// (shadow rays self-shadowing the surface they left).
-pub const SECONDARY_RAY_EPSILON_SCALE: Float = 1e-4;
-
-/// Self-intersection bias for a secondary ray (reflection or shadow ray)
-/// cast from `origin`. See SECONDARY_RAY_EPSILON_SCALE for rationale.
-pub fn secondary_ray_epsilon(origin: Point) -> Float {
-    (origin.x.abs().max(origin.y.abs()).max(origin.z.abs()) * SECONDARY_RAY_EPSILON_SCALE)
-        .max(EPSILON)
-}
 
 fn u128_fold(v: u128) -> u64 {
     ((v >> 64) ^ v) as u64

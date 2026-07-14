@@ -21,6 +21,80 @@ use crate::vec3::EPSILON;
 use crate::vec3::Float;
 use crate::vec3::Vec3;
 
+/// Identifies the specific primitive a ray hit: which object in
+/// `RenderJob::objects`, and which sub-primitive within it (only
+/// meaningful for `Mesh`, where it's a triangle index; ignored -- but
+/// still excludes the whole object -- for single-primitive objects like
+/// `Sphere`, `Plane`, and standalone `Triangle`).
+///
+/// Passed to secondary rays (reflection, shadow) so they can exclude the
+/// exact primitive they originate from, rather than relying purely on a
+/// distance-based epsilon bias. Combined with EPSILON, this avoids
+/// self-intersection artifacts (e.g. dark banding on reflective floors
+/// near the horizon, or self-shadowing noise on curved surfaces lit by
+/// spot lights) without needing a larger epsilon that could otherwise
+/// reject legitimate nearby intersections.
+#[derive(Clone, Copy)]
+struct HitId {
+    obj_idx: usize,
+    sub_id: usize,
+}
+
+/// Find the closest object in `objects` that `ray` intersects, optionally
+/// excluding one specific primitive (see `HitId`). Returns the index of
+/// the hit object, the sub-id reported by that object's `intercept`, and
+/// updates `t` to the intersection distance.
+fn find_closest_hit(
+    objects: &[Arc<dyn Object + Send + Sync>],
+    stats: &mut RenderStats,
+    ray: &Ray,
+    tmin: Float,
+    t: &mut Float,
+    exclude: Option<HitId>,
+) -> Option<HitId> {
+    let mut hit = None;
+    for (obj_idx, obj) in objects.iter().enumerate() {
+        let exclude_sub_id = match exclude {
+            Some(e) if e.obj_idx == obj_idx => Some(e.sub_id),
+            _ => None,
+        };
+        let mut sub_id = 0;
+        if obj.intercept(stats, ray, tmin, t, false, &mut sub_id, exclude_sub_id) {
+            hit = Some(HitId { obj_idx, sub_id });
+        }
+    }
+    hit
+}
+
+/// Test whether any object in `objects` occludes `ray`, optionally
+/// excluding one specific primitive (see `HitId`). Used for shadow rays.
+fn is_occluded(
+    objects: &[Arc<dyn Object + Send + Sync>],
+    stats: &mut RenderStats,
+    ray: &Ray,
+    tmin: Float,
+    tmax: Float,
+    exclude: Option<HitId>,
+) -> bool {
+    objects.iter().enumerate().any(|(obj_idx, obj)| {
+        let exclude_sub_id = match exclude {
+            Some(e) if e.obj_idx == obj_idx => Some(e.sub_id),
+            _ => None,
+        };
+        let mut tmax0 = tmax;
+        let mut oid0 = 0;
+        obj.intercept(
+            stats,
+            ray,
+            tmin,
+            &mut tmax0,
+            true,
+            &mut oid0,
+            exclude_sub_id,
+        )
+    })
+}
+
 pub struct RenderConfig {
     pub path_tracing: u32,
     pub use_lines: bool,
@@ -65,31 +139,25 @@ impl RenderJob {
         }
     }
 
-    fn trace_ray(&self, stats: &mut RenderStats, ray: &Ray, depth: u32) -> RGB {
+    fn trace_ray(
+        &self,
+        stats: &mut RenderStats,
+        ray: &Ray,
+        depth: u32,
+        exclude: Option<HitId>,
+    ) -> RGB {
         if depth > self.cfg.reflection_max_depth {
             stats.num_rays_reflection_max += 1;
             return RGB::zero();
         }
-        let mut s_id = 0;
         let mut t = Float::MAX;
-        // Secondary (reflection) rays need a larger, scale-relative
-        // self-intersection bias than primary rays -- see
-        // secondary_ray_epsilon() doc comment.
-        let tmin = if depth > 0 {
-            crate::vec3::secondary_ray_epsilon(ray.orig)
-        } else {
-            EPSILON
-        };
 
-        let hit_obj_opt = self
-            .objects
-            .iter()
-            .filter(|obj| obj.intercept(stats, ray, tmin, &mut t, false, &mut s_id))
-            .last();
+        let hit = find_closest_hit(&self.objects, stats, ray, EPSILON, &mut t, exclude);
 
-        if let Some(hit_obj) = hit_obj_opt {
+        if let Some(hit_id) = hit {
+            let hit_obj = &self.objects[hit_id.obj_idx];
             let hit_point = ray.orig + ray.dir * t;
-            let hit_normal = hit_obj.get_normal(hit_point, s_id);
+            let hit_normal = hit_obj.get_normal(hit_point, hit_id.sub_id);
             let hit_mat_id = hit_obj.get_material_id();
             let hit_material = &self.materials[hit_mat_id];
 
@@ -101,23 +169,12 @@ impl RenderJob {
                 } else {
                     let light_vec = light.get_vector(hit_point) * -1.0;
                     let light_ray = Ray::new(hit_point, light_vec);
-                    if !self.objects.iter().any(|obj| {
-                        let mut tmax0 = 1.0;
-                        let mut oid0 = 0;
-                        // Shadow rays are secondary rays too -- see
-                        // secondary_ray_epsilon() doc comment. Using the
-                        // tiny primary-ray EPSILON here caused
-                        // salt-and-pepper self-shadowing noise on curved
-                        // surfaces (e.g. spheres) lit by spot lights.
-                        obj.intercept(
-                            stats,
-                            &light_ray,
-                            crate::vec3::secondary_ray_epsilon(hit_point),
-                            &mut tmax0,
-                            true,
-                            &mut oid0,
-                        )
-                    }) {
+                    // Shadow rays originate from the surface we just hit,
+                    // so exclude that exact primitive (hit_id) rather than
+                    // relying on a distance-based epsilon bias -- avoids
+                    // self-shadowing artifacts regardless of scene scale
+                    // or mesh feature size (see HitId doc comment).
+                    if !is_occluded(&self.objects, stats, &light_ray, EPSILON, 1.0, Some(hit_id)) {
                         c_light = light.get_contrib(ray, hit_material, hit_point, hit_normal)
                     }
                 }
@@ -132,8 +189,14 @@ impl RenderJob {
             if !hit_material.ks.is_zero() {
                 stats.num_rays_reflection += 1;
                 let reflected_ray = ray.get_reflection(hit_point, hit_normal);
-                let c_reflect = self.trace_ray(stats, &reflected_ray, depth + 1);
-                let ks = hit_material.ks.r.max(hit_material.ks.g).max(hit_material.ks.b);
+                // Same reasoning as shadow rays above: exclude the exact
+                // primitive the reflection ray originates from.
+                let c_reflect = self.trace_ray(stats, &reflected_ray, depth + 1, Some(hit_id));
+                let ks = hit_material
+                    .ks
+                    .r
+                    .max(hit_material.ks.g)
+                    .max(hit_material.ks.b);
                 c = c * (1.0 - ks) + c_reflect * ks;
             }
             c
@@ -151,33 +214,22 @@ impl RenderJob {
         rnd_state: &mut u64,
         ray: &Ray,
         depth: u32,
+        exclude: Option<HitId>,
     ) -> RGB {
         if depth > self.cfg.reflection_max_depth {
             stats.num_rays_reflection_max += 1;
             return RGB::zero();
         }
-        let mut s_id = 0;
         let mut t = Float::MAX;
-        // Secondary (reflection) rays need a larger, scale-relative
-        // self-intersection bias than primary rays -- see
-        // secondary_ray_epsilon() doc comment.
-        let tmin = if depth > 0 {
-            crate::vec3::secondary_ray_epsilon(ray.orig)
-        } else {
-            EPSILON
+
+        let hit = find_closest_hit(&self.objects, stats, ray, EPSILON, &mut t, exclude);
+
+        let Some(hit_id) = hit else {
+            return RGB::zero();
         };
 
-        let hit_obj = self
-            .objects
-            .iter()
-            .filter(|obj| obj.intercept(stats, ray, tmin, &mut t, false, &mut s_id))
-            .last();
-
-        if hit_obj.is_none() {
-            return RGB::zero();
-        }
-
-        let hit_mat_id = hit_obj.unwrap().get_material_id();
+        let hit_obj = &self.objects[hit_id.obj_idx];
+        let hit_mat_id = hit_obj.get_material_id();
         let hit_material = &self.materials[hit_mat_id];
 
         if !hit_material.ke.is_zero() {
@@ -185,14 +237,16 @@ impl RenderJob {
         }
 
         let hit_point = ray.orig + ray.dir * t;
-        let hit_normal = hit_obj.unwrap().get_normal(hit_point, s_id);
+        let hit_normal = hit_obj.get_normal(hit_point, hit_id.sub_id);
         stats.num_rays_reflection += 1;
         let mut reflected_ray = ray.get_reflection(hit_point, hit_normal);
         if hit_material.ks.is_zero() {
             let dir = reflected_ray.dir.normalize() + Vec3::gen_rnd_sphere(rnd_state);
             reflected_ray.dir = dir.normalize();
         }
-        let c0 = self.trace_ray_path(stats, rnd_state, &reflected_ray, depth + 1);
+        // Exclude the exact primitive this reflection ray originates
+        // from -- see HitId doc comment.
+        let c0 = self.trace_ray_path(stats, rnd_state, &reflected_ray, depth + 1, Some(hit_id));
         if hit_material.ks.is_zero() {
             c0 * hit_material.kd
         } else {
@@ -221,7 +275,7 @@ impl RenderJob {
 
         stats.num_rays_sampling += 1;
 
-        let c = self.trace_ray(stats, &ray, 0 /* depth */);
+        let c = self.trace_ray(stats, &ray, 0 /* depth */, None);
         if self.cfg.use_hashmap && self.cfg.use_adaptive_sampling {
             pmap.insert(key, c);
         }
@@ -254,7 +308,7 @@ impl RenderJob {
 
             stats.num_rays_sampling += 1;
 
-            c += self.trace_ray_path(stats, &mut rnd_state, &ray, 0);
+            c += self.trace_ray_path(stats, &mut rnd_state, &ray, 0, None);
         }
         c / self.cfg.path_tracing as f32
     }

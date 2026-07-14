@@ -12,6 +12,21 @@ use serde::{Deserialize, Serialize};
 
 pub trait Object {
     fn display(&self);
+    /// Test for intersection with `ray`.
+    ///
+    /// `exclude`, when `Some(sub_id)`, means: the caller wants to ignore
+    /// the specific sub-primitive identified by `sub_id` (as previously
+    /// reported via `oid`) -- typically because this ray originates from
+    /// the surface that primitive was just hit on, and we don't want it
+    /// to spuriously re-intersect itself due to floating-point error.
+    ///
+    /// For composite objects with real sub-primitives (`Mesh`), this
+    /// skips just that one triangle, so neighboring triangles remain
+    /// testable. For single-primitive objects (`Sphere`, `Plane`,
+    /// `Triangle`), there is no finer-grained sub-structure to exclude,
+    /// so `Some(_)` means "skip this object entirely" -- the caller is
+    /// expected to pass this only when re-testing the exact object that
+    /// was just hit.
     fn intercept(
         &self,
         stats: &mut RenderStats,
@@ -20,6 +35,7 @@ pub trait Object {
         tmax: &mut Float,
         any: bool,
         oid: &mut usize,
+        exclude: Option<usize>,
     ) -> bool;
     fn get_normal(&self, point: Point, oid: usize) -> Vec3;
     fn get_texture_2d(&self, point: Point) -> Vec2;
@@ -151,7 +167,11 @@ impl Object for Plane {
         tmax: &mut Float,
         _any: bool,
         _oid: &mut usize,
+        exclude: Option<usize>,
     ) -> bool {
+        if exclude.is_some() {
+            return false;
+        }
         stats.num_intersects_plane += 1;
         let d = ray.dir.dot(self.normal);
         if d.abs() < EPSILON {
@@ -222,7 +242,11 @@ impl Object for Sphere {
         tmax: &mut Float,
         _any: bool,
         _oid: &mut usize,
+        exclude: Option<usize>,
     ) -> bool {
+        if exclude.is_some() {
+            return false;
+        }
         stats.num_intersects_sphere += 1;
         let a = ray.dir.dot(ray.dir);
         let v0 = ray.orig - self.center;
@@ -277,7 +301,11 @@ impl Object for Triangle {
         tmax: &mut Float,
         _any: bool,
         _oid: &mut usize,
+        exclude: Option<usize>,
     ) -> bool {
+        if exclude.is_some() {
+            return false;
+        }
         stats.num_intersects_triangle += 1;
         let edge1 = self.points[1] - self.points[0];
         let edge2 = self.points[2] - self.points[0];
@@ -334,7 +362,9 @@ impl Object for Mesh {
         tmax: &mut Float,
         any: bool,
         oid: &mut usize,
+        exclude: Option<usize>,
     ) -> bool {
-        self.aabb.intercept(stats, ray, tmin, tmax, any, oid)
+        self.aabb
+            .intercept(stats, ray, tmin, tmax, any, oid, exclude)
     }
 }

@@ -114,7 +114,11 @@ impl RayflexApp {
             info!("texture");
         }
         let cfg = RenderConfig {
-            path_tracing: if self.do_path_tracing { self.path_level } else { 1 },
+            path_tracing: if self.do_path_tracing {
+                self.path_level
+            } else {
+                1
+            },
             use_gamma: self.use_gamma,
             use_adaptive_sampling: self.use_antialias,
             res_x: self.width as u32,
@@ -179,7 +183,8 @@ impl eframe::App for RayflexApp {
                     .selected_text(vec_str[self.scene_choice])
                     .show_ui(ui, |ui| {
                         for (i, s) in vec_str.iter().enumerate() {
-                            let value = ui.selectable_value(&mut self.scene_choice, i, s.to_owned());
+                            let value =
+                                ui.selectable_value(&mut self.scene_choice, i, s.to_owned());
                             if value.clicked() {
                                 self.scene_choice = i;
                                 self.scene_file = format!("scenes/{}.json", vec_str[i]);
@@ -254,7 +259,10 @@ impl eframe::App for RayflexApp {
                     txt = "Start".to_owned()
                 };
                 if ui
-                    .add_sized([(SIDE_PANEL_WIDTH - 20) as f32, 30.], egui::Button::new(txt.to_owned()))
+                    .add_sized(
+                        [(SIDE_PANEL_WIDTH - 20) as f32, 30.],
+                        egui::Button::new(txt.to_owned()),
+                    )
                     .clicked()
                 {
                     if self.rendering_active.load(Ordering::SeqCst) {
