@@ -157,7 +157,15 @@ impl RenderJob {
         if let Some(hit_id) = hit {
             let hit_obj = &self.objects[hit_id.obj_idx];
             let hit_point = ray.orig + ray.dir * t;
-            let hit_normal = hit_obj.get_normal(hit_point, hit_id.sub_id);
+            let mut hit_normal = hit_obj.get_normal(hit_point, hit_id.sub_id);
+            // Two-sided shading: some meshes (e.g. buddha.obj) have
+            // inconsistent triangle winding, so a triangle's geometric
+            // normal may point away from the viewer. Flip it to face the
+            // incoming ray so lighting is computed on the visible side,
+            // avoiding scattered mis-lit ("speckle") pixels.
+            if hit_normal.dot(ray.dir) > 0.0 {
+                hit_normal = hit_normal * -1.0;
+            }
             let hit_mat_id = hit_obj.get_material_id();
             let hit_material = &self.materials[hit_mat_id];
 
@@ -237,7 +245,12 @@ impl RenderJob {
         }
 
         let hit_point = ray.orig + ray.dir * t;
-        let hit_normal = hit_obj.get_normal(hit_point, hit_id.sub_id);
+        let mut hit_normal = hit_obj.get_normal(hit_point, hit_id.sub_id);
+        // Two-sided shading (see trace_ray): flip the normal to face the
+        // incoming ray for meshes with inconsistent triangle winding.
+        if hit_normal.dot(ray.dir) > 0.0 {
+            hit_normal = hit_normal * -1.0;
+        }
         stats.num_rays_reflection += 1;
         let mut reflected_ray = ray.get_reflection(hit_point, hit_normal);
         if hit_material.ks.is_zero() {
