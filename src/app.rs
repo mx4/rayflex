@@ -224,9 +224,15 @@ impl eframe::App for RayflexApp {
                 });
                 ui.add(egui::Separator::default());
                 ui.checkbox(&mut self.do_path_tracing, "use path-tracing");
-                if !self.do_path_tracing {
-                    self.path_level = 1;
+                if self.do_path_tracing {
+                    // Path tracing does its own multi-sample averaging, so
+                    // adaptive antialiasing (a classic-ray-tracing-only
+                    // feature) is mutually exclusive with it.
                     self.use_antialias = false;
+                } else {
+                    // Not path tracing: force a single sample per pixel
+                    // (path_level is only meaningful for path tracing).
+                    self.path_level = 1;
                 }
                 ui.add_enabled(
                     self.do_path_tracing,
