@@ -72,10 +72,11 @@ impl RenderJob {
         }
         let mut s_id = 0;
         let mut t = Float::MAX;
-        // Secondary (reflection) rays need a larger self-intersection bias
-        // than primary rays -- see SECONDARY_RAY_EPSILON doc comment.
+        // Secondary (reflection) rays need a larger, scale-relative
+        // self-intersection bias than primary rays -- see
+        // secondary_ray_epsilon() doc comment.
         let tmin = if depth > 0 {
-            crate::vec3::SECONDARY_RAY_EPSILON
+            crate::vec3::secondary_ray_epsilon(ray.orig)
         } else {
             EPSILON
         };
@@ -104,14 +105,14 @@ impl RenderJob {
                         let mut tmax0 = 1.0;
                         let mut oid0 = 0;
                         // Shadow rays are secondary rays too -- see
-                        // SECONDARY_RAY_EPSILON doc comment. Using the tiny
-                        // primary-ray EPSILON here caused salt-and-pepper
-                        // self-shadowing noise on curved surfaces (e.g.
-                        // spheres) lit by spot lights.
+                        // secondary_ray_epsilon() doc comment. Using the
+                        // tiny primary-ray EPSILON here caused
+                        // salt-and-pepper self-shadowing noise on curved
+                        // surfaces (e.g. spheres) lit by spot lights.
                         obj.intercept(
                             stats,
                             &light_ray,
-                            crate::vec3::SECONDARY_RAY_EPSILON,
+                            crate::vec3::secondary_ray_epsilon(hit_point),
                             &mut tmax0,
                             true,
                             &mut oid0,
@@ -157,10 +158,11 @@ impl RenderJob {
         }
         let mut s_id = 0;
         let mut t = Float::MAX;
-        // Secondary (reflection) rays need a larger self-intersection bias
-        // than primary rays -- see SECONDARY_RAY_EPSILON doc comment.
+        // Secondary (reflection) rays need a larger, scale-relative
+        // self-intersection bias than primary rays -- see
+        // secondary_ray_epsilon() doc comment.
         let tmin = if depth > 0 {
-            crate::vec3::SECONDARY_RAY_EPSILON
+            crate::vec3::secondary_ray_epsilon(ray.orig)
         } else {
             EPSILON
         };
