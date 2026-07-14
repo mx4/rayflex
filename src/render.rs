@@ -72,11 +72,18 @@ impl RenderJob {
         }
         let mut s_id = 0;
         let mut t = Float::MAX;
+        // Reflection (secondary) rays need a larger self-intersection bias
+        // than primary rays -- see REFLECTION_EPSILON doc comment.
+        let tmin = if depth > 0 {
+            crate::vec3::REFLECTION_EPSILON
+        } else {
+            EPSILON
+        };
 
         let hit_obj_opt = self
             .objects
             .iter()
-            .filter(|obj| obj.intercept(stats, ray, EPSILON, &mut t, false, &mut s_id))
+            .filter(|obj| obj.intercept(stats, ray, tmin, &mut t, false, &mut s_id))
             .last();
 
         if let Some(hit_obj) = hit_obj_opt {
@@ -113,7 +120,7 @@ impl RenderJob {
                 stats.num_rays_reflection += 1;
                 let reflected_ray = ray.get_reflection(hit_point, hit_normal);
                 let c_reflect = self.trace_ray(stats, &reflected_ray, depth + 1);
-                let ks = 0.1;
+                let ks = hit_material.ks.r.max(hit_material.ks.g).max(hit_material.ks.b);
                 c = c * (1.0 - ks) + c_reflect * ks;
             }
             c
@@ -138,11 +145,18 @@ impl RenderJob {
         }
         let mut s_id = 0;
         let mut t = Float::MAX;
+        // Reflection (secondary) rays need a larger self-intersection bias
+        // than primary rays -- see REFLECTION_EPSILON doc comment.
+        let tmin = if depth > 0 {
+            crate::vec3::REFLECTION_EPSILON
+        } else {
+            EPSILON
+        };
 
         let hit_obj = self
             .objects
             .iter()
-            .filter(|obj| obj.intercept(stats, ray, EPSILON, &mut t, false, &mut s_id))
+            .filter(|obj| obj.intercept(stats, ray, tmin, &mut t, false, &mut s_id))
             .last();
 
         if hit_obj.is_none() {

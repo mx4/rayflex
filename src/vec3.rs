@@ -3,7 +3,23 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 pub type Float = f32;
+/// Minimum ray distance used to avoid self-intersection ("shadow acne").
+/// Kept tiny so it doesn't reject legitimate intersections on small-scale,
+/// fine-detail meshes (e.g. models with coordinates on the order of 0.1-1
+/// units and many small triangles), where a larger epsilon would be
+/// comparable to individual triangle sizes and cull valid hits.
 pub const EPSILON: Float = 1e-6;
+/// Minimum ray distance for reflection (secondary) rays specifically.
+/// Reflection rays at grazing/near-horizon angles suffer from larger
+/// floating-point error in the computed hit point, because the ray-plane
+/// intersection math (t = dot(v, normal) / dot(dir, normal)) becomes
+/// numerically unstable as the ray direction approaches parallel to the
+/// surface. Using the tiny primary-ray EPSILON here caused the reflected
+/// ray to spuriously re-intersect the same plane it just bounced off,
+/// producing visible dark horizontal banding on reflective floors near
+/// the horizon. This is scoped to reflection rays only so it doesn't
+/// affect primary-ray precision on small-scale meshes (e.g. buddha.obj).
+pub const REFLECTION_EPSILON: Float = 1e-4;
 
 fn u128_fold(v: u128) -> u64 {
     ((v >> 64) ^ v) as u64
