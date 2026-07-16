@@ -169,12 +169,17 @@ impl Vec3 {
         }
     }
     pub fn multiply(self, matrix: Matrix3) -> Self {
+        // `matrix.mat` is laid out row-major (mat[0..3] = row 0, etc.), so
+        // the standard matrix-vector product is v'[i] = sum_j M[i][j]*v[j],
+        // i.e. mat[i*3 + j]. (Previously indexed as mat[i + j*3] -- the
+        // transpose -- which silently inverted every rotx/roty/rotz call,
+        // since a rotation matrix's transpose is its inverse.)
         let v0 = [self.x, self.y, self.z];
         let mut v = [0.0; 3];
         #[allow(clippy::needless_range_loop)]
         for i in 0..3 {
             for j in 0..3 {
-                v[i] += v0[j] * matrix.mat[i + j * 3];
+                v[i] += v0[j] * matrix.mat[i * 3 + j];
             }
         }
         Vec3::new(v[0], v[1], v[2])

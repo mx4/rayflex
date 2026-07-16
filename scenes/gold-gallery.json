@@ -383,5 +383,5 @@
     "material_id": 1
   },
   "obj.0.path": "obj/teapot.obj",
-  "obj.0.rotx": -90
+  "obj.0.rotx": 90
 }

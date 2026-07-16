@@ -59,7 +59,7 @@
     "vfov": 53.0
   },
   "obj.0.path": "obj/cow.obj",
-  "obj.0.rotx": -90,
+  "obj.0.rotx": 90,
   "obj.0.material": 0,
   "resolution": [
     400,

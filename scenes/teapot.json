@@ -45,7 +45,7 @@
     "vfov": 55.0
   },
   "obj.0.path": "obj/teapot.obj",
-  "obj.0.rotx": -90,
+  "obj.0.rotx": 90,
   "obj.0.material": 0,
   "resolution": [
     400,
