@@ -1,0 +1,6 @@
+[alias]
+# Regenerate the rendered assets in assets/. See xtask/src/main.rs.
+#   cargo xtask                 -> render every asset
+#   cargo xtask <scene>         -> render one (e.g. cargo xtask gold-gallery)
+#   cargo xtask --fast          -> quick low-res/low-sample preview of all
+xtask = "run --release --package xtask --"
