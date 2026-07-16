@@ -200,11 +200,16 @@ impl Vec3 {
     }
     pub fn gen_rnd_sphere(rnd_state: &mut u64) -> Self {
         let max = u64::MAX as Float;
+        // Rejection-sample a point uniformly inside the unit ball, then
+        // normalize -> a direction uniform on the unit sphere. Components
+        // must span [-1, 1] (not [-0.5, 0.5]) so the n > 1.0 rejection
+        // actually fires; otherwise the cube's corners are never trimmed
+        // and directions bias toward the cube diagonals.
         loop {
             let v = Vec3 {
-                x: fast_rand(rnd_state) as Float / max - 0.5,
-                y: fast_rand(rnd_state) as Float / max - 0.5,
-                z: fast_rand(rnd_state) as Float / max - 0.5,
+                x: 2.0 * (fast_rand(rnd_state) as Float / max) - 1.0,
+                y: 2.0 * (fast_rand(rnd_state) as Float / max) - 1.0,
+                z: 2.0 * (fast_rand(rnd_state) as Float / max) - 1.0,
             };
 
             let n = v.norm();

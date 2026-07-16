@@ -27,9 +27,10 @@ Scenes are described in a json file that contains:
 
 ## Screenshots
 ![rayflex-pt](./assets/rayflex-pt.png)
-![teapot](./assets/teapot.png)
+![gold-gallery](./assets/gold-gallery.png)
 ![cornell-box](./assets/cornell-box.png)
+![teapot](./assets/teapot.png)
 ![trolley](./assets/trolley.png)
 ![buddha](./assets/buddha.png)
-![rayflex](./assets/rayflex.png)
 ![sphere-tunnel](./assets/sphere-tunnel.png)
+![rayflex](./assets/rayflex.png)

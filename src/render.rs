@@ -252,14 +252,26 @@ impl RenderJob {
             hit_normal = hit_normal * -1.0;
         }
         stats.num_rays_reflection += 1;
-        let mut reflected_ray = ray.get_reflection(hit_point, hit_normal);
-        if hit_material.ks.is_zero() {
-            let dir = reflected_ray.dir.normalize() + Vec3::gen_rnd_sphere(rnd_state);
-            reflected_ray.dir = dir.normalize();
-        }
-        // Exclude the exact primitive this reflection ray originates
-        // from -- see HitId doc comment.
-        let c0 = self.trace_ray_path(stats, rnd_state, &reflected_ray, depth + 1, Some(hit_id));
+        let scattered_ray = if hit_material.ks.is_zero() {
+            // Lambertian diffuse: cosine-weighted scatter around the
+            // surface normal (normal + random unit vector). Scattering
+            // around the *normal* -- not the mirror-reflection direction --
+            // is what makes diffuse shading view-independent and physically
+            // correct.
+            let mut dir = hit_normal + Vec3::gen_rnd_sphere(rnd_state);
+            // Guard the degenerate case where the random vector nearly
+            // cancels the normal, leaving a near-zero (or inward) direction.
+            if dir.norm() < EPSILON {
+                dir = hit_normal;
+            }
+            Ray::new(hit_point, dir.normalize())
+        } else {
+            // Perfect mirror reflection.
+            ray.get_reflection(hit_point, hit_normal)
+        };
+        // Exclude the exact primitive this scattered ray originates from --
+        // see HitId doc comment.
+        let c0 = self.trace_ray_path(stats, rnd_state, &scattered_ray, depth + 1, Some(hit_id));
         if hit_material.ks.is_zero() {
             c0 * hit_material.kd
         } else {

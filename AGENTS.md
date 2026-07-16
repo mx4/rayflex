@@ -127,8 +127,8 @@ When adjusting camera or scene parameters, always:
 ## Known Bugs (verified in code, 2026-07)
 
 - **Rotation matrices apply transposed** — `Vec3::multiply` (vec3.rs) indexes `mat[i + j*3]`, i.e. multiplies by the transpose of the matrix as written, so `rotx/roty/rotz` rotate by −angle vs. their standard CCW definitions. This is why `obj.N.rotz = t` turns meshes clockwise (see Meshes section). Fixing it flips every scene that uses rotations.
-- **`Vec3::gen_rnd_sphere` is not uniform** — it samples a cube `[-0.5,0.5]³` and normalizes. The `n <= 1.0` rejection never fires (max cube norm ≈ 0.866), so directions are biased toward the cube diagonals. Should sample components in `[-1,1]` and reject `n > 1`.
-- **Path-tracer diffuse is not Lambertian** — `trace_ray_path` scatters around the *mirror-reflection* direction (`reflect_dir + gen_rnd_sphere`, "fuzzy metal" style), not cosine-weighted around the surface normal, so diffuse shading is view-dependent and directionally biased.
+- ~~**`Vec3::gen_rnd_sphere` is not uniform**~~ — FIXED 2026-07. Now samples components in `[-1,1]` so the `n > 1` rejection actually fires, giving directions uniform on the unit sphere (was: cube `[-0.5,0.5]³` normalized, biased toward cube diagonals).
+- ~~**Path-tracer diffuse is not Lambertian**~~ — FIXED 2026-07. `trace_ray_path` now scatters cosine-weighted around the surface normal (`hit_normal + gen_rnd_sphere`, with a degenerate-direction guard) instead of around the mirror-reflection direction. Diffuse shading is now view-independent.
 - **Per-triangle mesh materials are ignored** — `load_mesh` parses `.mtl` materials into the material list and assigns per-triangle ids, but shading uses `Mesh::get_material_id()` which returns the mesh-level id, hardcoded to 0 (`Mesh::new(triangles, 0)`). The `obj.N.material` key found in older scene files is never read by the loader either.
 - **Scene loader silently drops keys after a numbering gap** — `material.N`/`sphere.N`/… loading stops at the first missing index with no warning.
 - **`report_progress` divides by zero** for renders smaller than 128 total pixels (`denom / 128 == 0`).
@@ -139,11 +139,10 @@ When adjusting camera or scene parameters, always:
 
 Renderer quality (highest visual payoff first):
 1. **Next-event estimation** (direct light sampling toward emitters) in `trace_ray_path` — the single biggest noise reduction; would make small/dim lights usable.
-2. **Cosine-weighted hemisphere sampling** for diffuse (fixes the Lambertian bug above).
-3. **Tone mapping** (Reinhard or ACES) + exposure control instead of hard clamp — lets bright emitters roll off instead of clipping to white.
-4. **Dielectrics/refraction** (glass spheres) — big showcase win; the material model currently has no transmission.
-5. Mixed materials: probabilistic kd/ks choice plus a roughness parameter (glossy, not just perfect mirror).
-6. Russian-roulette path termination instead of the hard depth cap.
+2. **Tone mapping** (Reinhard or ACES) + exposure control instead of hard clamp — lets bright emitters roll off instead of clipping to white.
+3. **Dielectrics/refraction** (glass spheres) — big showcase win; the material model currently has no transmission.
+4. Mixed materials: probabilistic kd/ks choice plus a roughness parameter (glossy, not just perfect mirror).
+5. Russian-roulette path termination instead of the hard depth cap.
 
 Geometry/performance:
 - Top-level BVH over scene objects — `find_closest_hit` linearly scans every object; many-sphere scenes pay per ray.
