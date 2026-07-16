@@ -38,19 +38,22 @@ struct Asset {
 /// Cap secondary-ray recursion. 8 is enough for the mirror-heavy scenes.
 const REFLECTION_DEPTH: u32 = 8;
 
-/// Resolutions keep each scene's authored aspect ratio (the camera FOV is
-/// derived from res_x/res_y, so changing the ratio would re-frame the shot).
+/// All assets share a fixed width (960) so they render at a uniform width in
+/// the README; the height is the width divided by each scene's authored
+/// aspect ratio (the camera FOV is derived from res_x/res_y, so the ratio
+/// must match the composition or the shot re-frames). 960 is a multiple of
+/// 24, so 1:1, 3:2, and 16:10 all yield round heights (960 / 640 / 600).
 const ASSETS: &[Asset] = &[
     // Path-traced (emissive scenes) — spp drives noise; tone-map auto-applies.
-    Asset { scene: "gold-gallery", res_x: 1200, res_y: 750, spp: 1500 },
-    Asset { scene: "cornell-box", res_x: 800, res_y: 800, spp: 1500 },
-    Asset { scene: "rayflex-pt", res_x: 1050, res_y: 700, spp: 2000 },
+    Asset { scene: "gold-gallery", res_x: 960, res_y: 600, spp: 1500 }, // 16:10
+    Asset { scene: "cornell-box", res_x: 960, res_y: 960, spp: 1500 },  // 1:1
+    Asset { scene: "rayflex-pt", res_x: 960, res_y: 640, spp: 2000 },   // 3:2
     // Ray-traced (spot/vec lit) — spp = 1, adaptive antialiasing on.
-    Asset { scene: "teapot", res_x: 900, res_y: 900, spp: 1 },
-    Asset { scene: "trolley", res_x: 900, res_y: 900, spp: 1 },
-    Asset { scene: "buddha", res_x: 900, res_y: 900, spp: 1 },
-    Asset { scene: "sphere-tunnel", res_x: 900, res_y: 900, spp: 1 },
-    Asset { scene: "rayflex", res_x: 1050, res_y: 700, spp: 1 },
+    Asset { scene: "teapot", res_x: 960, res_y: 960, spp: 1 },        // 1:1
+    Asset { scene: "trolley", res_x: 960, res_y: 960, spp: 1 },       // 1:1
+    Asset { scene: "buddha", res_x: 960, res_y: 960, spp: 1 },        // 1:1
+    Asset { scene: "sphere-tunnel", res_x: 960, res_y: 960, spp: 1 }, // 1:1
+    Asset { scene: "rayflex", res_x: 960, res_y: 640, spp: 1 },       // 3:2
 ];
 
 /// Repo root = the parent of this crate (xtask/..). Used to anchor the CWD so
