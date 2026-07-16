@@ -25,6 +25,17 @@ use crate::vec3::rand01;
 
 const PI: Float = std::f32::consts::PI;
 
+/// Per-sample radiance ceiling for the firefly clamp (see calc_ray_box_path
+/// / RGB::clamp_max). This is a bias/variance knob: lower removes more
+/// speckle but dims genuinely bright indirect highlights; higher is closer
+/// to unbiased but leaves the worst outliers. Tuned empirically for the
+/// bundled scenes at 6.0 -- above the tone-map knee (0.75) where highlights
+/// compress toward white, so clamped bright reflections (the gold teapot,
+/// mirror spheres) are visually unaffected, while the rare
+/// diffuse->mirror->light speckle is trimmed. Full speckle removal needs
+/// MIS, which this deliberately is not.
+const FIREFLY_CLAMP: Float = 6.0;
+
 /// A light primitive registered for next-event estimation (direct light
 /// sampling). Built at scene-load time from every emissive sphere and
 /// standalone triangle. `obj_idx` is the index into `RenderJob::objects`
@@ -522,7 +533,14 @@ impl RenderJob {
 
             stats.num_rays_sampling += 1;
 
-            c += self.trace_ray_path(stats, &mut rnd_state, &ray, 0, None, true);
+            // Per-sample firefly clamp: cap outlier radiance from rare
+            // high-variance paths before averaging (see RGB::clamp_max).
+            // The ceiling is above scene emitter values so directly-visible
+            // lights and normal shading are unaffected.
+            let sample = self
+                .trace_ray_path(stats, &mut rnd_state, &ray, 0, None, true)
+                .clamp_max(FIREFLY_CLAMP);
+            c += sample;
         }
         c / self.cfg.path_tracing as f32
     }
@@ -717,8 +735,12 @@ impl RenderJob {
     }
 
     pub fn alloc_image(&mut self) {
+        // Tone-map only in path-tracing mode (HDR radiance); classic
+        // ray-traced scenes keep their original hard-clamp look.
+        let tone_map = self.cfg.path_tracing > 1;
         self.image = Arc::new(Mutex::new(Image::new(
             self.cfg.use_gamma,
+            tone_map,
             self.cfg.res_x,
             self.cfg.res_y,
         )));

@@ -68,6 +68,8 @@ Path tracing (`-p N` with N > 1) uses Monte Carlo sampling instead of direct ill
 - **Higher `-p`** = more samples per pixel = less noise but slower. Start with `-p 100` for testing, use `-p 400-1000` for final renders
 - **Keep reflection depth** (`--reflection-max-depth 6-8`) to cap bounce count
 - **Emissive spheres** make good area lights. Place them behind the camera or outside the FOV to avoid seeing them in the frame
+- **Next-event estimation** is on: at each diffuse bounce a shadow ray is sampled toward a random emitter (`sphere.N`/`triangle.N` with `ke != 0`), so direct light is low-noise even for smallish lights. Emissive **planes** and **meshes** are NOT NEE-sampled (only spheres/triangles) — they still illuminate via brute-force paths but stay noisy; prefer sphere/triangle emitters.
+- **Firefly clamp + tone mapping** (both path-tracing only): each path sample's radiance is clamped to `FIREFLY_CLAMP` (render.rs, 6.0) before averaging to trim rare bright speckle; final pixels pass through a highlight-rolloff tone-map (`image.rs`, identity below knee 0.75, soft roll to white above) so emitters/highlights don't hard-clip. Ray-traced (non-PT) scenes are unaffected — tone-map is gated on `path_tracing > 1`. If a scene needs emitters brighter than ~6 to read correctly in *indirect* bounces, raise `FIREFLY_CLAMP`; residual mirror-path speckle is expected (needs MIS to fully fix).
 
 Example:
 ```bash
@@ -140,7 +142,7 @@ When adjusting camera or scene parameters, always:
 Renderer quality (highest visual payoff first):
 1. ~~**Next-event estimation**~~ — DONE 2026-07. `trace_ray_path` importance-samples emissive spheres/triangles per diffuse bounce (`direct_light` + `NeeLight` in render.rs; light set built in scene.rs). Direct lighting converges ~10x faster.
 2. **Multiple importance sampling (MIS)** — the natural follow-up to NEE. Kills the diffuse→mirror→light fireflies that NEE alone leaves, and handles small bright lights + glossy surfaces robustly. Also: sphere lights currently use uniform-area sampling (half the samples face away) — cone sampling toward the visible cap would cut their variance.
-3. **Tone mapping** (Reinhard or ACES) + exposure control instead of hard clamp — lets bright emitters roll off instead of clipping to white. (Cheap firefly mitigation in the meantime: clamp per-sample radiance.)
+3. ~~**Tone mapping**~~ + ~~firefly clamp~~ — DONE 2026-07. Highlight-rolloff tone-map (image.rs, PT-only) + per-sample `FIREFLY_CLAMP` (render.rs). Follow-up still open: **exposure control** (a scene/CLI multiplier before tone-map) so brightness isn't purely emitter-driven.
 4. **Dielectrics/refraction** (glass spheres) — big showcase win; the material model currently has no transmission.
 5. Mixed materials: probabilistic kd/ks choice plus a roughness parameter (glossy, not just perfect mirror).
 6. Russian-roulette path termination instead of the hard depth cap.

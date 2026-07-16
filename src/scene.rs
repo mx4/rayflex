@@ -352,7 +352,7 @@ pub fn load_scene(cfg: RenderConfig) -> std::io::Result<RenderJob> {
 
     let job = RenderJob {
         camera,
-        image: Arc::new(Mutex::new(Image::new(false, 0, 0))),
+        image: Arc::new(Mutex::new(Image::new(false, false, 0, 0))),
         objects: scene.objects,
         lights: scene.lights,
         materials: scene.materials,

@@ -90,6 +90,18 @@ impl RGB {
     pub fn is_zero(&self) -> bool {
         self.r == 0.0 && self.g == 0.0 && self.b == 0.0
     }
+    /// Clamp each channel to `[0, m]`. Used as a per-sample firefly clamp:
+    /// caps the rare high-variance path samples (e.g. diffuse -> mirror ->
+    /// light) whose huge radiance would otherwise survive averaging as a
+    /// bright speckle. Slightly biased (removes energy from genuinely bright
+    /// indirect highlights), so `m` is kept above scene emitter values.
+    pub fn clamp_max(self, m: f32) -> RGB {
+        RGB::new(
+            self.r.clamp(0.0, m),
+            self.g.clamp(0.0, m),
+            self.b.clamp(0.0, m),
+        )
+    }
     pub fn difference(c00: RGB, c01: RGB, c10: RGB, c11: RGB) -> f32 {
         let avg = (c00 + c01 + c10 + c11) * 0.25;
         avg.distance2(c00) + avg.distance2(c01) + avg.distance2(c10) + avg.distance2(c11)
