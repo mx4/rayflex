@@ -120,8 +120,10 @@ impl RayflexApp {
             info!("texture");
         }
         let cfg = RenderConfig {
+            // path_level is only meaningful for path tracing; keep its value
+            // across checkbox toggles and force 1 sample when not path tracing.
             path_tracing: if self.do_path_tracing {
-                self.path_level
+                self.path_level.max(2)
             } else {
                 1
             },
@@ -171,15 +173,15 @@ impl eframe::App for RayflexApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let vec_str = [
             "cornell-box",
+            "gold-gallery",
+            "rayflex-pt",
             "trolley",
             "cow",
             "teapot",
             "buddha",
             "sphere-box",
-            "sphere-nobox",
             "sphere-tunnel",
             "rayflex",
-            "test",
         ];
 
         egui::Panel::left("side_panel")
@@ -196,11 +198,21 @@ impl eframe::App for RayflexApp {
                             if value.clicked() {
                                 self.scene_choice = i;
                                 self.scene_file = format!("scenes/{}.json", vec_str[i]);
-                                self.do_path_tracing = vec_str[i] == "cornell-box";
+                                self.do_path_tracing = matches!(
+                                    vec_str[i],
+                                    "cornell-box" | "gold-gallery" | "rayflex-pt"
+                                );
                                 self.use_gamma = true;
-                                if vec_str[i] == "rayflex" {
-                                    self.width = 600;
-                                    self.height = 400;
+                                match vec_str[i] {
+                                    "rayflex" | "rayflex-pt" => {
+                                        self.width = 600;
+                                        self.height = 400;
+                                    }
+                                    "gold-gallery" => {
+                                        self.width = 800;
+                                        self.height = 500;
+                                    }
+                                    _ => {}
                                 }
                             }
                         }
@@ -241,10 +253,6 @@ impl eframe::App for RayflexApp {
                     // adaptive antialiasing (a classic-ray-tracing-only
                     // feature) is mutually exclusive with it.
                     self.use_antialias = false;
-                } else {
-                    // Not path tracing: force a single sample per pixel
-                    // (path_level is only meaningful for path tracing).
-                    self.path_level = 1;
                 }
                 ui.add_enabled(
                     self.do_path_tracing,

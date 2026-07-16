@@ -40,10 +40,16 @@ fn scene_sphere_box() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 #[test]
-fn scene_sphere_no_box() -> Result<(), Box<dyn std::error::Error>> {
+fn scene_gold_gallery() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("rayflex")?;
     cmd.arg("-l")
-        .arg("scenes/sphere-nobox.json")
+        .arg("scenes/gold-gallery.json")
+        .arg("-x")
+        .arg("300")
+        .arg("-y")
+        .arg("192")
+        .arg("-p")
+        .arg("5")
         .assert()
         .success();
 
