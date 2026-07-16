@@ -30,3 +30,5 @@ Scenes are described in a json file that contains:
 ![cornell-box](./assets/cornell-box.png)
 ![trolley](./assets/trolley.png)
 ![buddha](./assets/buddha.png)
+![rayflex](./assets/rayflex.png)
+![sphere-tunnel](./assets/sphere-tunnel.png)

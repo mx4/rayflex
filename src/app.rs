@@ -29,6 +29,10 @@ pub struct RayflexApp {
     path_level: u32,
     progress: Arc<Mutex<f32>>,
     texture_handle: Option<TextureHandle>,
+    /// (width, height) of the texture currently held in `texture_handle`,
+    /// captured at render start so the display can preserve the actual
+    /// rendered aspect ratio even if the sliders are changed afterward.
+    texture_size: Option<(usize, usize)>,
     rendering_active: Arc<AtomicBool>,
     rendering_needs_stop: Arc<AtomicBool>,
     scene_choice: usize,
@@ -47,6 +51,7 @@ impl Default for RayflexApp {
             do_path_tracing: true,
             path_level: 200,
             texture_handle: None,
+            texture_size: None,
             rendering_active: Arc::new(AtomicBool::new(false)),
             rendering_needs_stop: Arc::new(AtomicBool::new(false)),
             scene_choice: 0,
@@ -111,6 +116,7 @@ impl RayflexApp {
                 Default::default(),
             );
             self.texture_handle = Some(texture_handle.clone());
+            self.texture_size = Some((self.width, self.height));
             info!("texture");
         }
         let cfg = RenderConfig {
@@ -171,6 +177,8 @@ impl eframe::App for RayflexApp {
             "buddha",
             "sphere-box",
             "sphere-nobox",
+            "sphere-tunnel",
+            "rayflex",
             "test",
         ];
 
@@ -188,8 +196,12 @@ impl eframe::App for RayflexApp {
                             if value.clicked() {
                                 self.scene_choice = i;
                                 self.scene_file = format!("scenes/{}.json", vec_str[i]);
-                                self.do_path_tracing = i == 0;
-                                self.use_gamma = i == 0;
+                                self.do_path_tracing = vec_str[i] == "cornell-box";
+                                self.use_gamma = true;
+                                if vec_str[i] == "rayflex" {
+                                    self.width = 600;
+                                    self.height = 400;
+                                }
                             }
                         }
                     });
@@ -281,8 +293,24 @@ impl eframe::App for RayflexApp {
             });
 
         egui::CentralPanel::default().show(ui, |ui| {
-            if let Some(texture) = &self.texture_handle {
-                let t = SizedTexture::new(texture, ui.available_size());
+            if let (Some(texture), Some((tw, th))) = (&self.texture_handle, self.texture_size) {
+                // Preserve the rendered image's aspect ratio instead of
+                // stretching it to fill the panel (which deforms
+                // non-square renders). Fit the largest rectangle with
+                // the image's width/height ratio inside the available
+                // space. Uses the size captured at render time so the
+                // ratio matches the actual texture, not the live sliders.
+                let avail = ui.available_size();
+                let img_ratio = tw as f32 / th as f32;
+                let avail_ratio = avail.x / avail.y;
+                let display_size = if avail_ratio > img_ratio {
+                    // Panel is wider than the image: height-constrained.
+                    egui::vec2(avail.y * img_ratio, avail.y)
+                } else {
+                    // Panel is taller than the image: width-constrained.
+                    egui::vec2(avail.x, avail.x / img_ratio)
+                };
+                let t = SizedTexture::new(texture, display_size);
                 ui.image(t);
             }
         });
