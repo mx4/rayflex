@@ -39,7 +39,10 @@ pub trait Object {
     ) -> bool;
     fn get_normal(&self, point: Point, oid: usize) -> Vec3;
     fn get_texture_2d(&self, point: Point) -> Vec2;
-    fn get_material_id(&self) -> usize;
+    /// Material for the hit sub-primitive. `sub_id` is the value reported
+    /// via `intercept`'s `oid` (a triangle index for `Mesh`; ignored by
+    /// single-primitive objects).
+    fn get_material_id(&self, sub_id: usize) -> usize;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -200,7 +203,7 @@ impl Object for Plane {
         }
         Vec2 { x: v_x, y: v_y }
     }
-    fn get_material_id(&self) -> usize {
+    fn get_material_id(&self, _sub_id: usize) -> usize {
         self.material_id
     }
 }
@@ -216,7 +219,7 @@ impl Sphere {
 }
 
 impl Object for Sphere {
-    fn get_material_id(&self) -> usize {
+    fn get_material_id(&self, _sub_id: usize) -> usize {
         self.material_id
     }
     fn display(&self) {
@@ -274,7 +277,7 @@ impl Object for Sphere {
 }
 
 impl Object for Triangle {
-    fn get_material_id(&self) -> usize {
+    fn get_material_id(&self, _sub_id: usize) -> usize {
         self.material_id
     }
     fn display(&self) {
@@ -341,8 +344,11 @@ impl Object for Triangle {
 }
 
 impl Object for Mesh {
-    fn get_material_id(&self) -> usize {
-        self.material_id
+    fn get_material_id(&self, sub_id: usize) -> usize {
+        // Per-triangle materials: `sub_id` is the hit triangle's index
+        // (the same value get_normal uses). Multi-material meshes (e.g. an
+        // OBJ with a .mtl) shade each triangle with its own material.
+        self.triangles[sub_id].material_id
     }
     fn display(&self) {
         println!("mesh: n={:?}", self.triangles.len());

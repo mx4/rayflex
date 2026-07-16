@@ -107,7 +107,7 @@ Lessons from composed-scene attempts (what failed and what worked):
 
 ## Meshes (OBJ)
 
-- **A mesh always shades with `material.0`** — `Mesh::get_material_id()` returns the mesh-level id (hardcoded 0 in `load_mesh`). Per-triangle `.mtl` materials are loaded into the material list but ignored at shading time. The `obj.N.material` key seen in some scenes is not read by the loader. So: design the scene with material.0 = the mesh's material.
+- **Per-triangle materials** — a mesh shades each triangle with its own material (`Mesh::get_material_id(sub_id)` → `triangles[sub_id].material_id`). An OBJ with a `.mtl` renders multi-material; the `.mtl` materials are appended to the material list after the JSON `material.N` ones. Triangles whose `.mtl` failed to load (missing file) or that have no `usemtl` fall back to `material.0`, so single-material meshes still just need `material.0` defined. NOTE: `.mtl` import forces `ke=0` (emissive not imported) and there's no texture support, so `map_*`/`Ke` lines are dropped. The `obj.N.material` key is still not read by the loader.
 - **Rotation only** — no translation or scale for OBJs. Build the scene around the mesh's native position.
 - `obj/teapot.obj` with `rotx=-90` (upright, z-up): bbox x[5.51, 9.50], y[-2.71, 3.49], z[-2.49, 0.71]; body center ≈ (7.5, 0.39); spout on the +y side. Put the floor at z=-2.5. 6.3k triangles — fast even in path tracing (hierarchical AABB).
 - **rotz sign is inverted vs. the usual CCW convention** for scene placement: `rotz = t` moves points by (x,y) → (x·cos t + y·sin t, −x·sin t + y·cos t), i.e. clockwise viewed from +z. Verified empirically (teapot center (7.5, 0.39) with rotz=18 lands at ≈(7.25, −1.95)). Always verify orientation with a cheap render (`-p 32`, 480x300 — sub-second).
@@ -131,7 +131,7 @@ When adjusting camera or scene parameters, always:
 - **Rotation matrices apply transposed** — `Vec3::multiply` (vec3.rs) indexes `mat[i + j*3]`, i.e. multiplies by the transpose of the matrix as written, so `rotx/roty/rotz` rotate by −angle vs. their standard CCW definitions. This is why `obj.N.rotz = t` turns meshes clockwise (see Meshes section). Fixing it flips every scene that uses rotations.
 - ~~**`Vec3::gen_rnd_sphere` is not uniform**~~ — FIXED 2026-07. Now samples components in `[-1,1]` so the `n > 1` rejection actually fires, giving directions uniform on the unit sphere (was: cube `[-0.5,0.5]³` normalized, biased toward cube diagonals).
 - ~~**Path-tracer diffuse is not Lambertian**~~ — FIXED 2026-07. `trace_ray_path` now scatters cosine-weighted around the surface normal (`hit_normal + gen_rnd_sphere`, with a degenerate-direction guard) instead of around the mirror-reflection direction. Diffuse shading is now view-independent.
-- **Per-triangle mesh materials are ignored** — `load_mesh` parses `.mtl` materials into the material list and assigns per-triangle ids, but shading uses `Mesh::get_material_id()` which returns the mesh-level id, hardcoded to 0 (`Mesh::new(triangles, 0)`). The `obj.N.material` key found in older scene files is never read by the loader either.
+- ~~**Per-triangle mesh materials are ignored**~~ — FIXED 2026-07. `Mesh::get_material_id(sub_id)` now returns the hit triangle's material; `load_mesh` range-checks tobj's per-face ids against the count of successfully-loaded `.mtl` materials (missing-mtl meshes fall back to `material.0` instead of indexing out of bounds). The `obj.N.material` key is still not read.
 - **Scene loader silently drops keys after a numbering gap** — `material.N`/`sphere.N`/… loading stops at the first missing index with no warning.
 - **`report_progress` divides by zero** for renders smaller than 128 total pixels (`denom / 128 == 0`).
 - **`generate_scene` writes a `num_planes` key** that nothing reads.
@@ -150,8 +150,8 @@ Renderer quality (highest visual payoff first):
 Geometry/performance:
 - Top-level BVH over scene objects — `find_closest_hit` linearly scans every object; many-sphere scenes pay per ray.
 - Smooth (interpolated vertex) normals for meshes — the teapot renders visibly faceted.
-- OBJ translation + scale (rotation-only today forces scenes to be built around the mesh's native coordinates).
-- Per-triangle materials at shading time (see bug above).
+- OBJ translation + scale (rotation-only today forces scenes to be built around the mesh's native coordinates). With per-triangle materials now working, this is the main blocker to readily rendering an existing OBJ model.
+- ~~Per-triangle materials at shading time~~ — DONE 2026-07 (see Known Bugs).
 
 Workflow/UI:
 - Expose `reflection_max_depth` in the UI (hardcoded to 5 there; mirror-heavy path-traced scenes need 8+).

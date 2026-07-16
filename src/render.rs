@@ -297,7 +297,7 @@ impl RenderJob {
             if hit_normal.dot(ray.dir) > 0.0 {
                 hit_normal = hit_normal * -1.0;
             }
-            let hit_mat_id = hit_obj.get_material_id();
+            let hit_mat_id = hit_obj.get_material_id(hit_id.sub_id);
             let hit_material = &self.materials[hit_mat_id];
 
             let mut c = self.lights.iter().fold(RGB::zero(), |acc, light| {
@@ -433,7 +433,7 @@ impl RenderJob {
         };
 
         let hit_obj = &self.objects[hit_id.obj_idx];
-        let hit_mat_id = hit_obj.get_material_id();
+        let hit_mat_id = hit_obj.get_material_id(hit_id.sub_id);
         let hit_material = &self.materials[hit_mat_id];
 
         if !hit_material.ke.is_zero() {

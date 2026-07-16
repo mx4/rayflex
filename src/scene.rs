@@ -119,6 +119,11 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                 materials.clone().unwrap_err()
             );
         }
+        // How many .mtl materials actually loaded for this OBJ. tobj still
+        // reports per-face material ids even when the referenced .mtl file
+        // is missing, so we must range-check against this before trusting
+        // them (else base_mat_idx + id indexes past the material list).
+        let num_mtl_mats = (scene.num_materials - base_mat_idx) as usize;
 
         models.iter().for_each(|m| {
             let mesh = &m.mesh;
@@ -167,9 +172,13 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                 p0 = p0.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
                 p1 = p1.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
                 p2 = p2.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
+                // Default to material.0; use the triangle's .mtl material
+                // only when that material actually loaded (see num_mtl_mats).
                 let mut mat_id = 0;
                 if let Some(id) = mesh.material_id {
-                    mat_id = base_mat_idx as usize + id;
+                    if id < num_mtl_mats {
+                        mat_id = base_mat_idx as usize + id;
+                    }
                 }
                 let mut triangle = Triangle::new([p0, p1, p2], mat_id);
                 triangle.mesh_id = triangles.len();
