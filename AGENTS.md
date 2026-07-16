@@ -7,7 +7,7 @@ cargo build --release
 ./target/release/rayflex -l scenes/<scene>.json -x 900 -y 600 --img-file out.png --reflection-max-depth 10
 ```
 
-CLI flags: `-l` scene file, `-x`/`-y` resolution, `--img-file` output, `--reflection-max-depth N`, `-g` gamma correction, `-a` adaptive sampling, `-p 0` disable path tracing, `-u` open UI.
+CLI flags: `-l` scene file, `-x`/`-y` resolution, `--img-file` output, `--reflection-max-depth N`, `-g` gamma correction, `-a` adaptive sampling, `-p 0` disable path tracing, `-p N` set N samples/pixel for path tracing, `-u` open UI.
 
 ## Coordinate System
 
@@ -24,7 +24,7 @@ Top-level keys (order doesn't matter):
 |---|---|
 | `resolution` | `[width, height]` array |
 | `camera` | `pos`, `look_at`, `up`, `vfov` |
-| `material.N` | `kd` (diffuse RGB), `ks` (specular RGB), `shininess` |
+| `material.N` | `kd` (diffuse RGB), `ks` (specular RGB), `ke` (emissive RGB), `shininess` |
 | `sphere.N` | `center` `{x,y,z}`, `radius`, `material_id` |
 | `plane.N` | `point` `{x,y,z}`, `normal` `{x,y,z}`, `material_id` |
 | `triangle.N` | Three vertices, `material_id` |
@@ -56,6 +56,23 @@ Each letter spans Z from ~0.32 to ~1.28 (height). Sphere radius = 0.105. Ground 
 - **Perspective ratio**: for R to appear Nx larger than X, solve `dist_X / dist_R = N` given camera position.
 - **Tilt**: `atan2(-(cam_z - look_z), sqrt(dx²+dy²))` gives downward angle in degrees.
 - **FOV check**: with `vfov=60` and aspect 1.5, half-angles are h=48.7° v=30°. All object extremes must stay under these limits.
+
+## Path Tracing Mode
+
+Path tracing (`-p N` with N > 1) uses Monte Carlo sampling instead of direct illumination. Key differences:
+
+- **Ignores `spot-light` and `vec-light`** — only `ke` (emissive) materials act as light sources
+- **Diffuse materials**: `ks` should be zero (path tracer does its own scattering via hemisphere sampling)
+- **Emissive materials**: `ke` > 0 on an object makes it glow. The color + intensity acts as the light source. Typical values: `{r: 10-20, g: 10-20, b: 10-20}` for bright area lights
+- **Ambient light**: set to zero intensity (path tracing doesn't use it)
+- **Higher `-p`** = more samples per pixel = less noise but slower. Start with `-p 100` for testing, use `-p 400-1000` for final renders
+- **Keep reflection depth** (`--reflection-max-depth 6-8`) to cap bounce count
+- **Emissive spheres** make good area lights. Place them behind the camera or outside the FOV to avoid seeing them in the frame
+
+Example:
+```bash
+./target/release/rayflex -l scenes/rayflex-pt.json -x 900 -y 600 --img-file out.png -p 400 --reflection-max-depth 8
+```
 
 ## Testing & Validation
 

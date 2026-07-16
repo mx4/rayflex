@@ -26,6 +26,7 @@ Scenes are described in a json file that contains:
  - the resolution of the resulting picture
 
 ## Screenshots
+![rayflex-pt](./assets/rayflex-pt.png)
 ![teapot](./assets/teapot.png)
 ![cornell-box](./assets/cornell-box.png)
 ![trolley](./assets/trolley.png)
