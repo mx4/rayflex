@@ -16,6 +16,7 @@ use crate::light::Light;
 use crate::light::SpotLight;
 use crate::light::VectorLight;
 use crate::material::Material;
+use crate::render::NeeLight;
 use crate::render::RenderConfig;
 use crate::render::RenderJob;
 use crate::vec3::Float;
@@ -40,6 +41,10 @@ struct Scene {
     lights: Vec<Arc<dyn Light + 'static + Send + Sync>>,
     materials: Vec<Arc<Material>>,
     objects: Vec<Arc<dyn Object + 'static + Send + Sync>>,
+    /// Emissive spheres/triangles registered for next-event estimation,
+    /// collected as their concrete geometry is loaded (the boxed
+    /// `dyn Object` can't be downcast back).
+    nee_lights: Vec<NeeLight>,
 }
 
 fn load_materials(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()> {
@@ -203,6 +208,14 @@ fn load_spheres(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<
         match serde_json::from_value::<Sphere>(json[s].clone()) {
             Err(_error) => break,
             Ok(o) => {
+                let obj_idx = scene.objects.len();
+                if let Some(mat) = scene.materials.get(o.material_id) {
+                    if !mat.ke.is_zero() {
+                        scene
+                            .nee_lights
+                            .push(NeeLight::from_sphere(obj_idx, o.center, o.radius, mat.ke));
+                    }
+                }
                 scene.objects.push(Arc::new(o));
                 scene.num_spheres += 1;
             }
@@ -217,6 +230,14 @@ fn load_triangles(scene: &mut Scene, json: &serde_json::Value) -> std::io::Resul
         match serde_json::from_value::<Triangle>(json[s].clone()) {
             Err(_error) => break,
             Ok(o) => {
+                let obj_idx = scene.objects.len();
+                if let Some(mat) = scene.materials.get(o.material_id) {
+                    if !mat.ke.is_zero() {
+                        scene
+                            .nee_lights
+                            .push(NeeLight::from_triangle(obj_idx, o.points, mat.ke));
+                    }
+                }
                 scene.objects.push(Arc::new(o));
                 scene.num_triangles += 1;
             }
@@ -319,6 +340,16 @@ pub fn load_scene(cfg: RenderConfig) -> std::io::Result<RenderJob> {
     camera.display();
     scene.lights.iter().for_each(|light| light.display());
 
+    // Mark which objects are NEE-sampled lights so the path integrator can
+    // avoid double-counting them (see `RenderJob::obj_is_nee_light`).
+    let mut obj_is_nee_light = vec![false; scene.objects.len()];
+    for light in &scene.nee_lights {
+        obj_is_nee_light[light.obj_idx()] = true;
+    }
+    if !scene.nee_lights.is_empty() {
+        println!("-- nee: {} light primitive(s)", scene.nee_lights.len());
+    }
+
     let job = RenderJob {
         camera,
         image: Arc::new(Mutex::new(Image::new(false, 0, 0))),
@@ -332,6 +363,8 @@ pub fn load_scene(cfg: RenderConfig) -> std::io::Result<RenderJob> {
         },
         start_ts: Instant::now(),
         total_stats: Mutex::new(Default::default()),
+        nee_lights: scene.nee_lights,
+        obj_is_nee_light,
     };
     Ok(job)
 }

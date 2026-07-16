@@ -88,7 +88,7 @@ Other path-tracing facts:
 
 - **Rays that miss everything return black** — there is no sky. Enclose the scene, or add a giant emissive "sky dome" sphere (e.g. radius 90 centered on the scene, `ke=(0.03,0.045,0.085)` for faint night-blue ambient). Sphere intersection takes the far root from inside, so a dome works.
 - `checkered` is **ignored** in path-tracing mode (only applies to the ray tracer).
-- No next-event estimation (brute-force): prefer **large** area lights (radius 3–5, `ke` 10–15) over small bright ones, or the image stays noisy.
+- **Next-event estimation (NEE) is on**: every emissive **sphere** and **standalone `triangle.N`** is importance-sampled as a light (each diffuse bounce casts a shadow ray toward a random light), so direct illumination converges fast even for small/dim lights. Emissive **planes** and **meshes** are NOT NEE-sampled (planes are infinite-area; meshes shade as material.0) — they still glow if seen directly or in a mirror, but light the scene only via slow brute-force bounces, so build area lights from spheres/triangles. Caveat: NEE denoises direct light only; diffuse→mirror→light paths (mirror walls, chrome objects) still throw sparse fireflies and want more samples.
 - A directly visible emitter with any `ke` channel > 1 clamps to white after gamma — the orb's color shows in its floor glow / reflections, not the orb itself. For a visibly colored emitter keep `ke` ≲ 1.
 - Behind-camera trick: a large dim warm sphere (e.g. `ke=(1.1,0.85,0.6)`, r=4) behind the camera gives chrome objects a front sheen without appearing in frame.
 
@@ -96,7 +96,7 @@ Other path-tracing facts:
 
 Lessons from composed-scene attempts (what failed and what worked):
 
-- **Open night scenes look muddy.** Dark diffuse floor + black sky + a few emitters = grainy, dim, gray. Without next-event estimation, diffuse surfaces in dim scenes stay noisy even at 2000+ samples. Avoid "objects on an infinite plane at night".
+- **Open night scenes are less muddy now that NEE is on** — direct light from small emitters resolves cleanly. They're still the hardest case (little bounce light, and any mirrors throw fireflies), so a bright enclosed room is still the safer bet, but "objects on a plane lit by a few small emissive spheres" is now viable at moderate sample counts.
 - **Bright enclosed rooms look great.** Cornell-style: closed box, light walls (`kd≈0.75`), one or two saturated accent walls, a large ceiling area light. Lots of bounce light → fast convergence, soft shadows, strong color bleed onto metallic objects. This is the renderer's sweet spot.
 - **Build rectangular area lights from 2 emissive triangles** just below the ceiling (planes are infinite — an emissive plane would be the whole ceiling). A ~6x4 panel with `ke≈(15,13,11)` lights a 13-unit room well. Offset the panel behind the hero object so a soft contact shadow falls toward the camera.
 - **One mirror wall** (`ks≈0.85`) behind the scene adds a "second room" doubling without chaos. Fully mirrored rooms (infinity-mirror look) turn into unreadable dot-soup unless lights are very sparse and wall `ks` is low (≤0.55) so recursion fades to black — hard to make look good.
@@ -138,11 +138,12 @@ When adjusting camera or scene parameters, always:
 ## Improvement Backlog
 
 Renderer quality (highest visual payoff first):
-1. **Next-event estimation** (direct light sampling toward emitters) in `trace_ray_path` — the single biggest noise reduction; would make small/dim lights usable.
-2. **Tone mapping** (Reinhard or ACES) + exposure control instead of hard clamp — lets bright emitters roll off instead of clipping to white.
-3. **Dielectrics/refraction** (glass spheres) — big showcase win; the material model currently has no transmission.
-4. Mixed materials: probabilistic kd/ks choice plus a roughness parameter (glossy, not just perfect mirror).
-5. Russian-roulette path termination instead of the hard depth cap.
+1. ~~**Next-event estimation**~~ — DONE 2026-07. `trace_ray_path` importance-samples emissive spheres/triangles per diffuse bounce (`direct_light` + `NeeLight` in render.rs; light set built in scene.rs). Direct lighting converges ~10x faster.
+2. **Multiple importance sampling (MIS)** — the natural follow-up to NEE. Kills the diffuse→mirror→light fireflies that NEE alone leaves, and handles small bright lights + glossy surfaces robustly. Also: sphere lights currently use uniform-area sampling (half the samples face away) — cone sampling toward the visible cap would cut their variance.
+3. **Tone mapping** (Reinhard or ACES) + exposure control instead of hard clamp — lets bright emitters roll off instead of clipping to white. (Cheap firefly mitigation in the meantime: clamp per-sample radiance.)
+4. **Dielectrics/refraction** (glass spheres) — big showcase win; the material model currently has no transmission.
+5. Mixed materials: probabilistic kd/ks choice plus a roughness parameter (glossy, not just perfect mirror).
+6. Russian-roulette path termination instead of the hard depth cap.
 
 Geometry/performance:
 - Top-level BVH over scene objects — `find_closest_hit` linearly scans every object; many-sphere scenes pay per ray.

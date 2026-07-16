@@ -19,7 +19,121 @@ use crate::material::Material;
 use crate::three_d::Object;
 use crate::vec3::EPSILON;
 use crate::vec3::Float;
+use crate::vec3::Point;
 use crate::vec3::Vec3;
+use crate::vec3::rand01;
+
+const PI: Float = std::f32::consts::PI;
+
+/// A light primitive registered for next-event estimation (direct light
+/// sampling). Built at scene-load time from every emissive sphere and
+/// standalone triangle. `obj_idx` is the index into `RenderJob::objects`
+/// of the same primitive, so shadow rays can (a) exclude the light itself
+/// as an occluder and (b) let the path integrator skip re-counting the
+/// light's emission when a scattered ray lands on it (avoiding double
+/// counting -- see `trace_ray_path`).
+pub enum NeeLight {
+    Sphere {
+        obj_idx: usize,
+        center: Point,
+        radius: Float,
+        le: RGB,
+    },
+    Triangle {
+        obj_idx: usize,
+        p0: Point,
+        e1: Vec3,
+        e2: Vec3,
+        normal: Vec3,
+        area: Float,
+        le: RGB,
+    },
+}
+
+/// A point sampled on a light's surface, with everything the direct-light
+/// estimator needs.
+struct LightSample {
+    point: Point,
+    normal: Vec3,
+    area: Float,
+    le: RGB,
+}
+
+impl NeeLight {
+    pub fn from_sphere(obj_idx: usize, center: Point, radius: Float, le: RGB) -> Self {
+        NeeLight::Sphere {
+            obj_idx,
+            center,
+            radius,
+            le,
+        }
+    }
+
+    pub fn from_triangle(obj_idx: usize, points: [Point; 3], le: RGB) -> Self {
+        let e1 = points[1] - points[0];
+        let e2 = points[2] - points[0];
+        let cross = e1.cross(e2);
+        let area = 0.5 * cross.norm();
+        NeeLight::Triangle {
+            obj_idx,
+            p0: points[0],
+            e1,
+            e2,
+            normal: cross.normalize(),
+            area,
+            le,
+        }
+    }
+
+    pub fn obj_idx(&self) -> usize {
+        match self {
+            NeeLight::Sphere { obj_idx, .. } => *obj_idx,
+            NeeLight::Triangle { obj_idx, .. } => *obj_idx,
+        }
+    }
+
+    /// Sample a point uniformly on the light's surface.
+    fn sample(&self, rnd_state: &mut u64) -> LightSample {
+        match self {
+            NeeLight::Sphere {
+                center,
+                radius,
+                le,
+                ..
+            } => {
+                let dir = Vec3::gen_rnd_sphere(rnd_state);
+                LightSample {
+                    point: *center + dir * *radius,
+                    normal: dir,
+                    area: 4.0 * PI * radius * radius,
+                    le: *le,
+                }
+            }
+            NeeLight::Triangle {
+                p0,
+                e1,
+                e2,
+                normal,
+                area,
+                le,
+                ..
+            } => {
+                let mut r1 = rand01(rnd_state);
+                let mut r2 = rand01(rnd_state);
+                if r1 + r2 > 1.0 {
+                    r1 = 1.0 - r1;
+                    r2 = 1.0 - r2;
+                }
+                LightSample {
+                    point: *p0 + *e1 * r1 + *e2 * r2,
+                    normal: *normal,
+                    area: *area,
+                    le: *le,
+                }
+            }
+        }
+    }
+}
 
 /// Identifies the specific primitive a ray hit: which object in
 /// `RenderJob::objects`, and which sub-primitive within it (only
@@ -120,6 +234,12 @@ pub struct RenderJob {
     pub progress_func: ProgressFunc,
     pub start_ts: Instant,
     pub total_stats: Mutex<RenderStats>,
+    /// Emissive primitives importance-sampled for next-event estimation.
+    pub nee_lights: Vec<NeeLight>,
+    /// Parallel to `objects`: true where an object is one of `nee_lights`.
+    /// Lets the path integrator avoid double-counting a light that a
+    /// scattered ray happens to hit after it was already sampled by NEE.
+    pub obj_is_nee_light: Vec<bool>,
 }
 
 impl RenderJob {
@@ -216,6 +336,64 @@ impl RenderJob {
             cmax * s + cyan * (1.0 - s)
         }
     }
+    /// Estimate direct illumination at a diffuse surface point by sampling
+    /// one light (next-event estimation). Picks a light uniformly, samples
+    /// a point on it, and adds its contribution if the point is visible.
+    ///
+    /// The estimator matches this path tracer's convention where the
+    /// cosine-weighted continuation returns `kd * L_i` (implicit BRDF
+    /// `kd/PI`), so the direct term carries an explicit `1/PI`:
+    ///   L = (kd/PI) * Le * (cos_s * cos_l / dist^2) * Area * N
+    /// with `Area * N` = 1 / pdf_area for uniformly picking one of N lights
+    /// and then a uniform point on its surface.
+    fn direct_light(
+        &self,
+        stats: &mut RenderStats,
+        rnd_state: &mut u64,
+        hit_point: Point,
+        hit_normal: Vec3,
+        kd: RGB,
+        origin: HitId,
+    ) -> RGB {
+        let n = self.nee_lights.len();
+        if n == 0 {
+            return RGB::zero();
+        }
+        // Pick one light uniformly.
+        let idx = (rand01(rnd_state) * n as Float) as usize;
+        let light = &self.nee_lights[idx.min(n - 1)];
+        let s = light.sample(rnd_state);
+
+        let to_light = s.point - hit_point;
+        let dist2 = to_light.dot(to_light);
+        if dist2 < EPSILON {
+            return RGB::zero();
+        }
+        let dist = dist2.sqrt();
+        let wi = to_light / dist;
+
+        let cos_s = hit_normal.dot(wi);
+        let cos_l = s.normal.dot(wi * -1.0);
+        // Surface must face the light and the light's front must face the
+        // surface (emitters radiate from their outward normal side).
+        if cos_s <= 0.0 || cos_l <= 0.0 {
+            return RGB::zero();
+        }
+
+        // Visibility: shadow ray toward the sampled point. Stop just short
+        // of the light so the light's own surface doesn't count as an
+        // occluder; exclude the originating surface primitive.
+        let shadow_ray = Ray::new(hit_point, wi);
+        let tmax = dist * (1.0 - 1e-3);
+        stats.num_rays_reflection += 1;
+        if is_occluded(&self.objects, stats, &shadow_ray, EPSILON, tmax, Some(origin)) {
+            return RGB::zero();
+        }
+
+        let g = cos_s * cos_l / dist2;
+        kd * s.le * (g * s.area * n as Float / PI)
+    }
+
     fn trace_ray_path(
         &self,
         stats: &mut RenderStats,
@@ -223,6 +401,13 @@ impl RenderJob {
         ray: &Ray,
         depth: u32,
         exclude: Option<HitId>,
+        // Whether emission from an emitter this ray lands on should be
+        // added. True for camera rays and rays leaving a specular (mirror)
+        // bounce; false for the diffuse continuation, whose direct light
+        // is already accounted for by next-event estimation at the bounce
+        // it left -- but only for lights that NEE actually samples (see
+        // `obj_is_nee_light`), so emitters outside the NEE set still count.
+        count_emission: bool,
     ) -> RGB {
         if depth > self.cfg.reflection_max_depth {
             stats.num_rays_reflection_max += 1;
@@ -241,7 +426,12 @@ impl RenderJob {
         let hit_material = &self.materials[hit_mat_id];
 
         if !hit_material.ke.is_zero() {
-            return hit_material.ke;
+            // Count this emitter unless it was already sampled by NEE at
+            // the previous diffuse bounce (avoids double counting).
+            if count_emission || !self.obj_is_nee_light[hit_id.obj_idx] {
+                return hit_material.ke;
+            }
+            return RGB::zero();
         }
 
         let hit_point = ray.orig + ray.dir * t;
@@ -252,29 +442,28 @@ impl RenderJob {
             hit_normal = hit_normal * -1.0;
         }
         stats.num_rays_reflection += 1;
-        let scattered_ray = if hit_material.ks.is_zero() {
-            // Lambertian diffuse: cosine-weighted scatter around the
-            // surface normal (normal + random unit vector). Scattering
-            // around the *normal* -- not the mirror-reflection direction --
-            // is what makes diffuse shading view-independent and physically
-            // correct.
+
+        if hit_material.ks.is_zero() {
+            // Diffuse: direct light via NEE + indirect via a cosine-weighted
+            // continuation that does NOT re-count NEE-sampled emitters.
+            let direct =
+                self.direct_light(stats, rnd_state, hit_point, hit_normal, hit_material.kd, hit_id);
+
+            // Lambertian scatter around the surface normal.
             let mut dir = hit_normal + Vec3::gen_rnd_sphere(rnd_state);
-            // Guard the degenerate case where the random vector nearly
-            // cancels the normal, leaving a near-zero (or inward) direction.
             if dir.norm() < EPSILON {
                 dir = hit_normal;
             }
-            Ray::new(hit_point, dir.normalize())
+            let scattered_ray = Ray::new(hit_point, dir.normalize());
+            let indirect =
+                self.trace_ray_path(stats, rnd_state, &scattered_ray, depth + 1, Some(hit_id), false);
+            direct + indirect * hit_material.kd
         } else {
-            // Perfect mirror reflection.
-            ray.get_reflection(hit_point, hit_normal)
-        };
-        // Exclude the exact primitive this scattered ray originates from --
-        // see HitId doc comment.
-        let c0 = self.trace_ray_path(stats, rnd_state, &scattered_ray, depth + 1, Some(hit_id));
-        if hit_material.ks.is_zero() {
-            c0 * hit_material.kd
-        } else {
+            // Perfect mirror: no NEE (specular is a delta); the reflected
+            // ray sees emitters directly.
+            let reflected_ray = ray.get_reflection(hit_point, hit_normal);
+            let c0 =
+                self.trace_ray_path(stats, rnd_state, &reflected_ray, depth + 1, Some(hit_id), true);
             c0 * hit_material.ks
         }
     }
@@ -333,7 +522,7 @@ impl RenderJob {
 
             stats.num_rays_sampling += 1;
 
-            c += self.trace_ray_path(stats, &mut rnd_state, &ray, 0, None);
+            c += self.trace_ray_path(stats, &mut rnd_state, &ray, 0, None, true);
         }
         c / self.cfg.path_tracing as f32
     }

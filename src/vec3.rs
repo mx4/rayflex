@@ -26,6 +26,11 @@ fn fast_rand(rnd_state: &mut u64) -> u64 {
     u128_fold(tmp)
 }
 
+/// Uniform Float in [0, 1), from the same fast RNG as `gen_rnd_sphere`.
+pub fn rand01(rnd_state: &mut u64) -> Float {
+    fast_rand(rnd_state) as Float / u64::MAX as Float
+}
+
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub struct Vec3 {
     pub x: Float,
