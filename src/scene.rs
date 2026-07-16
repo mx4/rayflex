@@ -90,6 +90,17 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
             angle_z = alpha;
             angle_z_rad = angle_z.to_radians() as Float;
         }
+        // Uniform scale (default 1.0) and translation offset (default 0),
+        // applied per vertex as p' = R(scale * p) + translate: scale about
+        // the origin, then rotate, then translate into place (SRT order).
+        // Lets a mesh be sized and positioned regardless of its native
+        // coordinates (e.g. shrink/place a downloaded model).
+        let scale = json[&format!("obj.{}.scale", scene.num_objs)]
+            .as_f64()
+            .unwrap_or(1.0) as Float;
+        let translate: Vec3 =
+            serde_json::from_value(json[&format!("obj.{}.translate", scene.num_objs)].clone())
+                .unwrap_or_else(|_| Vec3::zero());
 
         let opt = tobj::LoadOptions {
             triangulate: true, // converts polygon into triangles
@@ -169,9 +180,9 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                     num_skipped += 1;
                     continue;
                 }
-                p0 = p0.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
-                p1 = p1.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
-                p2 = p2.rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad);
+                p0 = (p0 * scale).rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad) + translate;
+                p1 = (p1 * scale).rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad) + translate;
+                p2 = (p2 * scale).rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad) + translate;
                 // Default to material.0; use the triangle's .mtl material
                 // only when that material actually loaded (see num_mtl_mats).
                 let mut mat_id = 0;
@@ -191,12 +202,14 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
             scene.num_objs += 1;
         });
         println!(
-            "-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={}",
+            "-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={} scale={} translate={:?}",
             path.green(),
             num_triangles_in_obj,
             angle_x,
             angle_y,
-            angle_z
+            angle_z,
+            scale,
+            translate
         );
     }
     println!(

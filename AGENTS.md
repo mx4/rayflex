@@ -108,7 +108,7 @@ Lessons from composed-scene attempts (what failed and what worked):
 ## Meshes (OBJ)
 
 - **Per-triangle materials** — a mesh shades each triangle with its own material (`Mesh::get_material_id(sub_id)` → `triangles[sub_id].material_id`). An OBJ with a `.mtl` renders multi-material; the `.mtl` materials are appended to the material list after the JSON `material.N` ones. Triangles whose `.mtl` failed to load (missing file) or that have no `usemtl` fall back to `material.0`, so single-material meshes still just need `material.0` defined. NOTE: `.mtl` import forces `ke=0` (emissive not imported) and there's no texture support, so `map_*`/`Ke` lines are dropped. The `obj.N.material` key is still not read by the loader.
-- **Rotation only** — no translation or scale for OBJs. Build the scene around the mesh's native position.
+- **Transforms** — `obj.N.rotx/roty/rotz` (degrees), `obj.N.scale` (uniform scalar, default 1.0), `obj.N.translate` (`{x,y,z}`, default 0). Applied per vertex as `p' = R(scale · p) + translate` (SRT: scale about origin → rotate about origin → translate into place). Lets you size and position a mesh regardless of its native coordinates, and load the same OBJ multiple times (`obj.0`, `obj.1`, …) at different transforms.
 - `obj/teapot.obj` with `rotx=-90` (upright, z-up): bbox x[5.51, 9.50], y[-2.71, 3.49], z[-2.49, 0.71]; body center ≈ (7.5, 0.39); spout on the +y side. Put the floor at z=-2.5. 6.3k triangles — fast even in path tracing (hierarchical AABB).
 - **rotz sign is inverted vs. the usual CCW convention** for scene placement: `rotz = t` moves points by (x,y) → (x·cos t + y·sin t, −x·sin t + y·cos t), i.e. clockwise viewed from +z. Verified empirically (teapot center (7.5, 0.39) with rotz=18 lands at ≈(7.25, −1.95)). Always verify orientation with a cheap render (`-p 32`, 480x300 — sub-second).
 - Rotations apply in order rotx → roty → rotz, each about the **origin**, so rotating an off-origin mesh also moves it.
@@ -150,7 +150,7 @@ Renderer quality (highest visual payoff first):
 Geometry/performance:
 - Top-level BVH over scene objects — `find_closest_hit` linearly scans every object; many-sphere scenes pay per ray.
 - Smooth (interpolated vertex) normals for meshes — the teapot renders visibly faceted.
-- OBJ translation + scale (rotation-only today forces scenes to be built around the mesh's native coordinates). With per-triangle materials now working, this is the main blocker to readily rendering an existing OBJ model.
+- ~~OBJ translation + scale~~ — DONE 2026-07 (`obj.N.scale`, `obj.N.translate`; see Meshes section). Remaining blocker to *nicely* rendering an existing OBJ model: smooth vertex normals (meshes render faceted).
 - ~~Per-triangle materials at shading time~~ — DONE 2026-07 (see Known Bugs).
 
 Workflow/UI:
