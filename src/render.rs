@@ -104,7 +104,12 @@ impl NeeLight {
     }
 
     /// Sample a point uniformly on the light's surface.
-    fn sample(&self, rnd_state: &mut u64) -> LightSample {
+    ///
+    /// `ref_point` is the surface being lit. It only matters for spheres:
+    /// a sphere is a closed surface, so the side that can actually radiate
+    /// toward `ref_point` is whichever one faces it, and the sampled normal
+    /// is oriented accordingly.
+    fn sample(&self, rnd_state: &mut u64, ref_point: Point) -> LightSample {
         match self {
             NeeLight::Sphere {
                 center,
@@ -113,9 +118,20 @@ impl NeeLight {
                 ..
             } => {
                 let dir = Vec3::gen_rnd_sphere(rnd_state);
+                // Orient the normal toward the receiver. Sampling always
+                // yields an *outward* normal, which is right when the
+                // receiver is outside (the inward-facing half is
+                // self-occluded anyway, and direct_light's cos_l <= 0 test
+                // discards it for free). But for a sphere that ENCLOSES the
+                // scene -- a "sky dome" -- every receiver is inside, so the
+                // outward normal makes cos_l < 0 for every sample and the
+                // dome lights nothing at all. Flipping to the inward side
+                // there is what the geometry actually radiates from.
+                let inside = (ref_point - *center).norm() < *radius;
+                let normal = if inside { dir * -1.0 } else { dir };
                 LightSample {
                     point: *center + dir * *radius,
-                    normal: dir,
+                    normal,
                     area: 4.0 * PI * radius * radius,
                     le: *le,
                 }
@@ -373,7 +389,7 @@ impl RenderJob {
         // Pick one light uniformly.
         let idx = (rand01(rnd_state) * n as Float) as usize;
         let light = &self.nee_lights[idx.min(n - 1)];
-        let s = light.sample(rnd_state);
+        let s = light.sample(rnd_state, hit_point);
 
         let to_light = s.point - hit_point;
         let dist2 = to_light.dot(to_light);
