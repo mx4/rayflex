@@ -47,7 +47,7 @@ const ASSETS: &[Asset] = &[
     // Path-traced (emissive scenes) — spp drives noise; tone-map auto-applies.
     Asset { scene: "gold-gallery", res_x: 960, res_y: 600, spp: 1500 }, // 16:10
     Asset { scene: "cornell-box", res_x: 960, res_y: 960, spp: 1500 },  // 1:1
-    Asset { scene: "suzanne-bust", res_x: 960, res_y: 960, spp: 2200 }, // 1:1, mirror-heavy -- needs more spp
+    Asset { scene: "suzanne-bust", res_x: 960, res_y: 960, spp: 1200 }, // 1:1, mirror; was 2200 to fight the backwards-wound key light (now fixed -> NEE works)
     Asset { scene: "torus-knot", res_x: 960, res_y: 960, spp: 1500 },   // 1:1, diffuse + NEE -- converges faster
     Asset { scene: "rayflex-pt", res_x: 960, res_y: 640, spp: 2000 },   // 3:2
     // Ray-traced (spot/vec lit) — spp = 1, adaptive antialiasing on.

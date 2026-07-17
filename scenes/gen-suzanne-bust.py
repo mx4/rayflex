@@ -40,17 +40,21 @@ def add_mat(kd=None, ks=None, ke=None):
     materials.append({"kd": kd or ZERO, "ks": ks or ZERO, "ke": ke or ZERO, "shininess": 0})
     return len(materials) - 1
 
-# Only the bust is a mirror. Mirrors get no NEE (specular is a delta -- a
-# reflected ray must geometrically hit an emitter to pick up any light), so
-# the room around it must be diffuse with real albedo for rays that bounce
-# off the bust to reliably terminate on a lit surface (same recipe as
-# gold-gallery's diffuse floor/walls around its mirror teapot). An
-# all-mirror room (bust + floor) with near-black walls was tried first and
-# rendered pure black: ~100% of paths exhausted reflection_max_depth
-# without ever finding light.
-MAT_BRONZE = add_mat(ks=rgb(0.80, 0.50, 0.28))   # 0: Suzanne (meshes use material.0)
-MAT_WALL   = add_mat(kd=rgb(0.24, 0.22, 0.26))   # dark diffuse gallery walls
-MAT_FLOOR  = add_mat(kd=rgb(0.28, 0.255, 0.28))  # dark diffuse stone floor
+# Only the bust is a mirror, and a mirror is only as bright as what it
+# reflects: it gets NO next-event estimation (specular is a delta -- the
+# reflected ray has to geometrically land on an emitter), so the bust's
+# brightness is entirely "the room x ks". Turning the light UP barely
+# touches it; the room's albedo is the dial. Two failure modes bracket it:
+#   - all-mirror room with near-black walls -> renders pure black (~100% of
+#     paths exhaust reflection_max_depth without ever finding light).
+#   - walls at 0.24 -> the bronze reflects near-black and reads unlit.
+# Note the room albedo *saturates*: a 0.30 -> 0.52 sweep barely differs,
+# because past ~0.30 the mirror already picks the walls up fully and extra
+# albedo only washes out the background. So 0.30 buys all the brightness
+# while keeping the room dim and moody.
+MAT_BRONZE = add_mat(ks=rgb(0.62, 0.38, 0.21))   # 0: Suzanne (meshes use material.0)
+MAT_WALL   = add_mat(kd=rgb(0.30, 0.282, 0.318)) # gallery walls -- the bust's reflected environment
+MAT_FLOOR  = add_mat(kd=rgb(0.318, 0.30, 0.318)) # stone floor
 MAT_LIGHT  = add_mat(ke=rgb(26.0, 21.0, 16.0))   # warm soft key light
 MAT_RIM    = add_mat(ke=rgb(2.0, 2.8, 4.0))      # small cool rim accent, behind the bust
 
@@ -63,7 +67,11 @@ planes = [
     ({"x": 0, "y": Y1, "z": 0}, {"x": 0, "y": -1, "z": 0}, MAT_WALL),
 ]
 
-# soft key light panel above-front of the bust (2 triangles)
+# Soft key light panel above-front of the bust (2 triangles). Its size is
+# what controls the blown-out specular patch on the brow -- that patch is
+# the panel's own reflection, so no amount of room-albedo tuning affects
+# it. Enlarging this to 4.2x3.6 clipped the highlight to a flat white blob;
+# at this size it stays a shaped reflection with the panel's edge visible.
 LX0, LX1 = -1.6, 0.9
 LY0, LY1 = -2.0, -0.2
 LZ = CEIL_Z - 0.05
@@ -71,9 +79,17 @@ p00 = {"x": LX0, "y": LY0, "z": LZ}
 p10 = {"x": LX1, "y": LY0, "z": LZ}
 p11 = {"x": LX1, "y": LY1, "z": LZ}
 p01 = {"x": LX0, "y": LY1, "z": LZ}
+# Winding matters: direct_light gates on cos_l = light_normal . (-wi) > 0,
+# so the panel's geometric normal (edge1 x edge2) must point DOWN into the
+# room or NEE contributes exactly zero from it. The original winding here
+# ([p00,p10,p11] / [p00,p11,p01]) gave normal z = +4.50 -- straight up into
+# the ceiling -- so the key light was lighting the room only via random
+# bounces that happened to hit its underside: unbiased, but far noisier
+# (this is why the scene needed 2200spp). Swapping the last two vertices
+# flips it. Verified by computing the normal, not by eye.
 triangles = [
-    ([p00, p10, p11], MAT_LIGHT),
-    ([p00, p11, p01], MAT_LIGHT),
+    ([p00, p11, p10], MAT_LIGHT),
+    ([p00, p01, p11], MAT_LIGHT),
 ]
 
 spheres = []
