@@ -48,10 +48,11 @@ def add_mat(kd=None, ks=None, ke=None):
 #   - all-mirror room with near-black walls -> renders pure black (~100% of
 #     paths exhaust reflection_max_depth without ever finding light).
 #   - walls at 0.24 -> the bronze reflects near-black and reads unlit.
-# Note the room albedo *saturates*: a 0.30 -> 0.52 sweep barely differs,
-# because past ~0.30 the mirror already picks the walls up fully and extra
-# albedo only washes out the background. So 0.30 buys all the brightness
-# while keeping the room dim and moody.
+# Note the room albedo barely matters here: a 0.30 -> 0.52 sweep is almost
+# indistinguishable. The big jump from the original dark render came from
+# fixing the key light's backwards winding (below), NOT from albedo -- the
+# whole sweep already had that fix in, so it only *looked* like albedo was
+# the dial. 0.30 keeps the room dim and moody.
 MAT_BRONZE = add_mat(ks=rgb(0.62, 0.38, 0.21))   # 0: Suzanne (meshes use material.0)
 MAT_WALL   = add_mat(kd=rgb(0.30, 0.282, 0.318)) # gallery walls -- the bust's reflected environment
 MAT_FLOOR  = add_mat(kd=rgb(0.318, 0.30, 0.318)) # stone floor

@@ -45,7 +45,7 @@ const REFLECTION_DEPTH: u32 = 8;
 /// 24, so 1:1, 3:2, and 16:10 all yield round heights (960 / 640 / 600).
 const ASSETS: &[Asset] = &[
     // Path-traced (emissive scenes) — spp drives noise; tone-map auto-applies.
-    Asset { scene: "gold-gallery", res_x: 960, res_y: 600, spp: 1500 }, // 16:10
+    Asset { scene: "gold-gallery", res_x: 960, res_y: 600, spp: 800 },  // 16:10; was 1500 when its key light was wound backwards (NEE got nothing) -- now converges ~3.7x faster
     Asset { scene: "cornell-box", res_x: 960, res_y: 960, spp: 1500 },  // 1:1
     Asset { scene: "suzanne-bust", res_x: 960, res_y: 960, spp: 1200 }, // 1:1, mirror; was 2200 to fight the backwards-wound key light (now fixed -> NEE works)
     Asset { scene: "torus-knot", res_x: 960, res_y: 960, spp: 1500 },   // 1:1, diffuse + NEE -- converges faster
