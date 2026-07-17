@@ -181,7 +181,6 @@ impl eframe::App for RayflexApp {
             "cow",
             "teapot",
             "buddha",
-            "sphere-box",
             "sphere-tunnel",
             "rayflex",
         ];

@@ -30,16 +30,6 @@ fn scene_cow() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 #[test]
-fn scene_sphere_box() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("rayflex")?;
-    cmd.arg("-l")
-        .arg("scenes/sphere-box.json")
-        .assert()
-        .success();
-
-    Ok(())
-}
-#[test]
 fn scene_gold_gallery() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("rayflex")?;
     cmd.arg("-l")
