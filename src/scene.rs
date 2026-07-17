@@ -106,6 +106,12 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
             triangulate: true, // converts polygon into triangles
             ignore_lines: true,
             ignore_points: true,
+            // Unify position/normal/texcoord indices into one index buffer
+            // (mesh.indices) so a vertex's normal is at the same index as
+            // its position. Without this, normals (if present) carry their
+            // own separate index stream (mesh.normal_indices) that our
+            // per-face loop below doesn't consult.
+            single_index: true,
             ..Default::default()
         };
         let (models, materials) = tobj::load_obj(path, &opt).expect("tobj");
@@ -159,6 +165,25 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
             num_triangles_in_obj += n;
             let mut triangles = Vec::with_capacity(n);
             let mut num_skipped = 0;
+            // With single_index, a present vn stream is unified 1:1 with
+            // positions (same index, same vertex count) -- see LoadOptions
+            // above. Meshes without `vn` (teapot, trolley, buddha, cow) get
+            // no smooth normals and keep the flat per-face look.
+            let has_normals =
+                !mesh.normals.is_empty() && mesh.normals.len() == mesh.positions.len();
+            let vertex_normal = |idx: usize| -> Vec3 {
+                Vec3::new(
+                    mesh.normals[3 * idx] as Float,
+                    mesh.normals[3 * idx + 1] as Float,
+                    mesh.normals[3 * idx + 2] as Float,
+                )
+                // Rotate to match the geometry (no translate: normals are
+                // directions. No scale: uniform scale doesn't change a
+                // normal's direction, and get_normal() renormalizes anyway).
+                .rotx(angle_x_rad)
+                .roty(angle_y_rad)
+                .rotz(angle_z_rad)
+            };
             for i in 0..n {
                 let i0 = mesh.indices[3 * i] as usize;
                 let i1 = mesh.indices[3 * i + 1] as usize;
@@ -193,6 +218,10 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                 }
                 let mut triangle = Triangle::new([p0, p1, p2], mat_id);
                 triangle.mesh_id = triangles.len();
+                if has_normals {
+                    triangle.normals =
+                        Some([vertex_normal(i0), vertex_normal(i1), vertex_normal(i2)]);
+                }
                 triangles.push(triangle);
             }
             if num_skipped > 0 {

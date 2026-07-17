@@ -67,3 +67,35 @@ fn scene_cornell_box() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+#[test]
+fn scene_suzanne_bust() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin("rayflex")?;
+    cmd.arg("-l")
+        .arg("scenes/suzanne-bust.json")
+        .arg("-x")
+        .arg("300")
+        .arg("-y")
+        .arg("300")
+        .arg("-p")
+        .arg("5")
+        .assert()
+        .success();
+
+    Ok(())
+}
+#[test]
+fn scene_torus_knot() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin("rayflex")?;
+    cmd.arg("-l")
+        .arg("scenes/torus-knot.json")
+        .arg("-x")
+        .arg("300")
+        .arg("-y")
+        .arg("300")
+        .arg("-p")
+        .arg("5")
+        .assert()
+        .success();
+
+    Ok(())
+}

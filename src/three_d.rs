@@ -65,6 +65,12 @@ pub struct Triangle {
     pub material_id: usize,
     #[serde(skip)]
     pub mesh_id: usize,
+    /// Per-vertex normals (`vn` from an OBJ), one per `points[i]`, for
+    /// smooth (Phong-interpolated) shading. `None` for JSON-declared
+    /// triangles and OBJ meshes without vertex normals -- those fall back
+    /// to the flat geometric face normal.
+    #[serde(skip)]
+    pub normals: Option<[Vec3; 3]>,
 }
 
 pub struct Triangles {
@@ -103,6 +109,7 @@ impl Triangles {
             points: [p0, p1, p2],
             material_id: self.material_id[idx],
             mesh_id: 0,
+            normals: None,
         }
     }
 }
@@ -144,7 +151,26 @@ impl Triangle {
             points,
             material_id,
             mesh_id: 0,
+            normals: None,
         }
+    }
+    /// Barycentric weights (w0, w1, w2) of `p` w.r.t. (points[0], points[1],
+    /// points[2]), i.e. `p ~= points[0]*w0 + points[1]*w1 + points[2]*w2`.
+    /// `p` is assumed to lie in the triangle's plane (a ray-hit point).
+    fn barycentric(&self, p: Point) -> (Float, Float, Float) {
+        let v0 = self.points[1] - self.points[0];
+        let v1 = self.points[2] - self.points[0];
+        let v2 = p - self.points[0];
+        let d00 = v0.dot(v0);
+        let d01 = v0.dot(v1);
+        let d11 = v1.dot(v1);
+        let d20 = v2.dot(v0);
+        let d21 = v2.dot(v1);
+        let denom = d00 * d11 - d01 * d01;
+        let w1 = (d11 * d20 - d01 * d21) / denom;
+        let w2 = (d00 * d21 - d01 * d20) / denom;
+        let w0 = 1.0 - w1 - w2;
+        (w0, w1, w2)
     }
 }
 
@@ -286,10 +312,28 @@ impl Object for Triangle {
             self.points[0], self.points[1], self.points[2]
         );
     }
-    fn get_normal(&self, _point: Point, _oid: usize) -> Vec3 {
-        let edge1 = self.points[1] - self.points[0];
-        let edge2 = self.points[2] - self.points[0];
-        edge1.cross(edge2).normalize()
+    fn get_normal(&self, point: Point, _oid: usize) -> Vec3 {
+        let face_normal = || {
+            let edge1 = self.points[1] - self.points[0];
+            let edge2 = self.points[2] - self.points[0];
+            edge1.cross(edge2).normalize()
+        };
+        match self.normals {
+            // Smooth shading: interpolate the three vertex normals
+            // (barycentric weights of the hit point) and renormalize --
+            // Phong/Gouraud-style. Falls back to the flat face normal for
+            // a degenerate (near-zero-area) triangle.
+            Some(ns) => {
+                let (w0, w1, w2) = self.barycentric(point);
+                let n = ns[0] * w0 + ns[1] * w1 + ns[2] * w2;
+                if n.norm() > EPSILON {
+                    n.normalize()
+                } else {
+                    face_normal()
+                }
+            }
+            None => face_normal(),
+        }
     }
     fn get_texture_2d(&self, _point: Point) -> Vec2 {
         Vec2 { x: 0.0, y: 0.0 }

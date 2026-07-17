@@ -174,6 +174,8 @@ impl eframe::App for RayflexApp {
         let vec_str = [
             "cornell-box",
             "gold-gallery",
+            "suzanne-bust",
+            "torus-knot",
             "rayflex-pt",
             "trolley",
             "cow",
@@ -200,7 +202,11 @@ impl eframe::App for RayflexApp {
                                 self.scene_file = format!("scenes/{}.json", vec_str[i]);
                                 self.do_path_tracing = matches!(
                                     vec_str[i],
-                                    "cornell-box" | "gold-gallery" | "rayflex-pt"
+                                    "cornell-box"
+                                        | "gold-gallery"
+                                        | "suzanne-bust"
+                                        | "torus-knot"
+                                        | "rayflex-pt"
                                 );
                                 self.use_gamma = true;
                                 match vec_str[i] {
@@ -211,6 +217,10 @@ impl eframe::App for RayflexApp {
                                     "gold-gallery" => {
                                         self.width = 800;
                                         self.height = 500;
+                                    }
+                                    "suzanne-bust" | "torus-knot" => {
+                                        self.width = 700;
+                                        self.height = 700;
                                     }
                                     _ => {}
                                 }
