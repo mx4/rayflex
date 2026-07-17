@@ -105,10 +105,11 @@ impl NeeLight {
 
     /// Sample a point uniformly on the light's surface.
     ///
-    /// `ref_point` is the surface being lit. It only matters for spheres:
-    /// a sphere is a closed surface, so the side that can actually radiate
-    /// toward `ref_point` is whichever one faces it, and the sampled normal
-    /// is oriented accordingly.
+    /// `ref_point` is the surface being lit. The sampled normal is always
+    /// oriented toward it, so `direct_light`'s `cos_l > 0` test can never
+    /// reject a light for merely being "the wrong way round" -- see the
+    /// per-variant notes below for why that orientation is the physically
+    /// right one in each case.
     fn sample(&self, rnd_state: &mut u64, ref_point: Point) -> LightSample {
         match self {
             NeeLight::Sphere {
@@ -151,9 +152,31 @@ impl NeeLight {
                     r1 = 1.0 - r1;
                     r2 = 1.0 - r2;
                 }
+                let point = *p0 + *e1 * r1 + *e2 * r2;
+                // Triangle emitters are TWO-SIDED, so orient the normal
+                // toward the receiver. The BSDF path already treats them
+                // that way -- trace_ray_path returns `ke` for whichever
+                // face a ray lands on, with no facing check -- so NEE has
+                // to agree or the two disagree about what the light is.
+                //
+                // When they disagreed, a panel wound "backwards" (geometric
+                // normal facing away from the room) lost its direct light
+                // *entirely* rather than merely being one-sided: NEE
+                // rejected every sample via cos_l <= 0, while the diffuse
+                // continuation ray that hit it returned zero because
+                // emission is suppressed for NEE-registered lights. Three
+                // shipped scenes had exactly that bug, and nothing warned:
+                // an emitter looks identical from both sides to the camera.
+                // Orienting here makes winding irrelevant by construction.
+                let to_ref = ref_point - point;
+                let normal = if normal.dot(to_ref) < 0.0 {
+                    *normal * -1.0
+                } else {
+                    *normal
+                };
                 LightSample {
-                    point: *p0 + *e1 * r1 + *e2 * r2,
-                    normal: *normal,
+                    point,
+                    normal,
                     area: *area,
                     le: *le,
                 }
@@ -401,8 +424,11 @@ impl RenderJob {
 
         let cos_s = hit_normal.dot(wi);
         let cos_l = s.normal.dot(wi * -1.0);
-        // Surface must face the light and the light's front must face the
-        // surface (emitters radiate from their outward normal side).
+        // The surface must face the light. `cos_l` is now only a degenerate
+        // case guard: `sample()` already orients the light's normal toward
+        // this point, so cos_l <= 0 just means the receiver lies in the
+        // light's own plane (zero projected area -- it radiates nothing
+        // this way). It is no longer a "wrong side" rejection.
         if cos_s <= 0.0 || cos_l <= 0.0 {
             return RGB::zero();
         }

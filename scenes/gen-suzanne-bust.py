@@ -80,14 +80,13 @@ p00 = {"x": LX0, "y": LY0, "z": LZ}
 p10 = {"x": LX1, "y": LY0, "z": LZ}
 p11 = {"x": LX1, "y": LY1, "z": LZ}
 p01 = {"x": LX0, "y": LY1, "z": LZ}
-# Winding matters: direct_light gates on cos_l = light_normal . (-wi) > 0,
-# so the panel's geometric normal (edge1 x edge2) must point DOWN into the
-# room or NEE contributes exactly zero from it. The original winding here
-# ([p00,p10,p11] / [p00,p11,p01]) gave normal z = +4.50 -- straight up into
-# the ceiling -- so the key light was lighting the room only via random
-# bounces that happened to hit its underside: unbiased, but far noisier
-# (this is why the scene needed 2200spp). Swapping the last two vertices
-# flips it. Verified by computing the normal, not by eye.
+# Wound so the panel's geometric normal (edge1 x edge2) points DOWN into
+# the room. This no longer *matters* -- NEE now orients a triangle light's
+# normal toward the receiver, so emitter winding is irrelevant (see
+# AGENTS.md) -- but it's kept correct because it costs nothing and states
+# the intent. Historically this snippet produced normal z = +4.50 (up into
+# the ceiling), which silently destroyed this scene's direct light and is
+# why it once needed 2200spp.
 triangles = [
     ([p00, p11, p10], MAT_LIGHT),
     ([p00, p01, p11], MAT_LIGHT),

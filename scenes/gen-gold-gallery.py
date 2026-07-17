@@ -68,21 +68,13 @@ p00 = {"x": LX0, "y": LY0, "z": LZ}
 p10 = {"x": LX1, "y": LY0, "z": LZ}
 p11 = {"x": LX1, "y": LY1, "z": LZ}
 p01 = {"x": LX0, "y": LY1, "z": LZ}
-# Winding matters, and it LOSES LIGHT -- it is not merely a noise issue.
-# The panel's geometric normal (edge1 x edge2) must point DOWN into the
-# room. The original winding ([p00,p10,p11] / [p00,p11,p01]) gave normal
-# z = +26.40, straight up into the ceiling, which cut BOTH paths to it:
-#   - NEE: direct_light gates on cos_l = light_normal . (-wi) > 0, so every
-#     sample toward the panel was rejected.
-#   - BSDF: a diffuse continuation ray that lands on the panel returns zero,
-#     because emission is suppressed for anything registered as an NEE light
-#     (the anti-double-counting rule in trace_ray_path).
-# So NO diffuse surface ever received direct light from this scene's only
-# lamp. The room looked plausible anyway only because a *specular* bounce
-# passes count_emission=true -- i.e. it was lit entirely by light routed
-# through the mirror wall / chrome sphere / gold teapot. Fixing the winding
-# measured +73% mean brightness and -44% noise at equal spp.
-# Verified by computing the normal, not by eye.
+# Wound so the panel's geometric normal (edge1 x edge2) points DOWN into
+# the room. This no longer *matters* -- NEE now orients a triangle light's
+# normal toward the receiver, so emitter winding is irrelevant (see
+# AGENTS.md) -- but it's kept correct because it costs nothing and states
+# the intent. Historically this snippet produced normal z = +26.40 (up into
+# the ceiling), which silently destroyed this scene's only direct light:
+# fixing it measured +73% brightness and -44% noise at equal spp.
 triangles = [
     ([p00, p11, p10], MAT_LIGHT),
     ([p00, p01, p11], MAT_LIGHT),
