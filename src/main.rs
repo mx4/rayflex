@@ -29,8 +29,6 @@ struct Options {
     use_gamma: bool,
     #[arg(short = 'a', long)]
     use_adaptive_sampling: bool,
-    #[arg(long, help = "scan per line vs box")]
-    use_lines: bool,
     #[arg(long, help = "use hashmap to speed-up antialiasing")]
     use_hashmap: bool,
     #[arg(short = 'p', long, help = "do path tracing", default_value = "1")]
@@ -48,9 +46,8 @@ fn print_opt(opt: &Options) {
         opt.reflection_max_depth,
     );
     println!(
-        "{}: lines={} hashmap={} path_tracing={}",
+        "{}: hashmap={} path_tracing={}",
         "option".yellow(),
-        opt.use_lines,
         opt.use_hashmap,
         opt.path_tracing,
     );
@@ -84,7 +81,6 @@ fn main() -> std::io::Result<()> {
         adaptive_max_depth: opt.adaptive_max_depth,
         res_x: opt.res_x,
         res_y: opt.res_y,
-        use_lines: opt.use_lines,
         use_hashmap: opt.use_hashmap,
         path_tracing: opt.path_tracing,
         scene_file: opt.scene_file,

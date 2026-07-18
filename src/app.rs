@@ -133,7 +133,6 @@ impl RayflexApp {
             res_y: self.height as u32,
             reflection_max_depth: 5,
             adaptive_max_depth: 2,
-            use_lines: false,
             use_hashmap: true,
             scene_file: PathBuf::from(self.scene_file.clone()),
             image_file: PathBuf::from(self.output_file.clone()),

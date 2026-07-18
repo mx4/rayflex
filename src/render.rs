@@ -262,7 +262,6 @@ fn is_occluded(
 
 pub struct RenderConfig {
     pub path_tracing: u32,
-    pub use_lines: bool,
     pub use_hashmap: bool,
     pub use_adaptive_sampling: bool,
     pub use_gamma: bool,
@@ -760,20 +759,6 @@ impl RenderJob {
         }
     }
 
-    fn render_image_lines(&mut self, exit_req: Arc<AtomicBool>) {
-        (0..self.cfg.res_y).into_par_iter().for_each(|y| {
-            let mut stats: RenderStats = Default::default();
-
-            if exit_req.load(Ordering::SeqCst) {
-                self.report_progress(self.cfg.res_x);
-                return;
-            }
-            self.render_pixel_box(0, y, self.cfg.res_x, 1, &mut stats);
-            self.report_progress(self.cfg.res_x);
-            self.total_stats.lock().unwrap().add(stats);
-        });
-    }
-
     fn render_image_box(&mut self, exit_req: Arc<AtomicBool>) {
         let mut step = 32;
         if self.cfg.path_tracing > 1 {
@@ -809,11 +794,7 @@ impl RenderJob {
     }
 
     pub fn render_scene(&mut self, exit_req: Arc<AtomicBool>) {
-        if self.cfg.use_lines {
-            self.render_image_lines(exit_req);
-        } else {
-            self.render_image_box(exit_req);
-        }
+        self.render_image_box(exit_req);
     }
 
     pub fn save_image(&mut self) -> std::io::Result<()> {
