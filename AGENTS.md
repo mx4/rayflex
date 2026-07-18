@@ -24,7 +24,7 @@ Top-level keys (order doesn't matter):
 |---|---|
 | `resolution` | `[width, height]` array |
 | `camera` | `pos`, `look_at`, `up`, `vfov` |
-| `material.N` | `kd` (diffuse RGB), `ks` (specular RGB), `ke` (emissive RGB), `shininess`. Meshes can also get a `map_Kd` diffuse texture, but only from a `.mtl` file (JSON materials have no way to reference an image) — see Meshes → Textures |
+| `material.N` | `kd` (diffuse RGB), `ks` (specular RGB), `ke` (emissive RGB), `kt` (transmission RGB), `ior` (index of refraction), `shininess`. Meshes can also get a `map_Kd` diffuse texture, but only from a `.mtl` file (JSON materials have no way to reference an image) — see Meshes → Textures |
 | `sphere.N` | `center` `{x,y,z}`, `radius`, `material_id` |
 | `plane.N` | `point` `{x,y,z}`, `normal` `{x,y,z}`, `material_id` |
 | `triangle.N` | Three vertices, `material_id` |
@@ -83,6 +83,7 @@ Speed calibration (M-series MacBook, scene with a 6.3k-triangle mesh + ~55 spher
 Materials are **mutually exclusive** in path-tracing mode — each surface is exactly one of:
 
 - **Emitter** (`ke` ≠ 0): path terminates and returns `ke` directly; `kd`/`ks` ignored.
+- **Dielectric** (`kt` ≠ 0): transparent/refractive (glass, water). Snell's law + Fresnel (Schlick approximation). In PT mode the bounce is a probabilistic reflect-or-refract choice (estimator weights cancel, so plain tints are unbiased); in Whitted mode a deterministic Fresnel-weighted blend of both rays. `kt` tints transmitted light, `ks` tints the Fresnel reflection. `ior` defaults to 1.0 (air); use 1.33 for water, 1.5 for glass. Total internal reflection handled (falls back to a pure reflection bounce). Helpers on `Material`: `is_emitter`/`is_dielectric`/`is_mirror`/`is_diffuse`, with precedence **emitter > dielectric > mirror > diffuse** when several fields are nonzero. Working example: `scenes/glass-ball.json`. v1 limitations: **no Beer-Lambert absorption** (`kt` tints once per refraction event regardless of thickness), **no dispersion** (one IOR shared by RGB), **no nested dielectrics** (no medium stack on the ray — a glass sphere in air is fine, a glass sphere underwater is not). Caustics emerge naturally in PT mode (light → glass → diffuse floor) but converge slowly — the NEE shadow ray treats the glass as an opaque occluder, so the floor under the glass is in shadow and the caustic forms only via brute-force diffuse→dielectric→emitter paths. Expect `-p 1000+` for a clean caustic (400x400 at `-p 400` already shows a clear ring).
 - **Mirror** (`ks` ≠ 0): perfect specular reflection tinted by `ks`; `kd` ignored. Tinted mirrors work great: gold `ks=(0.95,0.72,0.30)`, silver `(0.88,0.88,0.90)`, copper `(0.92,0.55,0.38)`, chrome `(0.86,0.88,0.91)`.
 - **Diffuse** (`ks` = 0): scattered bounce weighted by `kd`.
 
@@ -167,6 +168,7 @@ Geometry/performance:
 - ~~Per-triangle materials at shading time~~ — DONE 2026-07 (see Known Bugs).
 
 Workflow/UI:
+- **CLI progress visibility on long renders** — the CLI writes nothing until the very end (`save_image` runs once, after the whole frame), so a slow render (e.g. Sponza at high spp took >1h with no output) gives no sign it's alive or on-track. Two asks: (a) periodically flush the in-progress image to `--img-file` (say every ~60s / every N sample-passes) so you can eyeball it mid-render, and/or (b) log progress (percent, elapsed, ETA, current pass) to stdout/the log periodically. The UI already refreshes its texture via the progress callback; the CLI just discards that. Related to "Progressive preview" below. This matters most for heavy scenes — see the top-level-BVH item, since Sponza's cost is dominated by the linear object scan over its ~22 per-material submeshes.
 - Expose `reflection_max_depth` in the UI (hardcoded to 5 there; mirror-heavy path-traced scenes need 8+).
 - Progressive preview: accumulate samples and refresh the texture, instead of one fixed-sample pass.
 - Discover the scene dropdown from `scenes/*.json` instead of a hardcoded list in app.rs.

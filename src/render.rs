@@ -186,6 +186,15 @@ impl NeeLight {
     }
 }
 
+/// Fresnel reflectance at a dielectric interface, Schlick approximation.
+/// `cos_s` is the angle cosine on the low-ior side of the interface (the
+/// incident angle when entering the medium, the transmitted angle when
+/// exiting). Total internal reflection is handled by the caller (kr = 1).
+fn schlick_fresnel(cos_s: Float, ior: Float) -> Float {
+    let r0 = ((1.0 - ior) / (1.0 + ior)).powi(2);
+    r0 + (1.0 - r0) * (1.0 - cos_s).powi(5)
+}
+
 /// Identifies the specific primitive a ray hit: which object in
 /// `RenderJob::objects`, and which sub-primitive within it (only
 /// meaningful for `Mesh`, where it's a triangle index; ignored -- but
@@ -338,6 +347,57 @@ impl RenderJob {
             }
             let hit_mat_id = hit_obj.get_material_id(hit_id.sub_id);
             let hit_material = &self.materials[hit_mat_id];
+
+            // Dielectric (glass, water): deterministic Fresnel blend of a
+            // reflected and a refracted ray, replacing the whole lighting
+            // computation -- glass has no Lambertian component; its look is
+            // entirely reflection + refraction. The *geometric* normal (not
+            // the two-sided flip below) is required to tell whether the ray
+            // is entering or exiting the medium, which sets the eta ratio.
+            if hit_material.is_dielectric() {
+                stats.num_rays_reflection += 1;
+                let mut n = hit_obj.get_normal(hit_point, hit_id.sub_id);
+                let entering = n.dot(ray.dir) < 0.0;
+                if !entering {
+                    n = n * -1.0;
+                }
+                let eta = if entering {
+                    1.0 / hit_material.ior
+                } else {
+                    hit_material.ior
+                };
+                let refracted_dir = Vec3::refract(ray.dir, n, eta);
+                // Fresnel reflectance (Schlick). The cosine is taken on the
+                // low-ior side: the incident angle when entering, the
+                // transmitted angle when exiting. TIR => kr = 1.
+                let kr = match refracted_dir {
+                    Some(wt) => {
+                        let cos_s = if entering {
+                            -ray.dir.dot(n)
+                        } else {
+                            -wt.dot(n)
+                        };
+                        schlick_fresnel(cos_s, hit_material.ior)
+                    }
+                    None => 1.0,
+                };
+                let reflected_ray = ray.get_reflection(hit_point, n);
+                let c_reflect = self.trace_ray(stats, &reflected_ray, depth + 1, Some(hit_id));
+                let c_refract = match refracted_dir {
+                    Some(wt) => {
+                        // exclude=None: the refracted ray MUST be able to
+                        // re-hit the same object's far side to pass through
+                        // it (e.g. the back of a glass sphere). The near-side
+                        // self-hit is rejected by tmin=EPSILON.
+                        let refracted_ray = Ray::new(hit_point, wt);
+                        self.trace_ray(stats, &refracted_ray, depth + 1, None)
+                    }
+                    None => RGB::zero(),
+                };
+                return c_reflect * hit_material.ks * kr
+                    + c_refract * hit_material.kt * (1.0 - kr);
+            }
+
             // If this material has a texture, resolve it at the hit UV into
             // a cheap owned Material with kd swapped -- get_contrib below
             // reads mat.kd internally, so this is the only way to feed it a
@@ -502,6 +562,62 @@ impl RenderJob {
         }
 
         let hit_point = ray.orig + ray.dir * t;
+
+        // Dielectric (glass, water): probabilistic reflect-or-refract via
+        // Snell's law + Fresnel (Schlick), before the mirror/diffuse
+        // branches below. A refracted ray through a glass sphere that
+        // refocuses onto a diffuse surface produces real caustics there.
+        // The *geometric* normal (not the two-sided flip) is required to
+        // tell whether the ray is entering or exiting the medium.
+        if hit_material.is_dielectric() {
+            stats.num_rays_reflection += 1;
+            let mut n = hit_obj.get_normal(hit_point, hit_id.sub_id);
+            let entering = n.dot(ray.dir) < 0.0;
+            if !entering {
+                n = n * -1.0;
+            }
+            let eta = if entering {
+                1.0 / hit_material.ior
+            } else {
+                hit_material.ior
+            };
+            let refracted_dir = Vec3::refract(ray.dir, n, eta);
+            // Fresnel reflectance (Schlick); see trace_ray for the
+            // low-ior-side cosine rule. TIR => kr = 1 => always reflect.
+            let kr = match refracted_dir {
+                Some(wt) => {
+                    let cos_s = if entering {
+                        -ray.dir.dot(n)
+                    } else {
+                        -wt.dot(n)
+                    };
+                    schlick_fresnel(cos_s, hit_material.ior)
+                }
+                None => 1.0,
+            };
+            if rand01(rnd_state) < kr {
+                // Reflect with probability kr; the estimator's 1/kr weight
+                // cancels kr, so the plain ks tint is unbiased. Count
+                // emission (specular bounce, like the mirror branch).
+                let reflected_ray = ray.get_reflection(hit_point, n);
+                return self.trace_ray_path(
+                    stats,
+                    rnd_state,
+                    &reflected_ray,
+                    depth + 1,
+                    Some(hit_id),
+                    true,
+                ) * hit_material.ks;
+            }
+            // Refract with probability (1-kr); estimator weight cancels
+            // likewise. `refracted_dir` is Some here: kr < 1 rules out TIR.
+            // exclude=None: the refracted ray MUST re-hit the same object's
+            // far side to pass through it (near side rejected by EPSILON).
+            let refracted_ray = Ray::new(hit_point, refracted_dir.unwrap());
+            return self.trace_ray_path(stats, rnd_state, &refracted_ray, depth + 1, None, true)
+                * hit_material.kt;
+        }
+
         let mut hit_normal = hit_obj.get_normal(hit_point, hit_id.sub_id);
         // Two-sided shading (see trace_ray): flip the normal to face the
         // incoming ray for meshes with inconsistent triangle winding.

@@ -161,6 +161,26 @@ impl Vec3 {
     pub fn reflect(self, normal: Vec3) -> Self {
         self - normal * self.dot(normal) * 2.0
     }
+    /// Refract `incident` through a surface, returning the refracted
+    /// direction, or `None` on total internal reflection.
+    ///
+    /// - `incident`: direction of travel of the incoming ray, normalized.
+    /// - `n`: unit surface normal, oriented to face the incident medium
+    ///   (i.e. opposing `incident`).
+    /// - `eta`: ratio of incident-side to transmitted-side index of
+    ///   refraction (`n_i / n_t`).
+    ///
+    /// Bram de Greve, "Reflections and Refractions in Ray Tracing"
+    /// (graphics.stanford.edu/courses/cs148-10-summer/docs/2006--degreve--reflection_refraction.pdf).
+    pub fn refract(incident: Vec3, n: Vec3, eta: Float) -> Option<Vec3> {
+        let cos_i = -incident.dot(n);
+        let sin2_t = eta * eta * (1.0 - cos_i * cos_i);
+        if sin2_t > 1.0 {
+            return None; // total internal reflection
+        }
+        let cos_t = (1.0 - sin2_t).sqrt();
+        Some(incident * eta + n * (eta * cos_i - cos_t))
+    }
     pub fn cross(self, rhs: Vec3) -> Vec3 {
         Vec3 {
             x: self.y * rhs.z - self.z * rhs.y,

@@ -81,6 +81,17 @@ pub struct Material {
     pub kd: RGB,
     #[serde(default)]
     pub ke: RGB,
+    /// Transmission tint for dielectrics (glass, water). `kt == 0` means the
+    /// material is opaque; any non-zero `kt` makes it refractive (see
+    /// `is_dielectric`). Multiplied onto the refracted ray once per
+    /// refraction event -- there is no Beer-Lambert absorption yet, so a
+    /// colored `kt` tints by the same amount regardless of thickness.
+    #[serde(default)]
+    pub kt: RGB,
+    /// Index of refraction (1.0 = vacuum/air, 1.33 = water, 1.5 = glass).
+    /// Only used when `kt` is non-zero.
+    #[serde(default = "default_ior")]
+    pub ior: f32,
     #[serde(default)]
     pub shininess: f32, // 0 --> ~1000
     #[serde(default)]
@@ -93,7 +104,35 @@ pub struct Material {
     pub map_kd: Option<Arc<Texture>>,
 }
 
+fn default_ior() -> f32 {
+    1.0
+}
+
 impl Material {
+    /// Emitter: ke != 0. In path-tracing mode the path terminates and
+    /// returns `ke`.
+    pub fn is_emitter(&self) -> bool {
+        !self.ke.is_zero()
+    }
+
+    /// Dielectric: kt != 0. Transparent and refractive -- transmits and
+    /// reflects via Snell's law + a Fresnel (Schlick) blend. `ks` tints the
+    /// Fresnel reflection, `kt` tints the transmission.
+    pub fn is_dielectric(&self) -> bool {
+        !self.kt.is_zero()
+    }
+
+    /// Mirror: ks != 0 (and not dielectric). Perfect specular reflection.
+    pub fn is_mirror(&self) -> bool {
+        !self.ks.is_zero() && self.kt.is_zero()
+    }
+
+    /// Diffuse: ks == 0 && kt == 0. Scatters cosine-weighted around the
+    /// surface normal.
+    pub fn is_diffuse(&self) -> bool {
+        self.ks.is_zero() && self.kt.is_zero()
+    }
+
     pub fn do_checker(&self, c: RGB, text2d: Vec2) -> RGB {
         assert!(self.checkered);
         // rem_euclid wraps negative UVs periodically -- the old .fract()

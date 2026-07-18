@@ -134,6 +134,8 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                     ks: RGB::new(m.specular[0], m.specular[1], m.specular[2]),
                     checkered: false,
                     kd: RGB::new(m.diffuse[0], m.diffuse[1], m.diffuse[2]),
+                    kt: RGB::zero(),
+                    ior: 1.0,
                     map_kd,
                 };
                 scene.materials.push(Arc::new(mat));

@@ -2,6 +2,40 @@ use assert_cmd::prelude::*;
 use std::process::Command;
 
 #[test]
+fn scene_glass_ball() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin("rayflex")?;
+    cmd.arg("-l")
+        .arg("scenes/glass-ball.json")
+        .arg("-x")
+        .arg("200")
+        .arg("-y")
+        .arg("200")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-glass-ball.png")
+        .assert()
+        .success();
+
+    Ok(())
+}
+#[test]
+fn scene_glass_ball_path_traced() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin("rayflex")?;
+    cmd.arg("-l")
+        .arg("scenes/glass-ball.json")
+        .arg("-x")
+        .arg("200")
+        .arg("-y")
+        .arg("200")
+        .arg("-p")
+        .arg("10")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-glass-ball-pt.png")
+        .assert()
+        .success();
+
+    Ok(())
+}
+#[test]
 fn scene_teapot() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("rayflex")?;
     cmd.arg("-l").arg("scenes/teapot.json").assert().success();
