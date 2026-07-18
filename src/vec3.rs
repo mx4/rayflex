@@ -38,7 +38,7 @@ pub struct Vec3 {
     pub z: Float,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,

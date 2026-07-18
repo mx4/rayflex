@@ -38,7 +38,9 @@ pub trait Object {
         exclude: Option<usize>,
     ) -> bool;
     fn get_normal(&self, point: Point, oid: usize) -> Vec3;
-    fn get_texture_2d(&self, point: Point) -> Vec2;
+    /// UV coordinates at the hit point, for texture sampling. `sub_id` is
+    /// the same hit sub-primitive index passed to `get_material_id`.
+    fn get_texture_2d(&self, point: Point, sub_id: usize) -> Vec2;
     /// Material for the hit sub-primitive. `sub_id` is the value reported
     /// via `intercept`'s `oid` (a triangle index for `Mesh`; ignored by
     /// single-primitive objects).
@@ -71,6 +73,11 @@ pub struct Triangle {
     /// to the flat geometric face normal.
     #[serde(skip)]
     pub normals: Option<[Vec3; 3]>,
+    /// Per-vertex UVs (`vt` from an OBJ), one per `points[i]`, for texture
+    /// sampling. `None` for JSON-declared triangles and OBJ meshes without
+    /// texture coordinates.
+    #[serde(skip)]
+    pub uvs: Option<[Vec2; 3]>,
 }
 
 pub struct Triangles {
@@ -110,6 +117,7 @@ impl Triangles {
             material_id: self.material_id[idx],
             mesh_id: 0,
             normals: None,
+            uvs: None,
         }
     }
 }
@@ -152,6 +160,7 @@ impl Triangle {
             material_id,
             mesh_id: 0,
             normals: None,
+            uvs: None,
         }
     }
     /// Barycentric weights (w0, w1, w2) of `p` w.r.t. (points[0], points[1],
@@ -217,7 +226,7 @@ impl Object for Plane {
     fn get_normal(&self, _point: Point, _oid: usize) -> Vec3 {
         self.normal
     }
-    fn get_texture_2d(&self, point: Point) -> Vec2 {
+    fn get_texture_2d(&self, point: Point, _sub_id: usize) -> Vec2 {
         let v = point - self.point;
         let mut v_x = v.dot(Vec3::unity_y());
         let mut v_y = v.dot(Vec3::unity_z());
@@ -255,7 +264,7 @@ impl Object for Sphere {
         let normal = point - self.center;
         normal / self.radius
     }
-    fn get_texture_2d(&self, point: Point) -> Vec2 {
+    fn get_texture_2d(&self, point: Point, _sub_id: usize) -> Vec2 {
         let pi = std::f32::consts::PI;
         let v = (point - self.center) / self.radius;
         let x = (1.0 + v.y.atan2(v.x) / pi) * 0.5;
@@ -335,8 +344,19 @@ impl Object for Triangle {
             None => face_normal(),
         }
     }
-    fn get_texture_2d(&self, _point: Point) -> Vec2 {
-        Vec2 { x: 0.0, y: 0.0 }
+    fn get_texture_2d(&self, point: Point, _sub_id: usize) -> Vec2 {
+        // Same barycentric interpolation as get_normal, applied to the
+        // per-vertex UVs (`vt` from an OBJ) instead of normals.
+        match self.uvs {
+            Some(uv) => {
+                let (w0, w1, w2) = self.barycentric(point);
+                Vec2 {
+                    x: uv[0].x * w0 + uv[1].x * w1 + uv[2].x * w2,
+                    y: uv[0].y * w0 + uv[1].y * w1 + uv[2].y * w2,
+                }
+            }
+            None => Vec2 { x: 0.0, y: 0.0 },
+        }
     }
 
     // cf wikipedia
@@ -400,8 +420,8 @@ impl Object for Mesh {
     fn get_normal(&self, _point: Point, oid: usize) -> Vec3 {
         self.triangles[oid].get_normal(_point, 0)
     }
-    fn get_texture_2d(&self, _point: Point) -> Vec2 {
-        Vec2 { x: 0.0, y: 0.0 }
+    fn get_texture_2d(&self, point: Point, sub_id: usize) -> Vec2 {
+        self.triangles[sub_id].get_texture_2d(point, 0)
     }
 
     fn intercept(

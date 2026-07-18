@@ -2,6 +2,7 @@ use colored::Colorize;
 
 use rand::Rng;
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -16,11 +17,13 @@ use crate::light::Light;
 use crate::light::SpotLight;
 use crate::light::VectorLight;
 use crate::material::Material;
+use crate::material::Texture;
 use crate::render::NeeLight;
 use crate::render::RenderConfig;
 use crate::render::RenderJob;
 use crate::vec3::Float;
 use crate::vec3::Point;
+use crate::vec3::Vec2;
 
 use crate::three_d::Mesh;
 use crate::three_d::Object;
@@ -116,15 +119,24 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
         };
         let (models, materials) = tobj::load_obj(path, &opt).expect("tobj");
         let base_mat_idx = scene.num_materials;
+        // .mtl paths (map_Kd etc.) are relative to the OBJ's own directory,
+        // not the process's current directory.
+        let obj_dir = Path::new(path).parent().unwrap_or_else(|| Path::new("."));
         if let Ok(mat) = materials.clone() {
             mat.iter().for_each(|m| {
                 println!("-- material {} -- {:?}", m.name.green(), m);
+                let map_kd = if m.diffuse_texture.is_empty() {
+                    None
+                } else {
+                    Texture::load(&obj_dir.join(&m.diffuse_texture))
+                };
                 let mat = Material {
                     ke: RGB::zero(),
                     shininess: m.shininess, // floating point?
                     ks: RGB::new(m.specular[0], m.specular[1], m.specular[2]),
                     checkered: false,
                     kd: RGB::new(m.diffuse[0], m.diffuse[1], m.diffuse[2]),
+                    map_kd,
                 };
                 scene.materials.push(Arc::new(mat));
                 scene.num_materials += 1;
@@ -184,6 +196,17 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                 .roty(angle_y_rad)
                 .rotz(angle_z_rad)
             };
+            // Same single_index unification as normals above, but for `vt`.
+            // UVs aren't spatial, so unlike positions/normals they need no
+            // rotation/scale/translation.
+            let has_uvs =
+                !mesh.texcoords.is_empty() && mesh.texcoords.len() / 2 == mesh.positions.len() / 3;
+            let vertex_uv = |idx: usize| -> Vec2 {
+                Vec2 {
+                    x: mesh.texcoords[2 * idx] as Float,
+                    y: mesh.texcoords[2 * idx + 1] as Float,
+                }
+            };
             for i in 0..n {
                 let i0 = mesh.indices[3 * i] as usize;
                 let i1 = mesh.indices[3 * i + 1] as usize;
@@ -221,6 +244,9 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                 if has_normals {
                     triangle.normals =
                         Some([vertex_normal(i0), vertex_normal(i1), vertex_normal(i2)]);
+                }
+                if has_uvs {
+                    triangle.uvs = Some([vertex_uv(i0), vertex_uv(i1), vertex_uv(i2)]);
                 }
                 triangles.push(triangle);
             }
@@ -460,6 +486,7 @@ pub fn generate_scene(
             checkered: false,
             ke: RGB::zero(),
             kd: RGB::new(1.0, 1.0, 1.0),
+            map_kd: None,
         };
         json["material.0"] = serde_json::to_value(mat).unwrap();
         // white glossy
@@ -469,6 +496,7 @@ pub fn generate_scene(
             shininess: 10.0,
             checkered: false,
             kd: RGB::new(1.0, 1.0, 1.0),
+            map_kd: None,
         };
         json["material.1"] = serde_json::to_value(mat).unwrap();
         // red
@@ -478,6 +506,7 @@ pub fn generate_scene(
             shininess: 10.0,
             checkered: false,
             kd: RGB::new(1.0, 0.0, 0.0),
+            map_kd: None,
         };
         json["material.2"] = serde_json::to_value(mat).unwrap();
         // green
@@ -487,6 +516,7 @@ pub fn generate_scene(
             ks: RGB::zero(),
             checkered: false,
             kd: RGB::new(0.0, 1.0, 0.0),
+            map_kd: None,
         };
         json["material.3"] = serde_json::to_value(mat).unwrap();
         // blue
@@ -496,6 +526,7 @@ pub fn generate_scene(
             ks: RGB::zero(),
             checkered: false,
             kd: RGB::new(0.0, 0.0, 1.0),
+            map_kd: None,
         };
         json["material.4"] = serde_json::to_value(mat).unwrap();
 
@@ -515,6 +546,7 @@ pub fn generate_scene(
                     g: rng.gen_range(0.0..1.0),
                     b: rng.gen_range(0.0..1.0),
                 },
+                map_kd: None,
             };
             json[name] = serde_json::to_value(mat).unwrap();
         }

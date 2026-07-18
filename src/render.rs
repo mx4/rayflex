@@ -1,6 +1,7 @@
 use colored::Colorize;
 use rand::Rng;
 use rayon::prelude::*;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -338,12 +339,26 @@ impl RenderJob {
             }
             let hit_mat_id = hit_obj.get_material_id(hit_id.sub_id);
             let hit_material = &self.materials[hit_mat_id];
+            // If this material has a texture, resolve it at the hit UV into
+            // a cheap owned Material with kd swapped -- get_contrib below
+            // reads mat.kd internally, so this is the only way to feed it a
+            // sampled albedo without changing the Light trait. Untextured
+            // materials (the common case) just borrow, no clone.
+            let shaded_material: Cow<Material> = if hit_material.map_kd.is_some() {
+                let uv = hit_obj.get_texture_2d(hit_point, hit_id.sub_id);
+                let mut m = (**hit_material).clone();
+                m.kd = hit_material.albedo(uv);
+                Cow::Owned(m)
+            } else {
+                Cow::Borrowed(&**hit_material)
+            };
+            let hit_material_shaded = shaded_material.as_ref();
 
             let mut c = self.lights.iter().fold(RGB::zero(), |acc, light| {
                 let mut c_light = RGB::zero();
 
                 if !light.is_spot() {
-                    c_light = light.get_contrib(ray, hit_material, hit_point, hit_normal);
+                    c_light = light.get_contrib(ray, hit_material_shaded, hit_point, hit_normal);
                 } else {
                     let light_vec = light.get_vector(hit_point) * -1.0;
                     let light_ray = Ray::new(hit_point, light_vec);
@@ -353,14 +368,14 @@ impl RenderJob {
                     // self-shadowing artifacts regardless of scene scale
                     // or mesh feature size (see HitId doc comment).
                     if !is_occluded(&self.objects, stats, &light_ray, EPSILON, 1.0, Some(hit_id)) {
-                        c_light = light.get_contrib(ray, hit_material, hit_point, hit_normal)
+                        c_light = light.get_contrib(ray, hit_material_shaded, hit_point, hit_normal)
                     }
                 }
                 acc + c_light
             });
 
             if hit_material.checkered {
-                let hit_text2d = hit_obj.get_texture_2d(hit_point);
+                let hit_text2d = hit_obj.get_texture_2d(hit_point, hit_id.sub_id);
                 c = hit_material.do_checker(c, hit_text2d);
             }
 
@@ -497,10 +512,15 @@ impl RenderJob {
         stats.num_rays_reflection += 1;
 
         if hit_material.ks.is_zero() {
+            // Diffuse albedo: the texture if this material has one (sampled
+            // at the hit UV), else the flat kd. Only resolved here, not for
+            // mirrors below, since ks-materials never read kd/map_kd.
+            let uv = hit_obj.get_texture_2d(hit_point, hit_id.sub_id);
+            let albedo = hit_material.albedo(uv);
+
             // Diffuse: direct light via NEE + indirect via a cosine-weighted
             // continuation that does NOT re-count NEE-sampled emitters.
-            let direct =
-                self.direct_light(stats, rnd_state, hit_point, hit_normal, hit_material.kd, hit_id);
+            let direct = self.direct_light(stats, rnd_state, hit_point, hit_normal, albedo, hit_id);
 
             // Lambertian scatter around the surface normal.
             let mut dir = hit_normal + Vec3::gen_rnd_sphere(rnd_state);
@@ -510,7 +530,7 @@ impl RenderJob {
             let scattered_ray = Ray::new(hit_point, dir.normalize());
             let indirect =
                 self.trace_ray_path(stats, rnd_state, &scattered_ray, depth + 1, Some(hit_id), false);
-            direct + indirect * hit_material.kd
+            direct + indirect * albedo
         } else {
             // Perfect mirror: no NEE (specular is a delta); the reflected
             // ray sees emitters directly.
