@@ -8,7 +8,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
 use rayflex::render::RenderConfig;
-use rayflex::scene::generate_scene;
 use rayflex::scene::load_scene;
 
 #[derive(Parser, Debug)]
@@ -22,14 +21,10 @@ struct Options {
     res_x: u32,
     #[arg(short = 'y', long, default_value = "0")]
     res_y: u32,
-    #[arg(short = 'n', long, default_value = "0")]
-    num_spheres_to_generate: u32,
     #[arg(long, default_value = "2")]
     adaptive_max_depth: u32,
     #[arg(long, default_value = "6")]
     reflection_max_depth: u32,
-    #[arg(short = 'b', long, default_value = "1")]
-    add_box: u32,
     #[arg(short = 'g', long, help = "use gamma correction")]
     use_gamma: bool,
     #[arg(short = 'a', long)]
@@ -78,10 +73,6 @@ fn main() -> std::io::Result<()> {
     if opt.use_ui {
         rayflex::egui_main();
         return Ok(());
-    }
-
-    if opt.num_spheres_to_generate != 0 {
-        return generate_scene(opt.num_spheres_to_generate, opt.scene_file, opt.add_box > 0);
     }
 
     print_opt(&opt);
