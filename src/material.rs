@@ -96,7 +96,13 @@ pub struct Material {
 impl Material {
     pub fn do_checker(&self, c: RGB, text2d: Vec2) -> RGB {
         assert!(self.checkered);
-        let pattern = ((text2d.x * 4.0).fract() > 0.5) ^ ((text2d.y * 4.0).fract() > 0.5);
+        // rem_euclid wraps negative UVs periodically -- the old .fract()
+        // mapped all negatives into (-1, 0], which never passes the > 0.5
+        // test, so the negative half of any plane rendered as one solid
+        // block (and planes needed the +0.125 phase-shift hack, which
+        // left a seam at the axis).
+        let pattern = ((text2d.x * 4.0).rem_euclid(1.0) > 0.5)
+            ^ ((text2d.y * 4.0).rem_euclid(1.0) > 0.5);
         if pattern { c / 3.0 } else { c }
     }
 

@@ -227,16 +227,30 @@ impl Object for Plane {
         self.normal
     }
     fn get_texture_2d(&self, point: Point, _sub_id: usize) -> Vec2 {
-        let v = point - self.point;
-        let mut v_x = v.dot(Vec3::unity_y());
-        let mut v_y = v.dot(Vec3::unity_z());
-        if v_x < 0.0 {
-            v_x = -v_x + 0.125;
-        }
-        if v_y < 0.0 {
-            v_y = -v_y + 0.125;
-        }
-        Vec2 { x: v_x, y: v_y }
+        // Build an orthonormal tangent frame from the plane's normal so the
+        // checkerboard is a proper 2D grid on ANY plane orientation. The old
+        // code hardcoded the world (y, z) axes, which degenerated to 1D
+        // stripes on horizontal (z-normal) planes: for a floor, v.z == 0
+        // everywhere, so the second texture coordinate was constant and
+        // do_checker's XOR collapsed to a single-axis test.
+        let n = self.normal;
+        // Helper axis: the world axis least aligned with the normal (any
+        // non-parallel vector works; this choice maximizes numerical
+        // stability of the cross product).
+        let a = if n.x.abs() <= n.y.abs() && n.x.abs() <= n.z.abs() {
+            Vec3::unity_x()
+        } else if n.y.abs() <= n.z.abs() {
+            Vec3::unity_y()
+        } else {
+            Vec3::unity_z()
+        };
+        let u = n.cross(a).normalize();
+        let v = n.cross(u); // unit length: n and u are orthonormal
+        let d = point - self.point;
+        // Raw coordinates, no sign hack -- do_checker wraps negatives
+        // periodically via rem_euclid, so there is no phase seam at the
+        // axes (the old +0.125 flip left one).
+        Vec2 { x: d.dot(u), y: d.dot(v) }
     }
     fn get_material_id(&self, _sub_id: usize) -> usize {
         self.material_id
