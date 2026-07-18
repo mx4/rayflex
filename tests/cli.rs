@@ -89,3 +89,33 @@ fn scene_torus_knot() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+#[test]
+fn scene_backpack() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin("rayflex")?;
+    cmd.arg("-l")
+        .arg("scenes/backpack.json")
+        .arg("-x")
+        .arg("300")
+        .arg("-y")
+        .arg("300")
+        .assert()
+        .success();
+
+    Ok(())
+}
+#[test]
+fn scene_toybox() -> Result<(), Box<dyn std::error::Error>> {
+    let mut cmd = Command::cargo_bin("rayflex")?;
+    cmd.arg("-l")
+        .arg("scenes/toybox.json")
+        .arg("-x")
+        .arg("240")
+        .arg("-y")
+        .arg("180")
+        .arg("-p")
+        .arg("4")
+        .assert()
+        .success();
+
+    Ok(())
+}

@@ -1,0 +1,6 @@
+# minimal material for blub (Keenan Crane model repo, CC0)
+# Kd white so the diffuse texture shows unmodulated; NO Ks --
+# a nonzero ks would make the whole surface a mirror (see AGENTS.md).
+newmtl blub_mat
+Kd 1.0 1.0 1.0
+map_Kd blub_texture.png

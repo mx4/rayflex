@@ -176,6 +176,7 @@ impl eframe::App for RayflexApp {
             "gold-gallery",
             "suzanne-bust",
             "torus-knot",
+            "toybox",
             "rayflex-pt",
             "trolley",
             "cow",
@@ -183,6 +184,7 @@ impl eframe::App for RayflexApp {
             "buddha",
             "sphere-tunnel",
             "rayflex",
+            "backpack",
         ];
 
         egui::Panel::left("side_panel")
@@ -205,6 +207,7 @@ impl eframe::App for RayflexApp {
                                         | "gold-gallery"
                                         | "suzanne-bust"
                                         | "torus-knot"
+                                        | "toybox"
                                         | "rayflex-pt"
                                 );
                                 self.use_gamma = true;
@@ -217,7 +220,11 @@ impl eframe::App for RayflexApp {
                                         self.width = 800;
                                         self.height = 500;
                                     }
-                                    "suzanne-bust" | "torus-knot" => {
+                                    "toybox" => {
+                                        self.width = 800;
+                                        self.height = 600;
+                                    }
+                                    "suzanne-bust" | "torus-knot" | "backpack" => {
                                         self.width = 700;
                                         self.height = 700;
                                     }

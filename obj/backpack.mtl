@@ -1,0 +1,22 @@
+# Blender MTL File: 'None'
+# Material Count: 1
+#
+# Ks patched from the upstream 0.5 0.5 0.5 to 0 0 0 for this renderer: a
+# nonzero ks makes a material a full mirror in path-tracing mode (kd/texture
+# are ignored outright -- materials are either diffuse or mirror, never
+# both), and a 50%-strength mirror blend even in ray-tracing mode, which
+# washes out the diffuse texture against a plain sky. See AGENTS.md.
+
+newmtl Scene_-_Root
+Ns 225.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.0 0.0 0.0
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd diffuse.jpg
+map_Bump normal.png
+map_Ks specular.jpg
+

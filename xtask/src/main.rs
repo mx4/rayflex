@@ -49,6 +49,7 @@ const ASSETS: &[Asset] = &[
     Asset { scene: "cornell-box", res_x: 960, res_y: 960, spp: 1500 },  // 1:1
     Asset { scene: "suzanne-bust", res_x: 960, res_y: 960, spp: 1200 }, // 1:1, mirror; was 2200 to fight the backwards-wound key light (now fixed -> NEE works)
     Asset { scene: "torus-knot", res_x: 960, res_y: 960, spp: 1500 },   // 1:1, diffuse + NEE -- converges faster
+    Asset { scene: "toybox", res_x: 960, res_y: 720, spp: 600 },        // 4:3, textured diffuse toys in a bright studio -- converges fast
     Asset { scene: "rayflex-pt", res_x: 960, res_y: 640, spp: 2000 },   // 3:2
     // Ray-traced (spot/vec lit) — spp = 1, adaptive antialiasing on.
     Asset { scene: "teapot", res_x: 960, res_y: 960, spp: 1 },        // 1:1
@@ -56,6 +57,7 @@ const ASSETS: &[Asset] = &[
     Asset { scene: "buddha", res_x: 960, res_y: 960, spp: 1 },        // 1:1
     Asset { scene: "sphere-tunnel", res_x: 960, res_y: 960, spp: 1 }, // 1:1
     Asset { scene: "rayflex", res_x: 960, res_y: 640, spp: 1 },       // 3:2
+    Asset { scene: "backpack", res_x: 960, res_y: 960, spp: 1 },      // 1:1, textured OBJ+MTL showcase
 ];
 
 /// Repo root = the parent of this crate (xtask/..). Used to anchor the CWD so
