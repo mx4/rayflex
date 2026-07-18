@@ -27,14 +27,13 @@ Scenes are described in a json file that contains:
 
 ## Screenshots
 ![rayflex-pt](./assets/rayflex-pt.png)
-![gold-gallery](./assets/gold-gallery.png)
-![suzanne-bust](./assets/suzanne-bust.png)
-![torus-knot](./assets/torus-knot.png)
 ![toybox](./assets/toybox.png)
+![torus-knot](./assets/torus-knot.png)
+![gold-gallery](./assets/gold-gallery.png)
 ![cornell-box](./assets/cornell-box.png)
+![suzanne-bust](./assets/suzanne-bust.png)
 ![teapot](./assets/teapot.png)
 ![trolley](./assets/trolley.png)
 ![buddha](./assets/buddha.png)
 ![sphere-tunnel](./assets/sphere-tunnel.png)
 ![rayflex](./assets/rayflex.png)
-![backpack](./assets/backpack.png)
