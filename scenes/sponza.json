@@ -1,0 +1,17 @@
+{
+  "resolution": [800, 500],
+  "camera": {
+    "pos": {"x": -9.8, "y": 0.0, "z": 1.1},
+    "look_at": {"x": 14.0, "y": 0.0, "z": 2.6},
+    "up": {"x": 0, "y": 0, "z": 1},
+    "vfov": 58.0
+  },
+  "material.0": { "kd": {"r": 0.5, "g": 0.5, "b": 0.5} },
+  "material.1": { "ke": {"r": 0.34, "g": 0.42, "b": 0.60} },
+  "material.2": { "ke": {"r": 80.0, "g": 60.0, "b": 38.0} },
+  "sphere.0": { "center": {"x": 0, "y": 0, "z": 6}, "radius": 300, "material_id": 1 },
+  "sphere.1": { "center": {"x": 14, "y": -7, "z": 24}, "radius": 5, "material_id": 2 },
+  "obj.0.path": "obj/sponza/sponza.obj",
+  "obj.0.rotx": 90,
+  "obj.0.scale": 0.01
+}

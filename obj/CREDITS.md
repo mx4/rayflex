@@ -25,3 +25,21 @@ Obtained via the LearnOpenGL resources (Joey de Vries), which modified the
 material assignment and renamed the albedo map to `diffuse.jpg` for a
 non-PBR setup. Only the diffuse map is used here (normal/specular/roughness
 maps are not, as the renderer supports `map_Kd` only).
+
+## Atrium Sponza — `sponza/`
+
+`sponza/sponza.obj`, `sponza/sponza.mtl`, and `sponza/textures/*.jpg` (used
+by `scenes/sponza.json`) — the Crytek Sponza atrium by **Frank Meinl**
+(Crytek, 2010), based on the original Sponza by Marko Dabrovic (2002).
+
+Licensed **CC BY 3.0** (https://creativecommons.org/licenses/by/3.0/).
+Obtained via the OBJ mirror at https://github.com/jimmiebergmann/Sponza .
+
+Modified locally for this repo:
+- geometry for the three alpha-masked materials (`vase_plant`, `chain`,
+  `leaf`) was stripped, since the renderer has no alpha-cutout support and
+  would draw them as opaque slabs;
+- only the `map_Kd` diffuse textures are kept, converted from the original
+  uncompressed TGA to JPG (q90) to cut ~91 MB to ~11 MB. The `.mtl` still
+  lists the original `map_d`/`map_bump`/etc. maps, but the loader reads only
+  `map_Kd`.
