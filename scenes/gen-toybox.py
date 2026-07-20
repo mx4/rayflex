@@ -4,7 +4,7 @@
 Three of Keenan Crane's hand-painted CC0 characters -- Spot (cow), Bob
 (polka-dot ring), Blub (blowfish) -- from the CMU 3D model repository, each
 with its own map_Kd texture (obj/{spot,bob,blub}_texture.png). Chosen over a
-single busy/dark model (the backpack) because their bold flat cartoon
+single busy/dark model because their bold flat cartoon
 textures on simple rounded shapes make UV mapping read instantly -- these
 are the canonical texture-mapping demo models. See AGENTS.md's Textures
 section for the pipeline (map_Kd load -> UV barycentric interp -> sRGB
@@ -20,8 +20,7 @@ light-grey enclosure gives even, shadow-soft lighting and clean GI colour
 bleed between the toys. The models are pure diffuse, so they converge fast
 and completely dodge the mirror/dark-room trap (see suzanne-bust.py). No
 checkered floor -- the procedural checker aliases into moire at grazing
-angles (that was the backpack asset's floor artefact); a plain diffuse
-floor avoids it entirely.
+angles; a plain diffuse floor avoids it entirely.
 
 Placed bboxes (after each model's rotx, verified empirically):
   spot rotx=90: x[-0.47,0.47]  y[-1.05,0.67]  z[-0.74,0.95]  (standing cow)

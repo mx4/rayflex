@@ -57,7 +57,6 @@ const ASSETS: &[Asset] = &[
     Asset { scene: "buddha", res_x: 960, res_y: 960, spp: 1 },        // 1:1
     Asset { scene: "sphere-tunnel", res_x: 960, res_y: 960, spp: 1 }, // 1:1
     Asset { scene: "rayflex", res_x: 960, res_y: 640, spp: 1 },       // 3:2
-    Asset { scene: "backpack", res_x: 960, res_y: 960, spp: 1 },      // 1:1, textured OBJ+MTL showcase
 ];
 
 /// Repo root = the parent of this crate (xtask/..). Used to anchor the CWD so

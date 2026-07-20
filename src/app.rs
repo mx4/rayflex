@@ -183,7 +183,6 @@ impl eframe::App for RayflexApp {
             "buddha",
             "sphere-tunnel",
             "rayflex",
-            "backpack",
         ];
 
         egui::Panel::left("side_panel")
@@ -223,7 +222,7 @@ impl eframe::App for RayflexApp {
                                         self.width = 800;
                                         self.height = 600;
                                     }
-                                    "suzanne-bust" | "torus-knot" | "backpack" => {
+                                    "suzanne-bust" | "torus-knot" => {
                                         self.width = 700;
                                         self.height = 700;
                                     }
