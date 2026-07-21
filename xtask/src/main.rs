@@ -10,10 +10,11 @@
 //!   cargo xtask gold-gallery    # render just one
 //!   cargo xtask --fast          # quick low-res/low-sample preview of all
 //!
-//! Note: renders are NOT deterministic (the sampler seeds from entropy), so
-//! regenerated PNGs differ from the committed ones by Monte Carlo noise even
-//! with no code change — a git diff is not a reliable "did output change"
-//! signal without a seeded RNG.
+//! Renders are deterministic: every asset is rendered with a fixed `SEED`,
+//! so re-running with no code change reproduces the committed PNG bit for
+//! bit. That makes `git diff` a reliable "did the output actually change?"
+//! signal after a renderer change — which is the whole point of having this
+//! regenerate the assets.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -35,6 +36,10 @@ struct Asset {
     spp: u32,
 }
 
+/// Fixed RNG seed so asset renders are reproducible; the exact value is
+/// arbitrary, it just has to stay stable or every asset re-renders.
+const SEED: u64 = 0x5241_594D_4C45_5800;
+
 /// Cap secondary-ray recursion. 8 is enough for the mirror-heavy scenes.
 const REFLECTION_DEPTH: u32 = 8;
 
@@ -49,7 +54,8 @@ const ASSETS: &[Asset] = &[
     Asset { scene: "cornell-box", res_x: 960, res_y: 960, spp: 1500 },  // 1:1
     Asset { scene: "suzanne-bust", res_x: 960, res_y: 960, spp: 1200 }, // 1:1, mirror; was 2200 to fight the backwards-wound key light (now fixed -> NEE works)
     Asset { scene: "torus-knot", res_x: 960, res_y: 960, spp: 1500 },   // 1:1, diffuse + NEE -- converges faster
-    Asset { scene: "toybox", res_x: 960, res_y: 720, spp: 600 },        // 4:3, textured diffuse toys in a bright studio -- converges fast
+    Asset { scene: "toybox", res_x: 960, res_y: 720, spp: 600 },
+    Asset { scene: "glass-cornell", res_x: 800, res_y: 800, spp: 1600 }, // 1:1, dielectrics converge slowly (caustics need high spp)        // 4:3, textured diffuse toys in a bright studio -- converges fast
     // 16:10. BY FAR the slowest asset (~14 min): 227k triangles + 21 textures,
     // and a deep interior where most light arrives via multi-bounce GI. Kept
     // at 800x500 rather than the usual 960 width to bound that cost.
@@ -85,6 +91,8 @@ fn render(asset: &Asset, fast: bool) {
 
     let cfg = RenderConfig {
         path_tracing: spp,
+        // Fixed seed -> byte-identical re-renders (see module doc).
+        seed: Some(SEED),
         // Adaptive antialiasing (ray-tracing only) needs the sample cache.
         use_hashmap: ray_traced,
         use_adaptive_sampling: ray_traced,

@@ -29,6 +29,7 @@ Scenes are described in a json file that contains:
 ![rayflex-pt](./assets/rayflex-pt.png)
 ![sponza](./assets/sponza.png)
 ![toybox](./assets/toybox.png)
+![glass-cornell](./assets/glass-cornell.png)
 ![torus-knot](./assets/torus-knot.png)
 ![gold-gallery](./assets/gold-gallery.png)
 ![cornell-box](./assets/cornell-box.png)
