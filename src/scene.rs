@@ -48,6 +48,43 @@ struct Scene {
     nee_lights: Vec<NeeLight>,
 }
 
+/// Warn about numbered scene keys the loader never reached.
+///
+/// Every `load_*` walks `prefix.0`, `prefix.1`, ... and stops at the first
+/// missing index, so a gap silently drops everything after it -- delete
+/// `sphere.3` from a 50-sphere scene and 46 spheres just vanish with no
+/// diagnostic. This does not change that behaviour, it only makes it loud:
+/// after a loader finishes, any key with an index at or beyond the count it
+/// loaded must have been skipped.
+fn warn_on_gap(json: &serde_json::Value, prefix: &str, loaded: u32) {
+    let Some(map) = json.as_object() else {
+        return;
+    };
+    let mut orphans: Vec<u32> = map
+        .keys()
+        .filter_map(|k| k.strip_prefix(prefix))
+        // `obj.N.path` -> take the index component only.
+        .filter_map(|rest| rest.split('.').next())
+        .filter_map(|n| n.parse::<u32>().ok())
+        .filter(|n| *n >= loaded)
+        .collect();
+    if orphans.is_empty() {
+        return;
+    }
+    orphans.sort_unstable();
+    orphans.dedup();
+    let keys: Vec<String> = orphans.iter().map(|n| format!("{prefix}{n}")).collect();
+    println!(
+        "{} loaded {}0..{} then stopped at the missing {}{} -- these are NOT in the scene: {}. Renumber contiguously.",
+        "warning:".yellow().bold(),
+        prefix,
+        loaded.saturating_sub(1),
+        prefix,
+        loaded,
+        keys.join(", ").yellow()
+    );
+}
+
 fn load_materials(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()> {
     loop {
         let s = format!("material.{}", scene.num_materials);
@@ -59,6 +96,7 @@ fn load_materials(scene: &mut Scene, json: &serde_json::Value) -> std::io::Resul
             }
         }
     }
+    warn_on_gap(json, "material.", scene.num_materials);
     Ok(())
 }
 
@@ -113,7 +151,6 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
             // own separate index stream (mesh.normal_indices) that our
             // per-face loop below doesn't consult.
             single_index: true,
-            ..Default::default()
         };
         let (models, materials) = tobj::load_obj(path, &opt).expect("tobj");
         let base_mat_idx = scene.num_materials;
@@ -170,10 +207,8 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
             let n = mesh.indices.len() / 3;
 
             let mut material_str = "".to_owned();
-            if mesh.material_id.is_some() && materials.is_ok() {
-                material_str = materials.as_ref().unwrap()[mesh.material_id.unwrap()]
-                    .name
-                    .clone();
+            if let (Some(mid), Ok(mats)) = (mesh.material_id, materials.as_ref()) {
+                material_str = mats[mid].name.clone();
             }
 
             println!(
@@ -239,16 +274,28 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                     num_skipped += 1;
                     continue;
                 }
-                p0 = (p0 * scale).rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad) + translate;
-                p1 = (p1 * scale).rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad) + translate;
-                p2 = (p2 * scale).rotx(angle_x_rad).roty(angle_y_rad).rotz(angle_z_rad) + translate;
+                p0 = (p0 * scale)
+                    .rotx(angle_x_rad)
+                    .roty(angle_y_rad)
+                    .rotz(angle_z_rad)
+                    + translate;
+                p1 = (p1 * scale)
+                    .rotx(angle_x_rad)
+                    .roty(angle_y_rad)
+                    .rotz(angle_z_rad)
+                    + translate;
+                p2 = (p2 * scale)
+                    .rotx(angle_x_rad)
+                    .roty(angle_y_rad)
+                    .rotz(angle_z_rad)
+                    + translate;
                 // Default to material.0; use the triangle's .mtl material
                 // only when that material actually loaded (see num_mtl_mats).
                 let mut mat_id = 0;
-                if let Some(id) = mesh.material_id {
-                    if id < num_mtl_mats {
-                        mat_id = base_mat_idx as usize + id;
-                    }
+                if let Some(id) = mesh.material_id
+                    && id < num_mtl_mats
+                {
+                    mat_id = base_mat_idx as usize + id;
                 }
                 let mut triangle = Triangle::new([p0, p1, p2], mat_id);
                 // Index into the MERGED list -- aabb.rs uses mesh_id as the
@@ -303,18 +350,19 @@ fn load_spheres(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<
             Err(_error) => break,
             Ok(o) => {
                 let obj_idx = scene.objects.len();
-                if let Some(mat) = scene.materials.get(o.material_id) {
-                    if !mat.ke.is_zero() {
-                        scene
-                            .nee_lights
-                            .push(NeeLight::from_sphere(obj_idx, o.center, o.radius, mat.ke));
-                    }
+                if let Some(mat) = scene.materials.get(o.material_id)
+                    && !mat.ke.is_zero()
+                {
+                    scene
+                        .nee_lights
+                        .push(NeeLight::from_sphere(obj_idx, o.center, o.radius, mat.ke));
                 }
                 scene.objects.push(Arc::new(o));
                 scene.num_spheres += 1;
             }
         }
     }
+    warn_on_gap(json, "sphere.", scene.num_spheres);
     Ok(())
 }
 
@@ -325,18 +373,19 @@ fn load_triangles(scene: &mut Scene, json: &serde_json::Value) -> std::io::Resul
             Err(_error) => break,
             Ok(o) => {
                 let obj_idx = scene.objects.len();
-                if let Some(mat) = scene.materials.get(o.material_id) {
-                    if !mat.ke.is_zero() {
-                        scene
-                            .nee_lights
-                            .push(NeeLight::from_triangle(obj_idx, o.points, mat.ke));
-                    }
+                if let Some(mat) = scene.materials.get(o.material_id)
+                    && !mat.ke.is_zero()
+                {
+                    scene
+                        .nee_lights
+                        .push(NeeLight::from_triangle(obj_idx, o.points, mat.ke));
                 }
                 scene.objects.push(Arc::new(o));
                 scene.num_triangles += 1;
             }
         }
     }
+    warn_on_gap(json, "triangle.", scene.num_triangles as u32);
     Ok(())
 }
 
@@ -351,6 +400,7 @@ fn load_planes(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<(
             }
         }
     }
+    warn_on_gap(json, "plane.", scene.num_planes);
     Ok(())
 }
 
@@ -381,15 +431,18 @@ fn load_lights(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<(
     if let Ok(ambient) = serde_json::from_value::<AmbientLight>(json["ambient"].clone()) {
         scene.lights.push(Arc::new(ambient));
     }
+    warn_on_gap(json, "spot-light.", scene.num_spot_lights);
+    warn_on_gap(json, "vec-light.", scene.num_vec_lights);
     Ok(())
 }
 
 fn load_resolution(cfg: &mut RenderConfig, json: &serde_json::Value) -> std::io::Result<()> {
-    if cfg.res_x == 0 && cfg.res_y == 0 {
-        if let Some(array) = json[&"resolution".to_string()].as_array() {
-            cfg.res_x = array[0].as_u64().unwrap() as u32;
-            cfg.res_y = array[1].as_u64().unwrap() as u32;
-        }
+    if cfg.res_x == 0
+        && cfg.res_y == 0
+        && let Some(array) = json[&"resolution".to_string()].as_array()
+    {
+        cfg.res_x = array[0].as_u64().unwrap() as u32;
+        cfg.res_y = array[1].as_u64().unwrap() as u32;
     }
     {
         let res_str = format!("{}x{}", cfg.res_x, cfg.res_y).bold();

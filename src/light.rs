@@ -53,7 +53,23 @@ impl Light for SpotLight {
         {
             let reflected_ray = ray.get_reflection(obj_point, obj_normal);
             let dir = reflected_ray.dir.normalize();
-            c_res += self.rgb * mat.ks * light_vec_norm.dot(dir).powi(80);
+            // Phong specular. Two fixes over the previous `.powi(80)`:
+            //  - honour `material.shininess` instead of a hardcoded 80. The
+            //    field was parsed from every scene and then used nowhere, so
+            //    `shininess: 10` and `shininess: 500` rendered identically.
+            //    Falls back to 80 when unset (0) so a material with `ks` but
+            //    no shininess keeps its old highlight rather than getting
+            //    exponent 0, which would spread specular over everything.
+            //  - clamp the cosine at 0 first. `powi(80)` is an EVEN power, so
+            //    a dot of -0.9 came back +0.9^80: a specular highlight on
+            //    surfaces facing away from the mirror direction.
+            let exp = if mat.shininess > 0.0 {
+                mat.shininess
+            } else {
+                80.0
+            };
+            let cos_spec = light_vec_norm.dot(dir).max(0.0);
+            c_res += self.rgb * mat.ks * cos_spec.powf(exp);
         }
 
         c_res * self.intensity / (1.0 + dist_sq)

@@ -42,6 +42,9 @@ pub struct RayflexApp {
     last_uploaded_pct: f32,
     rendering_active: Arc<AtomicBool>,
     rendering_needs_stop: Arc<AtomicBool>,
+    /// Last render failure, shown in the side panel. `None` when the last
+    /// render succeeded (or none has run yet).
+    render_error: Arc<Mutex<Option<String>>>,
     scene_choice: usize,
 }
 
@@ -63,6 +66,7 @@ impl Default for RayflexApp {
             last_uploaded_pct: -1.0,
             rendering_active: Arc::new(AtomicBool::new(false)),
             rendering_needs_stop: Arc::new(AtomicBool::new(false)),
+            render_error: Arc::new(Mutex::new(None)),
             scene_choice: 0,
         }
     }
@@ -74,10 +78,54 @@ fn start_rendering(
     cfg: RenderConfig,
     progress: Arc<Mutex<f32>>,
     img_slot: Arc<Mutex<Option<Arc<Mutex<ColorImage>>>>>,
+    render_error: Arc<Mutex<Option<String>>>,
     ctx: egui::Context,
 ) {
-    let res = load_scene(cfg);
-    let mut job = res.unwrap();
+    // Whatever happens in here, the two flags MUST be cleared, or the
+    // Start/Stop button stays wedged on "Stop" until the app is restarted.
+    // This used to `load_scene(cfg).unwrap()` and `save_image().expect(..)`
+    // with the flags cleared only on the success path, so a typo in the
+    // scene-file box or an unwritable output path killed the worker thread
+    // and hung the UI. catch_unwind (not just Result) because the render
+    // itself can panic too -- e.g. a malformed scene tripping an assert.
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        render_once(
+            rendering_needs_stop.clone(),
+            cfg,
+            progress,
+            img_slot,
+            ctx.clone(),
+        )
+    }));
+
+    let message = match result {
+        Err(_) => Some("render panicked -- see the console for details".to_owned()),
+        Ok(Err(e)) => Some(e),
+        Ok(Ok(())) => None,
+    };
+    if let Some(m) = &message {
+        info!("render failed: {m}");
+    }
+    *render_error.lock().unwrap() = message;
+
+    rendering_active.store(false, Ordering::SeqCst);
+    rendering_needs_stop.store(false, Ordering::SeqCst);
+    // Wake the UI so it repaints with the cleared flag / new error.
+    ctx.request_repaint();
+}
+
+/// The actual render. Returns the first failure as a message instead of
+/// panicking, so the caller can surface it in the UI.
+fn render_once(
+    rendering_needs_stop: Arc<AtomicBool>,
+    cfg: RenderConfig,
+    progress: Arc<Mutex<f32>>,
+    img_slot: Arc<Mutex<Option<Arc<Mutex<ColorImage>>>>>,
+    ctx: egui::Context,
+) -> Result<(), String> {
+    let scene_file = cfg.scene_file.display().to_string();
+    let image_file = cfg.image_file.display().to_string();
+    let mut job = load_scene(cfg).map_err(|e| format!("cannot load '{scene_file}': {e}"))?;
 
     job.alloc_image();
     // Hand the live image buffer to the UI, which uploads it to the
@@ -96,14 +144,13 @@ fn start_rendering(
         ctx.request_repaint();
     };
     job.set_progress_func(Box::new(update_func.clone()));
-    job.render_scene(rendering_needs_stop.clone());
+    job.render_scene(rendering_needs_stop);
     job.print_stats();
     // call it one last time to refresh texture
     update_func(1.0);
-    job.save_image().expect("output file");
-
-    rendering_active.store(false, Ordering::SeqCst);
-    rendering_needs_stop.store(false, Ordering::SeqCst);
+    job.save_image()
+        .map_err(|e| format!("cannot write '{image_file}': {e}"))?;
+    Ok(())
 }
 
 impl RayflexApp {
@@ -123,6 +170,9 @@ impl RayflexApp {
         let rendering_active_clone = self.rendering_active.clone();
         let rendering_needs_stop_clone = self.rendering_needs_stop.clone();
         let img_slot_clone = self.render_buffer.clone();
+        let render_error_clone = self.render_error.clone();
+        // Clear any previous failure when a new render starts.
+        *self.render_error.lock().unwrap() = None;
         // Fresh render: reset progress (it would otherwise sit at 1.0
         // from the previous run until the first update tick) and force
         // the pull-upload on the next frame.
@@ -155,9 +205,10 @@ impl RayflexApp {
             reflection_max_depth: 5,
             adaptive_max_depth: 2,
             use_hashmap: true,
-            seed: None,
+            // seed: left at default (None) -> non-deterministic sampling.
             scene_file: PathBuf::from(self.scene_file.clone()),
             image_file: PathBuf::from(self.output_file.clone()),
+            ..RenderConfig::default()
         };
 
         info!("before-thread-spawn");
@@ -169,6 +220,7 @@ impl RayflexApp {
                 cfg,
                 value_clone,
                 img_slot_clone,
+                render_error_clone,
                 ctx_clone,
             )
         });
@@ -345,6 +397,12 @@ impl eframe::App for RayflexApp {
                     } else {
                         self.start_async(ui.ctx());
                     }
+                }
+                // Surface a failed render instead of leaving the user with
+                // a silently dead button (see start_rendering).
+                if let Some(err) = self.render_error.lock().unwrap().as_ref() {
+                    ui.add(egui::Separator::default());
+                    ui.colored_label(egui::Color32::from_rgb(220, 80, 80), format!("⚠ {err}"));
                 }
                 egui::warn_if_debug_build(ui);
             });

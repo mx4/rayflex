@@ -114,10 +114,7 @@ impl NeeLight {
     fn sample(&self, rnd_state: &mut u64, ref_point: Point) -> LightSample {
         match self {
             NeeLight::Sphere {
-                center,
-                radius,
-                le,
-                ..
+                center, radius, le, ..
             } => {
                 let dir = Vec3::gen_rnd_sphere(rnd_state);
                 // Orient the normal toward the receiver. Sampling always
@@ -269,6 +266,11 @@ fn is_occluded(
     })
 }
 
+/// Renderer settings. Derives `Default` so callers can construct it with
+/// `..RenderConfig::default()` and only name the fields they care about --
+/// adding a field then does NOT break every construction site. (A field
+/// added without that broke the `xtask` build twice, silently, because
+/// plain `cargo build` doesn't compile workspace members.)
 pub struct RenderConfig {
     pub path_tracing: u32,
     pub use_hashmap: bool,
@@ -285,6 +287,26 @@ pub struct RenderConfig {
     pub seed: Option<u64>,
     pub scene_file: PathBuf,
     pub image_file: PathBuf,
+}
+
+/// Defaults deliberately mirror the CLI's clap defaults, so
+/// `RenderConfig::default()` and running the binary with no flags agree.
+impl Default for RenderConfig {
+    fn default() -> Self {
+        Self {
+            path_tracing: 1, // 1 = classic ray tracing, >1 = path tracing
+            use_hashmap: false,
+            use_adaptive_sampling: false,
+            use_gamma: false,
+            adaptive_max_depth: 2,
+            reflection_max_depth: 6,
+            res_x: 0, // 0 = take the resolution from the scene file
+            res_y: 0,
+            seed: None, // None = non-deterministic sampling
+            scene_file: PathBuf::new(),
+            image_file: PathBuf::new(),
+        }
+    }
 }
 
 pub struct RenderJob {
@@ -403,8 +425,7 @@ impl RenderJob {
                     }
                     None => RGB::zero(),
                 };
-                return c_reflect * hit_material.ks * kr
-                    + c_refract * hit_material.kt * (1.0 - kr);
+                return c_reflect * hit_material.ks * kr + c_refract * hit_material.kt * (1.0 - kr);
             }
 
             // If this material has a texture, resolve it at the hit UV into
@@ -522,7 +543,14 @@ impl RenderJob {
         let shadow_ray = Ray::new(hit_point, wi);
         let tmax = dist * (1.0 - 1e-3);
         stats.num_rays_reflection += 1;
-        if is_occluded(&self.objects, stats, &shadow_ray, EPSILON, tmax, Some(origin)) {
+        if is_occluded(
+            &self.objects,
+            stats,
+            &shadow_ray,
+            EPSILON,
+            tmax,
+            Some(origin),
+        ) {
             return RGB::zero();
         }
 
@@ -652,15 +680,27 @@ impl RenderJob {
                 dir = hit_normal;
             }
             let scattered_ray = Ray::new(hit_point, dir.normalize());
-            let indirect =
-                self.trace_ray_path(stats, rnd_state, &scattered_ray, depth + 1, Some(hit_id), false);
+            let indirect = self.trace_ray_path(
+                stats,
+                rnd_state,
+                &scattered_ray,
+                depth + 1,
+                Some(hit_id),
+                false,
+            );
             direct + indirect * albedo
         } else {
             // Perfect mirror: no NEE (specular is a delta); the reflected
             // ray sees emitters directly.
             let reflected_ray = ray.get_reflection(hit_point, hit_normal);
-            let c0 =
-                self.trace_ray_path(stats, rnd_state, &reflected_ray, depth + 1, Some(hit_id), true);
+            let c0 = self.trace_ray_path(
+                stats,
+                rnd_state,
+                &reflected_ray,
+                depth + 1,
+                Some(hit_id),
+                true,
+            );
             c0 * hit_material.ks
         }
     }
@@ -676,10 +716,10 @@ impl RenderJob {
         if self.cfg.use_hashmap {
             // need to use f64 otherwise the loss of precision bites us
             key = (1e12 * (u as f64 + 0.5) + 1e6 * (v as f64 + 0.5)) as u64;
-            if self.cfg.use_adaptive_sampling {
-                if let Some(c) = pmap.get(&key) {
-                    return *c;
-                }
+            if self.cfg.use_adaptive_sampling
+                && let Some(c) = pmap.get(&key)
+            {
+                return *c;
             }
         }
         let ray = self.camera.get_ray(u, v);
@@ -719,7 +759,8 @@ impl RenderJob {
         if let Some(seed) = self.cfg.seed {
             // Simple splitmix-style hash of (seed, pos_u, pos_v).
             let mut h = seed;
-            h = h.wrapping_mul(0x9e3779b97f4a7c15)
+            h = h
+                .wrapping_mul(0x9e3779b97f4a7c15)
                 .wrapping_add(pos_u.to_bits() as u64)
                 .rotate_left(31);
             h ^= pos_v.to_bits() as u64;
@@ -931,8 +972,8 @@ impl RenderJob {
             // matches render_pixel_box's own clamping, so the reported
             // total equals res_x*res_y exactly and 100% fires only when
             // the final tile's pixels are actually in the buffer.
-            let actual = ((x + step).min(self.cfg.res_x) - x)
-                * ((y + step).min(self.cfg.res_y) - y);
+            let actual =
+                ((x + step).min(self.cfg.res_x) - x) * ((y + step).min(self.cfg.res_y) - y);
 
             if exit_req.load(Ordering::SeqCst) {
                 self.report_progress(actual);

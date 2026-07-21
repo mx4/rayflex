@@ -23,8 +23,16 @@ jobs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: stable
+    # --workspace is load-bearing: plain `cargo build` only builds the root
+    # package and skips the xtask member, so a RenderConfig field added in
+    # main.rs/app.rs but not xtask used to compile green here and break only
+    # when someone ran `cargo xtask`. That shipped twice.
     - name: build
-      run: cargo build --verbose
+      run: cargo build --workspace --verbose
     - name: test
-      run: cargo test --verbose
+      run: cargo test --workspace --verbose
+    - name: clippy
+      run: cargo clippy --workspace --all-targets -- -D warnings
+    - name: fmt
+      run: cargo fmt --all -- --check
 

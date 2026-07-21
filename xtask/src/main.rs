@@ -50,23 +50,88 @@ const REFLECTION_DEPTH: u32 = 8;
 /// 24, so 1:1, 3:2, and 16:10 all yield round heights (960 / 640 / 600).
 const ASSETS: &[Asset] = &[
     // Path-traced (emissive scenes) — spp drives noise; tone-map auto-applies.
-    Asset { scene: "gold-gallery", res_x: 960, res_y: 600, spp: 800 },  // 16:10; was 1500 when its key light was wound backwards (NEE got nothing) -- now converges ~3.7x faster
-    Asset { scene: "cornell-box", res_x: 960, res_y: 960, spp: 1500 },  // 1:1
-    Asset { scene: "suzanne-bust", res_x: 960, res_y: 960, spp: 1200 }, // 1:1, mirror; was 2200 to fight the backwards-wound key light (now fixed -> NEE works)
-    Asset { scene: "torus-knot", res_x: 960, res_y: 960, spp: 1500 },   // 1:1, diffuse + NEE -- converges faster
-    Asset { scene: "toybox", res_x: 960, res_y: 720, spp: 600 },
-    Asset { scene: "glass-cornell", res_x: 800, res_y: 800, spp: 1600 }, // 1:1, dielectrics converge slowly (caustics need high spp)        // 4:3, textured diffuse toys in a bright studio -- converges fast
+    Asset {
+        scene: "gold-gallery",
+        res_x: 960,
+        res_y: 600,
+        spp: 800,
+    }, // 16:10; was 1500 when its key light was wound backwards (NEE got nothing) -- now converges ~3.7x faster
+    Asset {
+        scene: "cornell-box",
+        res_x: 960,
+        res_y: 960,
+        spp: 1500,
+    }, // 1:1
+    Asset {
+        scene: "suzanne-bust",
+        res_x: 960,
+        res_y: 960,
+        spp: 1200,
+    }, // 1:1, mirror; was 2200 to fight the backwards-wound key light (now fixed -> NEE works)
+    Asset {
+        scene: "torus-knot",
+        res_x: 960,
+        res_y: 960,
+        spp: 1500,
+    }, // 1:1, diffuse + NEE -- converges faster
+    Asset {
+        scene: "toybox",
+        res_x: 960,
+        res_y: 720,
+        spp: 600,
+    },
+    Asset {
+        scene: "glass-cornell",
+        res_x: 800,
+        res_y: 800,
+        spp: 1600,
+    }, // 1:1, dielectrics converge slowly (caustics need high spp)        // 4:3, textured diffuse toys in a bright studio -- converges fast
     // 16:10. BY FAR the slowest asset (~14 min): 227k triangles + 21 textures,
     // and a deep interior where most light arrives via multi-bounce GI. Kept
     // at 800x500 rather than the usual 960 width to bound that cost.
-    Asset { scene: "sponza", res_x: 800, res_y: 500, spp: 700 },
-    Asset { scene: "rayflex-pt", res_x: 960, res_y: 640, spp: 2000 },   // 3:2
+    Asset {
+        scene: "sponza",
+        res_x: 800,
+        res_y: 500,
+        spp: 700,
+    },
+    Asset {
+        scene: "rayflex-pt",
+        res_x: 960,
+        res_y: 640,
+        spp: 2000,
+    }, // 3:2
     // Ray-traced (spot/vec lit) — spp = 1, adaptive antialiasing on.
-    Asset { scene: "teapot", res_x: 960, res_y: 960, spp: 1 },        // 1:1
-    Asset { scene: "trolley", res_x: 960, res_y: 960, spp: 1 },       // 1:1
-    Asset { scene: "buddha", res_x: 960, res_y: 960, spp: 1 },        // 1:1
-    Asset { scene: "sphere-tunnel", res_x: 960, res_y: 960, spp: 1 }, // 1:1
-    Asset { scene: "rayflex", res_x: 960, res_y: 640, spp: 1 },       // 3:2
+    Asset {
+        scene: "teapot",
+        res_x: 960,
+        res_y: 960,
+        spp: 1,
+    }, // 1:1
+    Asset {
+        scene: "trolley",
+        res_x: 960,
+        res_y: 960,
+        spp: 1,
+    }, // 1:1
+    Asset {
+        scene: "buddha",
+        res_x: 960,
+        res_y: 960,
+        spp: 1,
+    }, // 1:1
+    Asset {
+        scene: "sphere-tunnel",
+        res_x: 960,
+        res_y: 960,
+        spp: 1,
+    }, // 1:1
+    Asset {
+        scene: "rayflex",
+        res_x: 960,
+        res_y: 640,
+        spp: 1,
+    }, // 3:2
 ];
 
 /// Repo root = the parent of this crate (xtask/..). Used to anchor the CWD so
@@ -100,12 +165,12 @@ fn render(asset: &Asset, fast: bool) {
         // scenes, but not the ray-traced ones (their Phong/spot-light look
         // was authored without gamma).
         use_gamma: !ray_traced,
-        adaptive_max_depth: 2,
         reflection_max_depth: REFLECTION_DEPTH,
         res_x,
         res_y,
         scene_file: PathBuf::from(format!("scenes/{}.json", asset.scene)),
         image_file: PathBuf::from(format!("assets/{}.png", asset.scene)),
+        ..RenderConfig::default()
     };
 
     let mode = if ray_traced {

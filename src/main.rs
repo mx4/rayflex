@@ -39,7 +39,10 @@ struct Options {
     path_tracing: u32,
     #[arg(short = 'u', long, help = "use ui")]
     use_ui: bool,
-    #[arg(long, help = "deterministic seed for path tracing (reproducible renders)")]
+    #[arg(
+        long,
+        help = "deterministic seed for path tracing (reproducible renders)"
+    )]
     seed: Option<u64>,
 }
 

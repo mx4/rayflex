@@ -293,6 +293,7 @@ impl AABB {
         v
     }
 
+    #[allow(clippy::too_many_arguments)] // mirrors Object::intercept
     pub fn intercept(
         &self,
         stats: &mut RenderStats,

@@ -10,6 +10,7 @@ use crate::vec3::Vec2;
 use crate::vec3::Vec3;
 use serde::{Deserialize, Serialize};
 
+#[allow(clippy::too_many_arguments)] // intercept's params are all load-bearing
 pub trait Object {
     fn display(&self);
     /// Test for intersection with `ray`.
@@ -250,7 +251,10 @@ impl Object for Plane {
         // Raw coordinates, no sign hack -- do_checker wraps negatives
         // periodically via rem_euclid, so there is no phase seam at the
         // axes (the old +0.125 flip left one).
-        Vec2 { x: d.dot(u), y: d.dot(v) }
+        Vec2 {
+            x: d.dot(u),
+            y: d.dot(v),
+        }
     }
     fn get_material_id(&self, _sub_id: usize) -> usize {
         self.material_id

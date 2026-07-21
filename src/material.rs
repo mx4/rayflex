@@ -140,8 +140,8 @@ impl Material {
         // test, so the negative half of any plane rendered as one solid
         // block (and planes needed the +0.125 phase-shift hack, which
         // left a seam at the axis).
-        let pattern = ((text2d.x * 4.0).rem_euclid(1.0) > 0.5)
-            ^ ((text2d.y * 4.0).rem_euclid(1.0) > 0.5);
+        let pattern =
+            ((text2d.x * 4.0).rem_euclid(1.0) > 0.5) ^ ((text2d.y * 4.0).rem_euclid(1.0) > 0.5);
         if pattern { c / 3.0 } else { c }
     }
 
