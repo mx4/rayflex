@@ -33,6 +33,13 @@ pub struct RayflexApp {
     /// captured at render start so the display can preserve the actual
     /// rendered aspect ratio even if the sliders are changed afterward.
     texture_size: Option<(usize, usize)>,
+    /// Slot the render thread fills with the live image buffer right
+    /// after `alloc_image`, so the UI can upload from it directly (see
+    /// the pull-model upload in `ui()`).
+    render_buffer: Arc<Mutex<Option<Arc<Mutex<ColorImage>>>>>,
+    /// Last progress value the UI actually uploaded to the texture.
+    /// Starts at -1.0 so the first frame always uploads.
+    last_uploaded_pct: f32,
     rendering_active: Arc<AtomicBool>,
     rendering_needs_stop: Arc<AtomicBool>,
     scene_choice: usize,
@@ -52,6 +59,8 @@ impl Default for RayflexApp {
             path_level: 200,
             texture_handle: None,
             texture_size: None,
+            render_buffer: Arc::new(Mutex::new(None)),
+            last_uploaded_pct: -1.0,
             rendering_active: Arc::new(AtomicBool::new(false)),
             rendering_needs_stop: Arc::new(AtomicBool::new(false)),
             scene_choice: 0,
@@ -64,20 +73,26 @@ fn start_rendering(
     rendering_needs_stop: Arc<AtomicBool>,
     cfg: RenderConfig,
     progress: Arc<Mutex<f32>>,
-    texture: TextureHandle,
+    img_slot: Arc<Mutex<Option<Arc<Mutex<ColorImage>>>>>,
     ctx: egui::Context,
 ) {
     let res = load_scene(cfg);
     let mut job = res.unwrap();
 
     job.alloc_image();
-    let img = job.image.lock().unwrap().get_img();
+    // Hand the live image buffer to the UI, which uploads it to the
+    // texture itself (pull model). Pushing `texture.set` from this
+    // thread is unreliable when the window is occluded (e.g. another
+    // macOS Space): request_repaint runs no frames there, so the final
+    // full-image upload was lost and tiles that were unrendered at the
+    // last pre-occlusion upload stayed black bands even after switching
+    // back. The UI re-uploads from this buffer on any frame where
+    // progress advanced, so the first frame after the window becomes
+    // visible again refreshes everything.
+    *img_slot.lock().unwrap() = Some(job.image.lock().unwrap().get_img());
 
     let update_func = move |pct: f32| {
         *progress.lock().unwrap() = pct.min(1.0);
-        let mut texture_handle = texture.clone();
-
-        texture_handle.set(img.lock().unwrap().clone(), Default::default());
         ctx.request_repaint();
     };
     job.set_progress_func(Box::new(update_func.clone()));
@@ -107,6 +122,12 @@ impl RayflexApp {
         let value_clone = self.progress.clone();
         let rendering_active_clone = self.rendering_active.clone();
         let rendering_needs_stop_clone = self.rendering_needs_stop.clone();
+        let img_slot_clone = self.render_buffer.clone();
+        // Fresh render: reset progress (it would otherwise sit at 1.0
+        // from the previous run until the first update tick) and force
+        // the pull-upload on the next frame.
+        *self.progress.lock().unwrap() = 0.0;
+        self.last_uploaded_pct = -1.0;
 
         let texture_handle;
         {
@@ -146,7 +167,7 @@ impl RayflexApp {
                 rendering_needs_stop_clone,
                 cfg,
                 value_clone,
-                texture_handle,
+                img_slot_clone,
                 ctx_clone,
             )
         });
@@ -322,6 +343,32 @@ impl eframe::App for RayflexApp {
                 }
                 egui::warn_if_debug_build(ui);
             });
+
+        // Pull-model texture upload: the UI uploads the live render
+        // buffer itself on any frame where progress advanced (or a
+        // render is active), rather than relying on the render thread
+        // pushing `texture.set` + request_repaint. When the window is
+        // occluded (another macOS Space, minimize), pushed updates run
+        // no frames and the final full-image upload was lost -- tiles
+        // unrendered at the last pre-occlusion upload stayed as black
+        // bands even after switching back and even though the render
+        // had completed. Uploading here means the first frame after the
+        // window becomes visible again always refreshes the texture
+        // from the (complete) buffer.
+        {
+            let buf = self.render_buffer.lock().unwrap().clone();
+            if let (Some(texture), Some(buf)) = (&self.texture_handle, buf) {
+                let pct = *self.progress.lock().unwrap();
+                // pct changes exactly when the renderer reports progress
+                // (and is set to 1.0 on completion), so this uploads at
+                // the same cadence the old push model used.
+                if pct != self.last_uploaded_pct {
+                    let mut texture_handle = texture.clone();
+                    texture_handle.set(buf.lock().unwrap().clone(), Default::default());
+                    self.last_uploaded_pct = pct;
+                }
+            }
+        }
 
         egui::CentralPanel::default().show(ui, |ui| {
             if let (Some(texture), Some((tw, th))) = (&self.texture_handle, self.texture_size) {
