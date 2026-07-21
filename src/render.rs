@@ -887,12 +887,24 @@ impl RenderJob {
             let x = (v % nx) * step;
             let y = (v / nx) * step;
 
+            // Edge tiles are smaller than step*step when the resolution
+            // isn't a multiple of `step`. Reporting step*step anyway made
+            // the accumulated total overshoot the pixel count, so the
+            // progress bar hit 100% ("done") while the last tiles were
+            // still rendering (e.g. 672x416 @ step=10 reports 285600
+            // pixels for a 279552 image -- done ~60 tiles early). This
+            // matches render_pixel_box's own clamping, so the reported
+            // total equals res_x*res_y exactly and 100% fires only when
+            // the final tile's pixels are actually in the buffer.
+            let actual = ((x + step).min(self.cfg.res_x) - x)
+                * ((y + step).min(self.cfg.res_y) - y);
+
             if exit_req.load(Ordering::SeqCst) {
-                self.report_progress(step * step);
+                self.report_progress(actual);
                 return;
             }
             self.render_pixel_box(x, y, step, step, &mut stats);
-            self.report_progress(step * step);
+            self.report_progress(actual);
             self.total_stats.lock().unwrap().add(stats);
         });
     }
