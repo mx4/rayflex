@@ -262,11 +262,22 @@ impl AABB {
         }
 
         /*
-         * If any interception exists and it's closer to the entry point into
-         * this node, we're done.
+         * check_intersect reports the ENTRY distance, which is negative when
+         * the ray starts inside this node's box (it still returns true there,
+         * since it tests t_max >= t_min.max(0)). Such a ray does traverse the
+         * node, so clamp the entry to tmin rather than discarding it --
+         * returning false here silently skipped the whole subtree for any ray
+         * originating inside the box. That hit (a) every ray once meshes are
+         * merged, because the root box then encloses the camera, and (b)
+         * every secondary/bounce ray leaving a surface inside its own mesh's
+         * box, which quietly cost meshes their self-occlusion.
+         *
+         * t_aabb is used below as the entry point (to pick the first octant
+         * via nearest_node, and to reject plane crossings behind the entry),
+         * so tmin is exactly the right value when the origin is inside.
          */
         if t_aabb < tmin {
-            return false;
+            t_aabb = tmin;
         }
 
         let mut oid0 = 0;

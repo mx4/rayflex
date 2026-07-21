@@ -154,6 +154,17 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
         // them (else base_mat_idx + id indexes past the material list).
         let num_mtl_mats = (scene.num_materials - base_mat_idx) as usize;
 
+        // Merge every submesh of this OBJ into ONE mesh with a single BVH.
+        // tobj splits an OBJ by group (`g`), not just by material, so Sponza
+        // alone produced 361 separate Mesh objects -- and find_closest_hit
+        // tests every object's root AABB on every ray, so that split cost
+        // ~300 AABB tests/ray. For contrast, buddha (4x MORE triangles, but
+        // one mesh) needs ~3.6. Merging gives one spatial tree that prunes by
+        // location instead of by authoring group. The per-triangle
+        // material_id is resolved below, so merging costs nothing at shading
+        // time (Mesh::get_material_id already reads it per hit triangle).
+        let mut all_triangles: Vec<Triangle> = Vec::new();
+
         models.iter().for_each(|m| {
             let mesh = &m.mesh;
             let n = mesh.indices.len() / 3;
@@ -175,7 +186,7 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
             assert!(mesh.indices.len() % 3 == 0);
             scene.num_triangles_in_all_objs += n;
             num_triangles_in_obj += n;
-            let mut triangles = Vec::with_capacity(n);
+            all_triangles.reserve(n);
             let mut num_skipped = 0;
             // With single_index, a present vn stream is unified 1:1 with
             // positions (same index, same vertex count) -- see LoadOptions
@@ -240,7 +251,9 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                     }
                 }
                 let mut triangle = Triangle::new([p0, p1, p2], mat_id);
-                triangle.mesh_id = triangles.len();
+                // Index into the MERGED list -- aabb.rs uses mesh_id as the
+                // triangle's identity when building/reporting hits.
+                triangle.mesh_id = all_triangles.len();
                 if has_normals {
                     triangle.normals =
                         Some([vertex_normal(i0), vertex_normal(i1), vertex_normal(i2)]);
@@ -248,14 +261,18 @@ fn load_mesh(scene: &mut Scene, json: &serde_json::Value) -> std::io::Result<()>
                 if has_uvs {
                     triangle.uvs = Some([vertex_uv(i0), vertex_uv(i1), vertex_uv(i2)]);
                 }
-                triangles.push(triangle);
+                all_triangles.push(triangle);
             }
             if num_skipped > 0 {
                 println!("-- skipped {num_skipped} malformed triangles");
             }
-            scene.objects.push(Arc::new(Mesh::new(triangles, 0)));
-            scene.num_objs += 1;
         });
+        scene.objects.push(Arc::new(Mesh::new(all_triangles, 0)));
+        // One object per OBJ file now. This also keeps num_objs in step with
+        // the obj.N.* key numbering: it used to advance once per submesh, so
+        // a multi-group obj.0 (like Sponza, 361 submeshes) pushed the counter
+        // past obj.1 and silently skipped every later mesh in the scene.
+        scene.num_objs += 1;
         println!(
             "-- loaded {} w/ {} triangles -- rotx={} roty={} rotz={} scale={} translate={:?}",
             path.green(),
