@@ -278,16 +278,14 @@ impl eframe::App for RayflexApp {
                     ui.add(
                         egui::Slider::new(&mut self.width, 32..=2048)
                             .text("width")
-                            .suffix(" px")
-                            .step_by(64.0),
+                            .suffix(" px"),
                     );
                 });
                 ui.horizontal(|ui| {
                     ui.add(
                         egui::Slider::new(&mut self.height, 32..=2048)
                             .text("height")
-                            .suffix(" px")
-                            .step_by(64.0),
+                            .suffix(" px"),
                     );
                 });
                 ui.add(egui::Separator::default());
