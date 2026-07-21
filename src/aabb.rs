@@ -14,6 +14,71 @@ use crate::vec3::Vec3;
 const MAX_NUM_TRIANGLES: usize = 30;
 const MAX_DEPTH: u32 = 8;
 
+/// Exact triangle-vs-AABB overlap test (Akenine-Moller, 13 separating axes:
+/// 3 box face normals, 1 triangle normal, 9 edge x box-axis crosses).
+/// `c` is the box center, `h` the box half-extents. Complete for convex
+/// shapes: no separating axis found <=> the triangle and box overlap.
+fn tri_box_overlap(c: Point, h: Vec3, v0: Point, v1: Point, v2: Point) -> bool {
+    // Translate so the box is centered at the origin.
+    let v0 = v0 - c;
+    let v1 = v1 - c;
+    let v2 = v2 - c;
+    let e0 = v1 - v0;
+    let e1 = v2 - v1;
+    let e2 = v0 - v2;
+
+    // 9 axes: edge x box axis. For axis a = e x u, vertex projections use
+    // the scalar triple product v.(e x u); the box radius projects to
+    // h.|a| componentwise.
+    for e in [e0, e1, e2] {
+        // a = e x X = (0, e.z, -e.y)
+        let p0 = v0.y * e.z - v0.z * e.y;
+        let p1 = v1.y * e.z - v1.z * e.y;
+        let p2 = v2.y * e.z - v2.z * e.y;
+        let r = h.y * e.z.abs() + h.z * e.y.abs();
+        if p0.min(p1).min(p2) > r || p0.max(p1).max(p2) < -r {
+            return false;
+        }
+        // a = e x Y = (-e.z, 0, e.x)
+        let p0 = v0.z * e.x - v0.x * e.z;
+        let p1 = v1.z * e.x - v1.x * e.z;
+        let p2 = v2.z * e.x - v2.x * e.z;
+        let r = h.x * e.z.abs() + h.z * e.x.abs();
+        if p0.min(p1).min(p2) > r || p0.max(p1).max(p2) < -r {
+            return false;
+        }
+        // a = e x Z = (e.y, -e.x, 0)
+        let p0 = v0.x * e.y - v0.y * e.x;
+        let p1 = v1.x * e.y - v1.y * e.x;
+        let p2 = v2.x * e.y - v2.y * e.x;
+        let r = h.x * e.y.abs() + h.y * e.x.abs();
+        if p0.min(p1).min(p2) > r || p0.max(p1).max(p2) < -r {
+            return false;
+        }
+    }
+
+    // 3 box face normals: triangle AABB vs box AABB.
+    if v0.x.min(v1.x).min(v2.x) > h.x || v0.x.max(v1.x).max(v2.x) < -h.x {
+        return false;
+    }
+    if v0.y.min(v1.y).min(v2.y) > h.y || v0.y.max(v1.y).max(v2.y) < -h.y {
+        return false;
+    }
+    if v0.z.min(v1.z).min(v2.z) > h.z || v0.z.max(v1.z).max(v2.z) < -h.z {
+        return false;
+    }
+
+    // 1 triangle normal: plane-box overlap.
+    let n = e0.cross(e1);
+    let s = n.dot(v0);
+    let r = h.x * n.x.abs() + h.y * n.y.abs() + h.z * n.z.abs();
+    if s.abs() > r {
+        return false;
+    }
+
+    true
+}
+
 /*
  * Axis-Aligned Bounding Box
  */
@@ -67,31 +132,18 @@ impl AABB {
             Self::init_with_triangle(p_min, p_max, triangle);
         });
     }
-    fn point_inside(&self, p: Point) -> bool {
-        p.x >= self.p_min.x
-            && p.x <= self.p_max.x
-            && p.y >= self.p_min.y
-            && p.y <= self.p_max.y
-            && p.z >= self.p_min.z
-            && p.z <= self.p_max.z
-    }
     fn triangle_inside(&self, t: &Triangle) -> bool {
-        if self.point_inside(t.points[0])
-            || self.point_inside(t.points[1])
-            || self.point_inside(t.points[2])
-        {
-            return true;
-        }
-        let ray0 = Ray::new(t.points[0], t.points[1] - t.points[0]);
-        let ray1 = Ray::new(t.points[1], t.points[2] - t.points[1]);
-        let ray2 = Ray::new(t.points[2], t.points[0] - t.points[2]);
-        /*
-         * XXX: not correct if the AABB doesn't touch an edge!!
-         */
-        let mut t0 = 0.0;
-        self.check_intersect(&ray0, 1.0, &mut t0)
-            || self.check_intersect(&ray1, 1.0, &mut t0)
-            || self.check_intersect(&ray2, 1.0, &mut t0)
+        // The old test (vertex-inside-box || edge-intersects-box) dropped
+        // any triangle whose *face* covers a cell without a vertex inside
+        // it or an edge touching it -- those triangles were silently
+        // missing from the leaf, so rays through the cell hit nothing and
+        // rendered as rectangular sky-holes (verified on sponza's
+        // lion-head wall: 1369 near-black pixels with the bug vs 71
+        // after). SAT is complete for convex shapes, so no triangle that
+        // touches the cell is ever dropped.
+        let c = (self.p_min + self.p_max) * 0.5;
+        let h = (self.p_max - self.p_min) * 0.5;
+        tri_box_overlap(c, h, t.points[0], t.points[1], t.points[2])
     }
     fn setup_node(&mut self, p_min: Point, p_max: Point, triangles: &[AABBTriangle], depth: u32) {
         self.p_min = p_min;
