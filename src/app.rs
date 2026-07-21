@@ -155,6 +155,7 @@ impl RayflexApp {
             reflection_max_depth: 5,
             adaptive_max_depth: 2,
             use_hashmap: true,
+            seed: None,
             scene_file: PathBuf::from(self.scene_file.clone()),
             image_file: PathBuf::from(self.output_file.clone()),
         };

@@ -39,6 +39,8 @@ struct Options {
     path_tracing: u32,
     #[arg(short = 'u', long, help = "use ui")]
     use_ui: bool,
+    #[arg(long, help = "deterministic seed for path tracing (reproducible renders)")]
+    seed: Option<u64>,
 }
 
 fn print_opt(opt: &Options) {
@@ -87,6 +89,7 @@ fn main() -> std::io::Result<()> {
         res_y: opt.res_y,
         use_hashmap: opt.use_hashmap,
         path_tracing: opt.path_tracing,
+        seed: opt.seed,
         scene_file: opt.scene_file,
         image_file: opt.img_file,
     };

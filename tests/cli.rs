@@ -38,28 +38,48 @@ fn scene_glass_ball_path_traced() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn scene_teapot() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("rayflex")?;
-    cmd.arg("-l").arg("scenes/teapot.json").assert().success();
+    cmd.arg("-l")
+        .arg("scenes/teapot.json")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-teapot.png")
+        .assert()
+        .success();
 
     Ok(())
 }
 #[test]
 fn scene_trolley() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("rayflex")?;
-    cmd.arg("-l").arg("scenes/trolley.json").assert().success();
+    cmd.arg("-l")
+        .arg("scenes/trolley.json")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-trolley.png")
+        .assert()
+        .success();
 
     Ok(())
 }
 #[test]
 fn scene_buddha() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("rayflex")?;
-    cmd.arg("-l").arg("scenes/buddha.json").assert().success();
+    cmd.arg("-l")
+        .arg("scenes/buddha.json")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-buddha.png")
+        .assert()
+        .success();
 
     Ok(())
 }
 #[test]
 fn scene_cow() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("rayflex")?;
-    cmd.arg("-l").arg("scenes/cow.json").assert().success();
+    cmd.arg("-l")
+        .arg("scenes/cow.json")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-cow.png")
+        .assert()
+        .success();
 
     Ok(())
 }
@@ -74,6 +94,8 @@ fn scene_gold_gallery() -> Result<(), Box<dyn std::error::Error>> {
         .arg("192")
         .arg("-p")
         .arg("5")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-gold-gallery.png")
         .assert()
         .success();
 
@@ -86,6 +108,8 @@ fn scene_cornell_box() -> Result<(), Box<dyn std::error::Error>> {
         .arg("scenes/cornell-box.json")
         .arg("-p")
         .arg("5")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-cornell-box.png")
         .assert()
         .success();
 
@@ -102,6 +126,8 @@ fn scene_suzanne_bust() -> Result<(), Box<dyn std::error::Error>> {
         .arg("300")
         .arg("-p")
         .arg("5")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-suzanne-bust.png")
         .assert()
         .success();
 
@@ -118,6 +144,8 @@ fn scene_torus_knot() -> Result<(), Box<dyn std::error::Error>> {
         .arg("300")
         .arg("-p")
         .arg("5")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-torus-knot.png")
         .assert()
         .success();
 
@@ -134,6 +162,8 @@ fn scene_toybox() -> Result<(), Box<dyn std::error::Error>> {
         .arg("180")
         .arg("-p")
         .arg("4")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-toybox.png")
         .assert()
         .success();
 
@@ -153,6 +183,8 @@ fn scene_sponza() -> Result<(), Box<dyn std::error::Error>> {
         .arg("100")
         .arg("-p")
         .arg("2")
+        .arg("--img-file")
+        .arg("/tmp/rayflex-test-sponza.png")
         .assert()
         .success();
 

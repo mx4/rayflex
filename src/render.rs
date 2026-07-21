@@ -278,6 +278,11 @@ pub struct RenderConfig {
     pub reflection_max_depth: u32,
     pub res_x: u32,
     pub res_y: u32,
+    /// Optional deterministic seed for path tracing. When set, each
+    /// pixel's random state is derived from (seed, pos_u, pos_v) so
+    /// renders are reproducible regardless of rayon scheduling order.
+    /// When None, path tracing uses thread_rng (non-deterministic).
+    pub seed: Option<u64>,
     pub scene_file: PathBuf,
     pub image_file: PathBuf,
 }
@@ -307,10 +312,14 @@ impl RenderJob {
     }
     fn report_progress(&self, v: u32) {
         let denom = self.cfg.res_x * self.cfg.res_y;
+        // Guard against div-by-zero for tiny images (< 128 total pixels):
+        // denom / 128 would be 0, and div_euclid(0) panics. Use at least
+        // 1 so every pixel reports -- the natural behavior for small imgs.
+        let bucket = (denom / 128).max(1) as usize;
         let mut total = self.progress_total.lock().unwrap();
-        let before = (*total).div_euclid((denom / 128) as usize);
+        let before = (*total).div_euclid(bucket);
         *total += v as usize;
-        let after = (*total).div_euclid((denom / 128) as usize);
+        let after = (*total).div_euclid(bucket);
         let d = before != after || 100 * (denom as i32 - *total as i32).unsigned_abs() / denom < 1;
         if d {
             let pct = *total as f32 / denom as f32;
@@ -700,12 +709,38 @@ impl RenderJob {
         assert!(self.cfg.path_tracing > 1);
 
         let mut c = RGB::zero();
-        let mut rng = rand::thread_rng();
-        let mut rnd_state = rng.gen_range(0..u64::MAX);
+
+        // Deterministic seeding: when `cfg.seed` is set, derive a
+        // per-pixel random state from (seed, pos_u, pos_v) so the
+        // render is reproducible regardless of rayon scheduling order.
+        // When None, use thread_rng as before (non-deterministic).
+        let mut rnd_state: u64;
+        let deterministic = self.cfg.seed.is_some();
+        if let Some(seed) = self.cfg.seed {
+            // Simple splitmix-style hash of (seed, pos_u, pos_v).
+            let mut h = seed;
+            h = h.wrapping_mul(0x9e3779b97f4a7c15)
+                .wrapping_add(pos_u.to_bits() as u64)
+                .rotate_left(31);
+            h ^= pos_v.to_bits() as u64;
+            h = h.wrapping_mul(0x9e3779b97f4a7c15);
+            rnd_state = h;
+        } else {
+            let mut rng = rand::thread_rng();
+            rnd_state = rng.gen_range(0..u64::MAX);
+        }
 
         for _i in 0..self.cfg.path_tracing {
-            let off_u = rng.gen_range(0.0..du);
-            let off_v = rng.gen_range(0.0..dv);
+            let off_u;
+            let off_v;
+            if deterministic {
+                off_u = rand01(&mut rnd_state) * du;
+                off_v = rand01(&mut rnd_state) * dv;
+            } else {
+                let mut rng = rand::thread_rng();
+                off_u = rng.gen_range(0.0..du);
+                off_v = rng.gen_range(0.0..dv);
+            }
             let ray = self.camera.get_ray(pos_u + off_u, pos_v + off_v);
 
             stats.num_rays_sampling += 1;
