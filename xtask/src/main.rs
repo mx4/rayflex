@@ -50,6 +50,10 @@ const ASSETS: &[Asset] = &[
     Asset { scene: "suzanne-bust", res_x: 960, res_y: 960, spp: 1200 }, // 1:1, mirror; was 2200 to fight the backwards-wound key light (now fixed -> NEE works)
     Asset { scene: "torus-knot", res_x: 960, res_y: 960, spp: 1500 },   // 1:1, diffuse + NEE -- converges faster
     Asset { scene: "toybox", res_x: 960, res_y: 720, spp: 600 },        // 4:3, textured diffuse toys in a bright studio -- converges fast
+    // 16:10. BY FAR the slowest asset (~14 min): 227k triangles + 21 textures,
+    // and a deep interior where most light arrives via multi-bounce GI. Kept
+    // at 800x500 rather than the usual 960 width to bound that cost.
+    Asset { scene: "sponza", res_x: 800, res_y: 500, spp: 700 },
     Asset { scene: "rayflex-pt", res_x: 960, res_y: 640, spp: 2000 },   // 3:2
     // Ray-traced (spot/vec lit) — spp = 1, adaptive antialiasing on.
     Asset { scene: "teapot", res_x: 960, res_y: 960, spp: 1 },        // 1:1
@@ -81,7 +85,6 @@ fn render(asset: &Asset, fast: bool) {
 
     let cfg = RenderConfig {
         path_tracing: spp,
-        use_lines: false,
         // Adaptive antialiasing (ray-tracing only) needs the sample cache.
         use_hashmap: ray_traced,
         use_adaptive_sampling: ray_traced,

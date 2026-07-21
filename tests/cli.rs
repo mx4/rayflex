@@ -139,3 +139,22 @@ fn scene_toybox() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+#[test]
+fn scene_sponza() -> Result<(), Box<dyn std::error::Error>> {
+    // Tiny render on purpose: this scene is dominated by its fixed load cost
+    // (23 MB OBJ + 21 textures + one BVH over 227k triangles, ~1.8s), so the
+    // pixels are nearly free and the test still covers the whole path.
+    let mut cmd = Command::cargo_bin("rayflex")?;
+    cmd.arg("-l")
+        .arg("scenes/sponza.json")
+        .arg("-x")
+        .arg("160")
+        .arg("-y")
+        .arg("100")
+        .arg("-p")
+        .arg("2")
+        .assert()
+        .success();
+
+    Ok(())
+}

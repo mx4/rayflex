@@ -176,6 +176,7 @@ impl eframe::App for RayflexApp {
             "suzanne-bust",
             "torus-knot",
             "toybox",
+            "sponza",
             "rayflex-pt",
             "trolley",
             "cow",
@@ -206,6 +207,7 @@ impl eframe::App for RayflexApp {
                                         | "suzanne-bust"
                                         | "torus-knot"
                                         | "toybox"
+                                        | "sponza"
                                         | "rayflex-pt"
                                 );
                                 self.use_gamma = true;
@@ -221,6 +223,13 @@ impl eframe::App for RayflexApp {
                                     "toybox" => {
                                         self.width = 800;
                                         self.height = 600;
+                                    }
+                                    // Sponza is by far the heaviest scene
+                                    // (227k tris); keep the interactive
+                                    // preview small so the UI stays usable.
+                                    "sponza" => {
+                                        self.width = 640;
+                                        self.height = 400;
                                     }
                                     "suzanne-bust" | "torus-knot" => {
                                         self.width = 700;
